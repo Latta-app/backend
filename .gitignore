@@ -138,7 +138,6 @@ dist
 
 # others
 tmp*
-src/config/database.js
 
 # mac
 .DS_Store
