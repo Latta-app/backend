@@ -7,10 +7,16 @@ import privateRoutes from './api/routes/privateRoutes.js';
 import jsonConfig from './config/express.Json.js';
 import limiter from './config/express.limiter.js';
 import initializeFirebase from './config/firebase.js';
-import { sequelize , checkDatabaseConnection} from './config/database.js';
+import { sequelize, checkDatabaseConnection } from './config/database.js';
 
-const requiredEnvs = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'DATABASE_URL', 'ACCESS_LIST'];
-requiredEnvs.forEach(env => {
+const requiredEnvs = [
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY',
+  'DATABASE_URL',
+  'ACCESS_LIST',
+];
+requiredEnvs.forEach((env) => {
   if (!process.env[env]) {
     console.error(`❌ Variável de ambiente ausente: ${env}`);
     process.exit(1);
@@ -29,6 +35,10 @@ app.use(express.json(jsonConfig));
 app.use(helmet());
 app.use(limiter);
 app.use('/api/', privateRoutes);
+
+app.get('/', (_req, res) => {
+  res.status(200).json({ message: '🚀 Server is running!' });
+});
 
 const server = app.listen(port, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${port}`);
