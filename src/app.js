@@ -37,7 +37,7 @@ app.use(limiter);
 app.use('/api/', privateRoutes);
 
 app.get('/', (_req, res) => {
-  res.status(200).json({ message: '🚀 Server is running!' });
+  res.status(200).json({ message: '🚀 Server is running!!' });
 });
 
 const server = app.listen(port, () => {
