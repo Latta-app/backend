@@ -52,8 +52,7 @@ const getAllPetOwners = async ({ clinicId }) => {
         'id',
         'name',
         'email',
-        'phone',
-        'cellphone',
+        'cell_phone',
         'cpf',
         'rg',
         'date_of_birth',
@@ -169,7 +168,7 @@ const getPetOwnerById = async ({ id, clinicId }) => {
           ],
         },
       ],
-      attributes: ['id', 'name', 'email', 'phone'],
+      attributes: ['id', 'name', 'email', 'cell_phone'],
     });
 
     return petOwner;
@@ -251,8 +250,7 @@ const searchPetOwners = async ({ searchTerm, clinicId }) => {
         'id',
         'name',
         'email',
-        'phone',
-        'cellphone',
+        'cell_phone',
         'cpf',
         'rg',
         'date_of_birth',

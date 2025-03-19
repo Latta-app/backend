@@ -25,11 +25,7 @@ const PetOwner = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: false,
       },
-      phone: {
-        type: DataTypes.STRING(20),
-        allowNull: true,
-      },
-      cellphone: {
+      cell_phone: {
         type: DataTypes.STRING(20),
         allowNull: true,
       },
