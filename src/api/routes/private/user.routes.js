@@ -13,42 +13,44 @@ router.get(
   '/veterinaries',
   verifyToken,
   checkRole(['admin', 'superAdmin']),
-  UserController.getAllVeterinaries
+  UserController.getAllVeterinaries,
 );
 
 router.get(
   '/veterinary/:id',
   verifyToken,
   checkRole(['admin', 'superAdmin']),
-  UserController.getVeterinaryById
+  UserController.getVeterinaryById,
 );
 
 router.get(
   '/pet-owners',
   verifyToken,
   checkRole(['admin', 'superAdmin']),
-  UserController.getAllPetOwners
+  UserController.getAllPetOwners,
 );
 
 router.get(
   '/pet-owner/:id',
   verifyToken,
   checkRole(['admin', 'superAdmin']),
-  UserController.getPetOwnerById
+  UserController.getPetOwnerById,
+);
+
+router.get(
+  '/bathers',
+  verifyToken,
+  checkRole(['admin', 'superAdmin']),
+  UserController.getAllBathers,
 );
 
 router.get(
   '/:email',
   verifyToken,
   checkRole(['admin', 'superAdmin']),
-  UserController.getUserByEmail
+  UserController.getUserByEmail,
 );
 
-router.get(
-  '/',
-  verifyToken,
-  checkRole(['admin', 'superAdmin']),
-  UserController.getAllUsers
-);
+router.get('/', verifyToken, checkRole(['admin', 'superAdmin']), UserController.getAllUsers);
 
 export default router;

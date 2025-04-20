@@ -1,8 +1,8 @@
 import { DataTypes } from 'sequelize';
 
-const PetTemperament = (sequelize) => {
+const SchedulingStatus = (sequelize) => {
   const model = sequelize.define(
-    'PetTemperament',
+    'SchedulingStatus',
     {
       id: {
         type: DataTypes.UUID,
@@ -10,12 +10,12 @@ const PetTemperament = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
       },
       name: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(255),
         allowNull: false,
         unique: true,
       },
       label: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(255),
         allowNull: false,
       },
       created_at: {
@@ -30,20 +30,15 @@ const PetTemperament = (sequelize) => {
       },
     },
     {
-      tableName: 'pet_temperaments',
+      tableName: 'scheduling_status',
       timestamps: false,
       underscored: true,
     },
   );
 
-  model.associate = (models) => {
-    model.hasMany(models.Pet, {
-      foreignKey: 'pet_temperament_id',
-      as: 'pets',
-    });
-  };
+  model.associate = (models) => {};
 
   return model;
 };
 
-export default PetTemperament;
+export default SchedulingStatus;

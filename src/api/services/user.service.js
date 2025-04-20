@@ -4,10 +4,7 @@ import bcrypt from 'bcryptjs';
 
 const createUser = async ({ userData }) => {
   try {
-    const validRoleIds = [
-      VETERINARY_ROLE_ID,
-      PET_OWNER_ROLE_ID
-    ];
+    const validRoleIds = [VETERINARY_ROLE_ID, PET_OWNER_ROLE_ID];
 
     if (!validRoleIds.includes(userData.role_id)) {
       throw new Error('Invalid role_id. User must be either veterinary or pet owner');
@@ -15,9 +12,9 @@ const createUser = async ({ userData }) => {
 
     await checkIfUserExists({ email: userData?.email });
     const hashedPassword = await hashPassword(userData.password);
-    
+
     return await UserRepository.createUser({
-      userData: { ...userData, password: hashedPassword }
+      userData: { ...userData, password: hashedPassword },
     });
   } catch (error) {
     throw new Error(`Error creating user: ${error.message}`);
@@ -28,9 +25,9 @@ const createVeterinary = async ({ userData }) => {
   try {
     await checkIfUserExists({ email: userData?.email });
     const hashedPassword = await hashPassword(userData.password);
-    
+
     return await UserRepository.createVeterinary({
-      userData: { ...userData, password: hashedPassword }
+      userData: { ...userData, password: hashedPassword },
     });
   } catch (error) {
     throw new Error(`Error creating veterinary: ${error.message}`);
@@ -41,9 +38,9 @@ const createPetOwner = async ({ userData }) => {
   try {
     await checkIfUserExists({ email: userData?.email });
     const hashedPassword = await hashPassword(userData.password);
-    
+
     return await UserRepository.createPetOwner({
-      userData: { ...userData, password: hashedPassword }
+      userData: { ...userData, password: hashedPassword },
     });
   } catch (error) {
     throw new Error(`Error creating pet owner: ${error.message}`);
@@ -54,9 +51,9 @@ const createAdmin = async ({ userData }) => {
   try {
     await checkIfUserExists({ email: userData?.email });
     const hashedPassword = await hashPassword(userData.password);
-    
+
     return await UserRepository.createAdmin({
-      userData: { ...userData, password: hashedPassword }
+      userData: { ...userData, password: hashedPassword },
     });
   } catch (error) {
     throw new Error(`Error creating pet owner: ${error.message}`);
@@ -93,14 +90,24 @@ const getAllUsers = async () => {
 const getUserByEmail = async ({ email, password = false }) => {
   try {
     const user = await UserRepository.getUserByEmail({ email, password });
-  
+
     if (!user) {
       throw new Error('User not found');
     }
-  
+
     return user;
   } catch (error) {
     throw new Error(`Error getting user by email: ${error.message}`);
+  }
+};
+
+const getAllBathers = async ({ clinic_id }) => {
+  try {
+    const bathers = await UserRepository.getAllBathers({ clinic_id });
+
+    return bathers;
+  } catch (error) {
+    throw new Error(`Error fetching bathers: ${error.message}`);
   }
 };
 
@@ -147,7 +154,6 @@ const checkIfUserExists = async ({ email }) => {
   if (user?.id) throw new Error('Error creating user: This email already exists');
 };
 
-
 export default {
   createUser,
   createVeterinary,
@@ -157,8 +163,8 @@ export default {
   getAllVeterinaries,
   getAllPetOwners,
   getAllUsers,
+  getAllBathers,
   getUserByEmail,
   getVeterinaryById,
-  getPetOwnerById
+  getPetOwnerById,
 };
-

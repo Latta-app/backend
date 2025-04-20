@@ -1,8 +1,8 @@
 import { DataTypes } from 'sequelize';
 
-const PetSocializationLevel = (sequelize) => {
+const PaymentMethod = (sequelize) => {
   const model = sequelize.define(
-    'PetSocializationLevel',
+    'PaymentMethod',
     {
       id: {
         type: DataTypes.UUID,
@@ -10,13 +10,21 @@ const PetSocializationLevel = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
       },
       name: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(255),
         allowNull: false,
         unique: true,
       },
       label: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(255),
         allowNull: false,
+      },
+      requires_authorization: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      is_installment_available: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
       },
       created_at: {
         type: DataTypes.DATE,
@@ -30,20 +38,15 @@ const PetSocializationLevel = (sequelize) => {
       },
     },
     {
-      tableName: 'pet_socialization_levels',
+      tableName: 'payment_method',
       timestamps: false,
       underscored: true,
     },
   );
 
-  model.associate = (models) => {
-    model.hasMany(models.Pet, {
-      foreignKey: 'pet_socialization_level_id',
-      as: 'pets',
-    });
-  };
+  model.associate = (models) => {};
 
   return model;
 };
 
-export default PetSocializationLevel;
+export default PaymentMethod;

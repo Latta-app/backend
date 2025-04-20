@@ -149,7 +149,7 @@ const getPetById = async ({ id }) => {
           model: PetGender,
           required: true,
           as: 'gender',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetColor,
@@ -161,37 +161,37 @@ const getPetById = async ({ id }) => {
           model: PetSize,
           required: true,
           as: 'size',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetFurType,
           required: true,
           as: 'furType',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetFurLength,
           required: true,
           as: 'furLength',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetTemperament,
           required: true,
           as: 'temperament',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetSocializationLevel,
           required: true,
           as: 'socializationLevel',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetLivingEnvironment,
           required: true,
           as: 'livingEnvironment',
-          attributes: ['id', 'name', 'label'],
+          attributes: ['id', 'name', 'label', 'position'],
         },
         {
           model: PetBloodType,
@@ -231,7 +231,7 @@ const getPetOptions = async () => {
         order: [['label', 'ASC']],
       }),
       PetSize.findAll({
-        attributes: ['id', 'name', 'label'],
+        attributes: ['id', 'name', 'label', 'position'],
         order: [['label', 'ASC']],
       }),
       PetFurType.findAll({
@@ -239,11 +239,11 @@ const getPetOptions = async () => {
         order: [['label', 'ASC']],
       }),
       PetFurLength.findAll({
-        attributes: ['id', 'name', 'label'],
+        attributes: ['id', 'name', 'label', 'position'],
         order: [['label', 'ASC']],
       }),
       PetGender.findAll({
-        attributes: ['id', 'name', 'label'],
+        attributes: ['id', 'name', 'label', 'position'],
         order: [['label', 'ASC']],
       }),
       PetBreed.findAll({
@@ -262,15 +262,15 @@ const getPetOptions = async () => {
         order: [['label', 'ASC']],
       }),
       PetSocializationLevel.findAll({
-        attributes: ['id', 'name', 'label'],
+        attributes: ['id', 'name', 'label', 'position'],
         order: [['label', 'ASC']],
       }),
       PetTemperament.findAll({
-        attributes: ['id', 'name', 'label'],
+        attributes: ['id', 'name', 'label', 'position'],
         order: [['label', 'ASC']],
       }),
       PetLivingEnvironment.findAll({
-        attributes: ['id', 'name', 'label'],
+        attributes: ['id', 'name', 'label', 'position'],
         order: [['label', 'ASC']],
       }),
       PetBloodType.findAll({
@@ -306,7 +306,6 @@ const getPetOptions = async () => {
 
 const updatePet = async ({ id, petData }) => {
   try {
-    console.log('id', id);
     const allowedFields = [
       'name',
       'date_of_birthday',
@@ -351,7 +350,6 @@ const updatePet = async ({ id, petData }) => {
     const updatedPet = await getPetById({ id });
     return updatedPet;
   } catch (error) {
-    console.log('ERRORRRR', error);
     throw new Error(`Error updating pet: ${error.message}`);
   }
 };

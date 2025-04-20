@@ -45,7 +45,75 @@ const getAllPetOwners = async ({ clinicId }) => {
         {
           model: Pet,
           as: 'pets',
-          through: { attributes: [] },
+          attributes: [
+            'id',
+            'name',
+            'date_of_birthday',
+            'photo',
+            'latest_weight',
+            'microchip_number',
+            'is_neutered',
+            'is_active',
+            'death_date',
+          ],
+          through: { attributes: ['pet_owner_id', 'pet_id'] },
+          include: [
+            {
+              model: PetType,
+              as: 'type',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetBreed,
+              as: 'breed',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetGender,
+              as: 'gender',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetColor,
+              as: 'color',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetSize,
+              as: 'size',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetFurType,
+              as: 'furType',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetFurLength,
+              as: 'furLength',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetTemperament,
+              as: 'temperament',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetSocializationLevel,
+              as: 'socializationLevel',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetLivingEnvironment,
+              as: 'livingEnvironment',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetBloodType,
+              as: 'bloodType',
+              attributes: ['id', 'name', 'label'],
+            },
+          ],
         },
       ],
       attributes: [
@@ -123,7 +191,7 @@ const getPetOwnerById = async ({ id, clinicId }) => {
             {
               model: PetGender,
               as: 'gender',
-              attributes: ['id', 'name', 'label'],
+              attributes: ['id', 'name', 'label', 'position'],
             },
             {
               model: PetColor,
@@ -133,7 +201,7 @@ const getPetOwnerById = async ({ id, clinicId }) => {
             {
               model: PetSize,
               as: 'size',
-              attributes: ['id', 'name', 'label'],
+              attributes: ['id', 'name', 'label', 'position'],
             },
             {
               model: PetFurType,
@@ -143,22 +211,22 @@ const getPetOwnerById = async ({ id, clinicId }) => {
             {
               model: PetFurLength,
               as: 'furLength',
-              attributes: ['id', 'name', 'label'],
+              attributes: ['id', 'name', 'label', 'position'],
             },
             {
               model: PetTemperament,
               as: 'temperament',
-              attributes: ['id', 'name', 'label'],
+              attributes: ['id', 'name', 'label', 'position'],
             },
             {
               model: PetSocializationLevel,
               as: 'socializationLevel',
-              attributes: ['id', 'name', 'label'],
+              attributes: ['id', 'name', 'label', 'position'],
             },
             {
               model: PetLivingEnvironment,
               as: 'livingEnvironment',
-              attributes: ['id', 'name', 'label'],
+              attributes: ['id', 'name', 'label', 'position'],
             },
             {
               model: PetBloodType,
@@ -168,12 +236,31 @@ const getPetOwnerById = async ({ id, clinicId }) => {
           ],
         },
       ],
-      attributes: ['id', 'name', 'email', 'cell_phone'],
+      attributes: [
+        'id',
+        'name',
+        'email',
+        'cell_phone',
+        'cpf',
+        'rg',
+        'date_of_birth',
+        'address_street',
+        'address_number',
+        'address_complement',
+        'address_neighborhood',
+        'address_city',
+        'address_state',
+        'address_zipcode',
+        'emergency_contact_name',
+        'emergency_contact_phone',
+        'occupation',
+        'is_active',
+        'has_platform_access',
+      ],
     });
 
     return petOwner;
   } catch (error) {
-    console.log('error', error);
     throw new Error(`Error fetching pet owner by id: ${error.message}`);
   }
 };

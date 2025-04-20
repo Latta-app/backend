@@ -14,6 +14,8 @@ export const sequelize = new Sequelize(process.env.DATABASE_URL, {
     },
     family: 4,
   },
+  useUTC: false,
+  timezone: '-03:00',
 });
 
 export const checkDatabaseConnection = async () => {

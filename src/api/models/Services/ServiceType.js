@@ -1,8 +1,8 @@
 import { DataTypes } from 'sequelize';
 
-const PetGender = (sequelize) => {
+const ServiceType = (sequelize) => {
   const model = sequelize.define(
-    'PetGender',
+    'ServiceType',
     {
       id: {
         type: DataTypes.UUID,
@@ -10,13 +10,21 @@ const PetGender = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
       },
       name: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(255),
         allowNull: false,
         unique: true,
       },
       label: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(255),
         allowNull: false,
+      },
+      emoji: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      color: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       created_at: {
         type: DataTypes.DATE,
@@ -30,20 +38,15 @@ const PetGender = (sequelize) => {
       },
     },
     {
-      tableName: 'pet_genders',
+      tableName: 'service_type',
       timestamps: false,
       underscored: true,
     },
   );
 
-  model.associate = (models) => {
-    model.hasMany(models.Pet, {
-      foreignKey: 'pet_gender_id',
-      as: 'pets',
-    });
-  };
+  model.associate = (models) => {};
 
   return model;
 };
 
-export default PetGender;
+export default ServiceType;

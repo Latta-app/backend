@@ -52,7 +52,21 @@ const createPetOwner = async ({ petOwnerData, clinicId }) => {
 
 const getAllPetOwners = async ({ clinicId }) => {
   try {
-    return await PetOwnerRepository.getAllPetOwners({ clinicId });
+    const petOwners = await PetOwnerRepository.getAllPetOwners({ clinicId });
+
+    const formattedPetOwners = petOwners.map((owner) => {
+      const raw = owner.toJSON?.() || owner;
+
+      return {
+        ...raw,
+        cell_phone:
+          typeof raw.cell_phone === 'string' && raw.cell_phone.startsWith('55')
+            ? raw.cell_phone.slice(2)
+            : raw.cell_phone,
+      };
+    });
+
+    return formattedPetOwners;
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -78,15 +92,12 @@ const getPetOwnerById = async ({ id, clinicId }) => {
 
     return formattedPetOwner;
   } catch (error) {
-    console.log('error', error);
     throw new Error(`Service error: ${error.message}`);
   }
 };
 
 const updatePetOwner = async ({ id, clinicId, petOwnerData }) => {
   try {
-    validatePetOwnerData(petOwnerData);
-
     const petOwner = await PetOwnerRepository.getPetOwnerById({ id, clinicId });
 
     if (!petOwner) {
@@ -97,6 +108,7 @@ const updatePetOwner = async ({ id, clinicId, petOwnerData }) => {
       id,
       clinicId,
       petOwnerData: {
+        ...petOwner,
         ...petOwnerData,
         clinic_id: clinicId,
       },

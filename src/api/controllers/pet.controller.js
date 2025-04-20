@@ -156,9 +156,8 @@ const updatePet = async (req, res) => {
     const { id } = req.params;
 
     const { error, value } = validatePetUpdate(req.body);
-    console.log('value', value);
+
     if (error) {
-      console.log('VALUE ERROR', error);
       return res.status(400).json({
         code: 'VALIDATION_ERROR',
         error: error.details,
