@@ -73,10 +73,9 @@ const getUserByEmail = async (req, res) => {
 
 const getAllBathers = async (req, res) => {
   try {
-    const clinic_id = req.headers['clinic_id'];
-    console.log('CHEGOU', clinic_id);
+    const clinicId = req.headers['clinic-id'];
 
-    const bathers = await UserService.getAllBathers({ clinic_id });
+    const bathers = await UserService.getAllBathers({ clinic_id: clinicId });
 
     return res.status(200).json({
       code: 'USERS_FETCHED',

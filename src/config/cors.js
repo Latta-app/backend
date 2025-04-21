@@ -15,7 +15,7 @@ const corsConfig = {
   },
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'user_id', 'clinic_id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'user-id', 'clinic-id'],
 };
 
 export default corsConfig;
