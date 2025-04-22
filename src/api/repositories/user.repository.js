@@ -160,7 +160,6 @@ const getAllUsers = async () => {
 };
 
 const getAllBathers = async ({ clinic_id }) => {
-  console.log();
   try {
     const bathers = await User.findAll({
       where: {
