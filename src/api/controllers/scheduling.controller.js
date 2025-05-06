@@ -22,6 +22,7 @@ const getAllSchedulings = async (req, res) => {
   try {
     const { date, status } = req.query;
     const schedulings = await SchedulingService.getAllSchedulings({ date, status });
+    // console.log('schedulings', schedulings[0]);
 
     return res.status(200).json({
       code: 'SCHEDULINGS_FETCHED',

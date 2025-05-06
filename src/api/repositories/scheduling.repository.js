@@ -10,6 +10,7 @@ import {
   PaymentMethod,
   PaymentStatus,
 } from '../models/index.js';
+import { DateTime } from 'luxon';
 
 // Modificação do método createScheduling para aceitar transação
 const createScheduling = async ({ schedulingData, transaction = null }) => {
@@ -168,6 +169,32 @@ const getAllSchedulings = async ({ date, status }) => {
     return schedulings;
   } catch (error) {
     throw new Error(`Error fetching schedulings: ${error.message}`);
+  }
+};
+
+const getAllSchedulingsService = async ({ date, status }) => {
+  try {
+    const schedulings = await getAllSchedulings({ date, status });
+
+    const fixedSchedulings = schedulings.map((scheduling) => {
+      const plainData = scheduling.get({ plain: true });
+
+      if (plainData.start_time) {
+        const startDateTime = DateTime.fromJSDate(plainData.start_time).plus({ hours: 3 });
+        plainData.start_time = startDateTime.toJSDate();
+      }
+
+      if (plainData.end_time) {
+        const endDateTime = DateTime.fromJSDate(plainData.end_time).plus({ hours: 3 });
+        plainData.end_time = endDateTime.toJSDate();
+      }
+
+      return plainData;
+    });
+
+    return fixedSchedulings;
+  } catch (error) {
+    throw new Error(`Error getting schedulings with timezone correction: ${error.message}`);
   }
 };
 
@@ -449,6 +476,7 @@ const deleteScheduling = async ({ id }) => {
 export default {
   createScheduling,
   getAllSchedulings,
+  getAllSchedulingsService,
   getSchedulingsByClinic,
   getSchedulingsByPetOwner,
   getSchedulingsByPet,

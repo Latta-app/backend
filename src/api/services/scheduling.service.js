@@ -169,7 +169,9 @@ const createScheduling = async ({ schedulingData }) => {
 
 const getAllSchedulings = async ({ date, status }) => {
   try {
-    return await SchedulingRepository.getAllSchedulings({ date, status });
+    // Chama a função do repository
+    const schedulings = await SchedulingRepository.getAllSchedulingsService({ date, status });
+    return schedulings; // Retorna os dados já corrigidos pelo repository
   } catch (error) {
     throw new Error(`Error getting schedulings: ${error.message}`);
   }
