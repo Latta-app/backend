@@ -39,15 +39,15 @@ const PetOwner = (sequelize) => {
       },
       date_of_birth: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true,
       },
       address_street: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: true,
       },
       address_number: {
         type: DataTypes.STRING(20),
-        allowNull: false,
+        allowNull: true,
       },
       address_complement: {
         type: DataTypes.STRING(100),
@@ -55,19 +55,19 @@ const PetOwner = (sequelize) => {
       },
       address_neighborhood: {
         type: DataTypes.STRING(100),
-        allowNull: false,
+        allowNull: true,
       },
       address_city: {
         type: DataTypes.STRING(100),
-        allowNull: false,
+        allowNull: true,
       },
       address_state: {
         type: DataTypes.STRING(2),
-        allowNull: false,
+        allowNull: true,
       },
       address_zipcode: {
         type: DataTypes.STRING(9),
-        allowNull: false,
+        allowNull: true,
       },
       emergency_contact_name: {
         type: DataTypes.STRING(200),

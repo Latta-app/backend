@@ -11,9 +11,12 @@ import {
   PaymentStatus,
 } from '../models/index.js';
 
-const createScheduling = async ({ schedulingData }) => {
+// Modificação do método createScheduling para aceitar transação
+const createScheduling = async ({ schedulingData, transaction = null }) => {
   try {
-    const newScheduling = await Scheduling.create(schedulingData);
+    const options = transaction ? { transaction } : {};
+
+    const newScheduling = await Scheduling.create(schedulingData, options);
 
     if (!newScheduling) {
       throw new Error('Failed to create scheduling');
@@ -22,6 +25,76 @@ const createScheduling = async ({ schedulingData }) => {
     return newScheduling;
   } catch (error) {
     throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
+// Modificação do método getSchedulingById para aceitar transação
+const getSchedulingById = async ({ id, transaction = null }) => {
+  try {
+    const options = {
+      where: { id },
+      include: [
+        {
+          model: Clinic,
+          as: 'clinic',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: ServiceType,
+          as: 'serviceType',
+          attributes: ['id', 'name', 'label'],
+        },
+        {
+          model: SchedulingStatus,
+          as: 'schedulingStatus',
+          attributes: ['id', 'name', 'label'],
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email'],
+        },
+        {
+          model: Plan,
+          as: 'plan',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: Pet,
+          as: 'pet',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: PetOwner,
+          as: 'petOwner',
+          attributes: ['id', 'email'],
+        },
+        {
+          model: PaymentMethod,
+          as: 'paymentMethod',
+          attributes: ['id', 'name', 'label'],
+        },
+        {
+          model: PaymentStatus,
+          as: 'paymentStatus',
+          attributes: ['id', 'name', 'label'],
+        },
+      ],
+    };
+
+    if (transaction) {
+      options.transaction = transaction;
+    }
+
+    const scheduling = await Scheduling.findOne(options);
+
+    if (!scheduling) {
+      throw new Error('Scheduling not found');
+    }
+
+    return scheduling;
+  } catch (error) {
+    throw new Error(`Error fetching scheduling by id: ${error.message}`);
   }
 };
 
@@ -248,68 +321,68 @@ const getSchedulingsByPet = async ({ petId, date, status }) => {
   }
 };
 
-const getSchedulingById = async ({ id }) => {
-  try {
-    const scheduling = await Scheduling.findOne({
-      where: { id },
-      include: [
-        {
-          model: Clinic,
-          as: 'clinic',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: ServiceType,
-          as: 'serviceType',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: SchedulingStatus,
-          as: 'schedulingStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email'],
-        },
-        {
-          model: Plan,
-          as: 'plan',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: Pet,
-          as: 'pet',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: PetOwner,
-          as: 'petOwner',
-          attributes: ['id', 'email'],
-        },
-        {
-          model: PaymentMethod,
-          as: 'paymentMethod',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: PaymentStatus,
-          as: 'paymentStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-      ],
-    });
+// const getSchedulingById = async ({ id }) => {
+//   try {
+//     const scheduling = await Scheduling.findOne({
+//       where: { id },
+//       include: [
+//         {
+//           model: Clinic,
+//           as: 'clinic',
+//           attributes: ['id', 'name'],
+//         },
+//         {
+//           model: ServiceType,
+//           as: 'serviceType',
+//           attributes: ['id', 'name', 'label'],
+//         },
+//         {
+//           model: SchedulingStatus,
+//           as: 'schedulingStatus',
+//           attributes: ['id', 'name', 'label'],
+//         },
+//         {
+//           model: User,
+//           as: 'user',
+//           attributes: ['id', 'name', 'email'],
+//         },
+//         {
+//           model: Plan,
+//           as: 'plan',
+//           attributes: ['id', 'name'],
+//         },
+//         {
+//           model: Pet,
+//           as: 'pet',
+//           attributes: ['id', 'name'],
+//         },
+//         {
+//           model: PetOwner,
+//           as: 'petOwner',
+//           attributes: ['id', 'email'],
+//         },
+//         {
+//           model: PaymentMethod,
+//           as: 'paymentMethod',
+//           attributes: ['id', 'name', 'label'],
+//         },
+//         {
+//           model: PaymentStatus,
+//           as: 'paymentStatus',
+//           attributes: ['id', 'name', 'label'],
+//         },
+//       ],
+//     });
 
-    if (!scheduling) {
-      throw new Error('Scheduling not found');
-    }
+//     if (!scheduling) {
+//       throw new Error('Scheduling not found');
+//     }
 
-    return scheduling;
-  } catch (error) {
-    throw new Error(`Error fetching scheduling by id: ${error.message}`);
-  }
-};
+//     return scheduling;
+//   } catch (error) {
+//     throw new Error(`Error fetching scheduling by id: ${error.message}`);
+//   }
+// };
 
 const updateScheduling = async ({ id, schedulingData }) => {
   try {

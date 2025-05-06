@@ -50,6 +50,7 @@ const updatePetOwner = async (req, res) => {
   try {
     const { id } = req.params;
     const { clinic_id } = req.user;
+    console.log('chegou', id);
 
     const updatedPetOwner = await petOwnerService.updatePetOwner({
       id,
@@ -59,6 +60,7 @@ const updatePetOwner = async (req, res) => {
 
     return res.status(200).json(updatedPetOwner);
   } catch (error) {
+    console.log('error', error);
     if (error.message.includes('not found')) {
       return res.status(404).json({ error: error.message });
     }
