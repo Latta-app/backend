@@ -22,7 +22,7 @@ import SchedulingModel from './Scheduling/SchedulingModel.js';
 import SchedulingStatusModel from './Scheduling/SchedulingStatusModel.js';
 import ServiceTypeModel from './Services/ServiceType.js';
 import UserModel from './Users/UserModel.js';
-import UserRoleModel from './Users/UserRoleModel.js';
+import RoleModel from './Users/RoleModel.js';
 import VaccineModel from './Medications/VaccineModel.js';
 
 const models = {
@@ -49,7 +49,7 @@ const models = {
   SchedulingStatus: SchedulingStatusModel(sequelize),
   ServiceType: ServiceTypeModel(sequelize),
   User: UserModel(sequelize),
-  UserRole: UserRoleModel(sequelize),
+  Role: RoleModel(sequelize),
   Vaccine: VaccineModel(sequelize),
 };
 
@@ -82,7 +82,7 @@ export const Scheduling = models.Scheduling;
 export const SchedulingStatus = models.SchedulingStatus;
 export const ServiceType = models.ServiceType;
 export const User = models.User;
-export const UserRole = models.UserRole;
+export const Role = models.Role;
 export const Vaccine = models.Vaccine;
 
 export default models;

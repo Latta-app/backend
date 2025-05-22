@@ -1,5 +1,5 @@
 import { BATHER_ROLE_ID, PET_OWNER_ROLE_ID, VETERINARY_ROLE_ID } from '../../constants/database.js';
-import { Clinic, User, UserRole } from '../models/index.js';
+import { Clinic, User, Role } from '../models/index.js';
 
 const createUser = async ({ userData }) => {
   try {
@@ -94,7 +94,7 @@ const getAllVeterinaries = async () => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },
@@ -121,7 +121,7 @@ const getAllPetOwners = async () => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },
@@ -145,7 +145,7 @@ const getAllUsers = async () => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },
@@ -173,7 +173,7 @@ const getAllBathers = async ({ clinic_id }) => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },
@@ -204,7 +204,7 @@ const getUserByEmail = async ({ email, password = false }) => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },
@@ -234,7 +234,7 @@ const getVeterinaryById = async ({ id }) => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },
@@ -262,7 +262,7 @@ const getPetOwnerById = async ({ id }) => {
           attributes: ['id', 'name'],
         },
         {
-          model: UserRole,
+          model: Role,
           as: 'role',
           attributes: ['id', 'role'],
         },

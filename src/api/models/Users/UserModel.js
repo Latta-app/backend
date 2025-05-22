@@ -22,7 +22,7 @@ const User = (sequelize) => {
         type: DataTypes.UUID,
         allowNull: true,
         references: {
-          model: 'user_roles',
+          model: 'roles',
           key: 'id',
         },
       },
@@ -79,7 +79,7 @@ const User = (sequelize) => {
       as: 'clinic',
     });
 
-    model.belongsTo(models.UserRole, {
+    model.belongsTo(models.Role, {
       foreignKey: 'role_id',
       as: 'role',
     });
