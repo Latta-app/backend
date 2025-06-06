@@ -79,9 +79,11 @@ const User = (sequelize) => {
       as: 'clinic',
     });
 
-    model.belongsTo(models.Role, {
-      foreignKey: 'role_id',
-      as: 'role',
+    model.belongsToMany(models.Role, {
+      through: models.UserRole,
+      foreignKey: 'user_id',
+      otherKey: 'role_id',
+      as: 'roles',
     });
   };
 
