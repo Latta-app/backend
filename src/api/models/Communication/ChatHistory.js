@@ -41,6 +41,10 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      role: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: 'chat_history',
