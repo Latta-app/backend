@@ -35,9 +35,20 @@ const checkRole = (allowedRoles) => {
         });
       }
 
-      const userRole = req.user.role?.role?.toLowerCase();
+      if (!req.user.roles || !Array.isArray(req.user.roles) || req.user.roles.length === 0) {
+        return res.status(403).json({
+          code: 'AUTH_NO_ROLES',
+          message: 'Usuário não possui roles definidas',
+        });
+      }
 
-      const hasPermission = allowedRoles.some((role) => role.toLowerCase() === userRole);
+      const userRoles = req.user.roles
+        .map((roleObj) => roleObj.role?.toLowerCase())
+        .filter((role) => role);
+
+      const hasPermission = allowedRoles.some((allowedRole) =>
+        userRoles.includes(allowedRole.toLowerCase()),
+      );
 
       if (!hasPermission) {
         return res.status(403).json({

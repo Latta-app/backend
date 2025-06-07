@@ -33,8 +33,10 @@ const Role = (sequelize) => {
   );
 
   model.associate = (models) => {
-    model.hasMany(models.User, {
+    model.belongsToMany(models.User, {
+      through: models.UserRole,
       foreignKey: 'role_id',
+      otherKey: 'user_id',
       as: 'users',
     });
   };

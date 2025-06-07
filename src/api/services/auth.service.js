@@ -7,7 +7,7 @@ const generateToken = (user) => {
     {
       id: user.id,
       email: user.email,
-      role: user?.role,
+      roles: user?.roles,
       clinic: user.clinic,
       clinic_id: user?.clinic?.id,
     },
@@ -19,7 +19,7 @@ const generateToken = (user) => {
 const login = async ({ email, password }) => {
   try {
     const user = await UserService.getUserByEmail({ email, password: true });
-
+    console.log('user', user);
     if (!user) {
       throw new Error('Invalid credentials');
     }
