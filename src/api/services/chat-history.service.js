@@ -13,16 +13,23 @@ const getAllMessages = async () => {
     const groupedMessages = allMessages.reduce((acc, message) => {
       const phone = message.cell_phone;
 
-      // Se não existe esse telefone no acumulador, criar entrada
       if (!acc[phone]) {
+        let name = message.name;
+
+        if (name === 'Petland Belvedere') {
+          const relatedMessages = allMessages.filter((m) => m.cell_phone === phone);
+          const otherName = relatedMessages.find((m) => m.name !== 'Petland Belvedere')?.name;
+
+          name = otherName || 'Nome desconhecido';
+        }
+
         acc[phone] = {
-          phone: phone,
-          name: message.name,
+          phone,
+          name,
           messages: [],
         };
       }
 
-      // Adicionar a mensagem ao grupo
       acc[phone].messages.push({
         id: message.id,
         message: message.message,
