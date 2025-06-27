@@ -8,6 +8,7 @@ import SchedulingRoutes from './private/scheduling.routes.js';
 import ServiceTypeRoutes from './private/service-type.routes.js';
 import UserRoutes from './private/user.routes.js';
 import VaccineRoutes from './private/vaccine.routes.js';
+import VarejonlineRoutes from './private/varejonline.routes.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/scheduling', SchedulingRoutes);
 router.use('/service-type', ServiceTypeRoutes);
 router.use('/users', UserRoutes);
 router.use('/vaccine', VaccineRoutes);
+router.use('/oauth/varejonline', VarejonlineRoutes);
 
 export default router;
