@@ -117,6 +117,11 @@ export const validateSchedulingCreate = (data) => {
 
 export const validateSchedulingUpdate = (data) => {
   const schema = Joi.object({
+    id: Joi.string()
+      .uuid()
+      .messages({
+        'string.uuid': 'O ID deve ser um UUID válido',
+      }),
     clinic_id: Joi.string()
       .uuid()
       .messages({
@@ -190,6 +195,78 @@ export const validateSchedulingUpdate = (data) => {
     is_confirmed: Joi.boolean().messages({
       'boolean.base': 'O campo de confirmação deve ser um booleano',
     }),
+    // Novos campos adicionados baseados no objeto fornecido
+    frequency: Joi.object({
+      type: Joi.string()
+        .valid('no_repeat', 'daily', 'weekly', 'monthly', 'yearly')
+        .messages({
+          'string.base': 'O tipo de frequência deve ser um texto',
+          'any.only': 'O tipo de frequência deve ser: no_repeat, daily, weekly, monthly ou yearly',
+        }),
+      value: Joi.number()
+        .integer()
+        .min(1)
+        .messages({
+          'number.base': 'O valor da frequência deve ser um número',
+          'number.integer': 'O valor da frequência deve ser um número inteiro',
+          'number.min': 'O valor da frequência deve ser maior que 0',
+        }),
+      interval: Joi.object({
+        label: Joi.string().messages({
+          'string.base': 'O rótulo do intervalo deve ser um texto',
+        }),
+        value: Joi.string()
+          .valid('days', 'weeks', 'months', 'years')
+          .messages({
+            'string.base': 'O valor do intervalo deve ser um texto',
+            'any.only': 'O valor do intervalo deve ser: days, weeks, months ou years',
+          }),
+      }).messages({
+        'object.base': 'O intervalo deve ser um objeto válido',
+      }),
+    })
+      .allow(null)
+      .messages({
+        'object.base': 'A frequência deve ser um objeto válido',
+      }),
+    endCondition: Joi.object({
+      type: Joi.string()
+        .valid('never', 'after', 'on_date')
+        .messages({
+          'string.base': 'O tipo de condição de fim deve ser um texto',
+          'any.only': 'O tipo de condição de fim deve ser: never, after ou on_date',
+        }),
+      value: Joi.alternatives()
+        .try(
+          Joi.number()
+            .integer()
+            .min(1),
+          Joi.date(),
+          Joi.string().allow(''),
+        )
+        .messages({
+          'alternatives.match': 'O valor da condição de fim deve ser um número, data ou texto',
+        }),
+      interval: Joi.object({
+        label: Joi.string().messages({
+          'string.base': 'O rótulo do intervalo deve ser um texto',
+        }),
+        value: Joi.string()
+          .valid('days', 'weeks', 'months', 'years')
+          .messages({
+            'string.base': 'O valor do intervalo deve ser um texto',
+            'any.only': 'O valor do intervalo deve ser: days, weeks, months ou years',
+          }),
+      })
+        .allow(null)
+        .messages({
+          'object.base': 'O intervalo deve ser um objeto válido',
+        }),
+    })
+      .allow(null)
+      .messages({
+        'object.base': 'A condição de fim deve ser um objeto válido',
+      }),
   });
 
   return schema.validate(data, { abortEarly: false });

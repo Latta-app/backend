@@ -61,6 +61,12 @@ Object.keys(models).forEach((modelName) => {
   }
 });
 
+Object.entries(models).forEach(([name, model]) => {
+  if (!model) {
+    console.error(`Model ${name} is undefined!`); // Corrigido: adicionadas as crases
+  }
+});
+
 export const ChatHistory = models.ChatHistory;
 export const Clinic = models.Clinic;
 export const PaymentMethod = models.PaymentMethod;

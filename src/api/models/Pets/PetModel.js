@@ -65,6 +65,14 @@ const Pet = (sequelize) => {
           key: 'id',
         },
       },
+      pet_blood_type_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'pet_blood_types',
+          key: 'id',
+        },
+      },
       pet_temperament_id: {
         type: DataTypes.UUID,
         allowNull: false,
