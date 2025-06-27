@@ -54,7 +54,6 @@ const getAllPetOwners = async (_req, res) => {
 
 const getUserByEmail = async (req, res) => {
   try {
-    console.log('EMAIL');
     const { email } = req.params;
     const user = await UserService.getUserByEmail({ email });
 
