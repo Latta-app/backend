@@ -3,9 +3,9 @@ import axios from 'axios';
 
 // Configurações OAuth - SUBSTITUA PELAS SUAS CREDENCIAIS
 const OAUTH_CONFIG = {
-  client_id: 'SEU_CLIENT_ID_AQUI',
+  client_id: '685de71aad8b432065a95608',
   client_secret: 'ff90934ca9442599e5d042318e814c6cd352cd51808b2ef2ec1ec13629136081',
-  redirect_uri: '685de71aad8b432065a95608',
+  redirect_uri: 'https://api.latta.app.br/api/oauth/varejonline/callback',
   auth_url: 'https://integrador.varejonline.com.br/apps/oauth/authorization',
   token_url: 'https://erp.varejonline.com.br/apps/oauth/token',
   api_base_url: 'https://integrador.varejonline.com.br/apps/api',
