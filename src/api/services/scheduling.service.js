@@ -167,10 +167,35 @@ const createScheduling = async ({ schedulingData }) => {
   }
 };
 
+const getAllSchedulingsService = async ({ date, status }) => {
+  try {
+    const schedulings = await SchedulingRepository.getAllSchedulings({ date, status });
+
+    const fixedSchedulings = schedulings.map((scheduling) => {
+      const plainData = scheduling.get({ plain: true });
+
+      if (plainData.start_time) {
+        const startDateTime = DateTime.fromJSDate(plainData.start_time).plus({ hours: 3 });
+        plainData.start_time = startDateTime.toJSDate();
+      }
+
+      if (plainData.end_time) {
+        const endDateTime = DateTime.fromJSDate(plainData.end_time).plus({ hours: 3 });
+        plainData.end_time = endDateTime.toJSDate();
+      }
+
+      return plainData;
+    });
+    return fixedSchedulings;
+  } catch (error) {
+    throw new Error(`Error getting schedulings with timezone correction: ${error.message}`);
+  }
+};
+
 const getAllSchedulings = async ({ date, status }) => {
   try {
     // Chama a função do repository
-    const schedulings = await SchedulingRepository.getAllSchedulingsService({ date, status });
+    const schedulings = await getAllSchedulingsService({ date, status });
     return schedulings; // Retorna os dados já corrigidos pelo repository
   } catch (error) {
     throw new Error(`Error getting schedulings: ${error.message}`);
@@ -201,9 +226,31 @@ const getSchedulingsByPet = async ({ petId, date, status }) => {
   }
 };
 
-const getSchedulingById = async ({ id }) => {
+const getSchedulingsByIdService = async ({ id }) => {
   try {
     const scheduling = await SchedulingRepository.getSchedulingById({ id });
+
+    const plainData = scheduling.get({ plain: true });
+
+    if (plainData.start_time) {
+      const startDateTime = DateTime.fromJSDate(plainData.start_time).plus({ hours: 3 });
+      plainData.start_time = startDateTime.toJSDate();
+    }
+
+    if (plainData.end_time) {
+      const endDateTime = DateTime.fromJSDate(plainData.end_time).plus({ hours: 3 });
+      plainData.end_time = endDateTime.toJSDate();
+    }
+
+    return plainData;
+  } catch (error) {
+    throw new Error(`Error getting schedulings with timezone correction: ${error.message}`);
+  }
+};
+
+const getSchedulingById = async ({ id }) => {
+  try {
+    const scheduling = await getSchedulingsByIdService({ id });
 
     if (!scheduling) {
       throw new Error('Scheduling not found');

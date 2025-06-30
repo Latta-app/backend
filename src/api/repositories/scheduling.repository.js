@@ -1,3 +1,4 @@
+import { sequelize } from '../../config/database.js';
 import {
   Scheduling,
   Clinic,
@@ -9,8 +10,18 @@ import {
   PetOwner,
   PaymentMethod,
   PaymentStatus,
+  PetType,
+  PetBreed,
+  PetGender,
+  PetColor,
+  PetSize,
+  PetFurType,
+  PetFurLength,
+  PetTemperament,
+  PetSocializationLevel,
+  PetLivingEnvironment,
+  PetBloodType,
 } from '../models/index.js';
-import { DateTime } from 'luxon';
 
 // Modificação do método createScheduling para aceitar transação
 const createScheduling = async ({ schedulingData, transaction = null }) => {
@@ -63,12 +74,99 @@ const getSchedulingById = async ({ id, transaction = null }) => {
         {
           model: Pet,
           as: 'pet',
-          attributes: ['id', 'name'],
+          attributes: [
+            'id',
+            'name',
+            'date_of_birthday',
+            'photo',
+            'latest_weight',
+            'microchip_number',
+            'is_neutered',
+            'is_active',
+            'death_date',
+          ],
+          include: [
+            {
+              model: PetType,
+              as: 'type',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetBreed,
+              as: 'breed',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetGender,
+              as: 'gender',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetColor,
+              as: 'color',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetSize,
+              as: 'size',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetFurType,
+              as: 'furType',
+              attributes: ['id', 'name', 'label'],
+            },
+            {
+              model: PetFurLength,
+              as: 'furLength',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetTemperament,
+              as: 'temperament',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetSocializationLevel,
+              as: 'socializationLevel',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetLivingEnvironment,
+              as: 'livingEnvironment',
+              attributes: ['id', 'name', 'label', 'position'],
+            },
+            {
+              model: PetBloodType,
+              as: 'bloodType',
+              attributes: ['id', 'name', 'label'],
+            },
+          ],
         },
         {
           model: PetOwner,
           as: 'petOwner',
-          attributes: ['id', 'email'],
+          attributes: [
+            'id',
+            'name',
+            'email',
+            'cell_phone',
+            'cpf',
+            'rg',
+            'date_of_birth',
+            'address_street',
+            'address_number',
+            'address_complement',
+            'address_neighborhood',
+            'address_city',
+            'address_state',
+            'address_zipcode',
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'occupation',
+            'is_active',
+            'has_platform_access',
+          ],
         },
         {
           model: PaymentMethod,
@@ -88,7 +186,6 @@ const getSchedulingById = async ({ id, transaction = null }) => {
     }
 
     const scheduling = await Scheduling.findOne(options);
-
     if (!scheduling) {
       throw new Error('Scheduling not found');
     }
@@ -169,32 +266,6 @@ const getAllSchedulings = async ({ date, status }) => {
     return schedulings;
   } catch (error) {
     throw new Error(`Error fetching schedulings: ${error.message}`);
-  }
-};
-
-const getAllSchedulingsService = async ({ date, status }) => {
-  try {
-    const schedulings = await getAllSchedulings({ date, status });
-
-    const fixedSchedulings = schedulings.map((scheduling) => {
-      const plainData = scheduling.get({ plain: true });
-
-      if (plainData.start_time) {
-        const startDateTime = DateTime.fromJSDate(plainData.start_time).plus({ hours: 3 });
-        plainData.start_time = startDateTime.toJSDate();
-      }
-
-      if (plainData.end_time) {
-        const endDateTime = DateTime.fromJSDate(plainData.end_time).plus({ hours: 3 });
-        plainData.end_time = endDateTime.toJSDate();
-      }
-
-      return plainData;
-    });
-
-    return fixedSchedulings;
-  } catch (error) {
-    throw new Error(`Error getting schedulings with timezone correction: ${error.message}`);
   }
 };
 
@@ -440,7 +511,7 @@ const updateScheduling = async ({ id, schedulingData }) => {
         }),
         {},
       );
-
+    console.log('sanitizedData', sanitizedData);
     const [updated] = await Scheduling.update(sanitizedData, {
       where: { id },
       returning: true,
@@ -476,7 +547,6 @@ const deleteScheduling = async ({ id }) => {
 export default {
   createScheduling,
   getAllSchedulings,
-  getAllSchedulingsService,
   getSchedulingsByClinic,
   getSchedulingsByPetOwner,
   getSchedulingsByPet,
