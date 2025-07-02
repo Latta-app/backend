@@ -34,6 +34,7 @@ const getAllMessages = async () => {
         id: message.id,
         message: message.message,
         sent_by: message.sent_by,
+        sent_to: message.sent_to,
         role: message.role,
         timestamp: message.timestamp,
         window_timestamp: message.window_timestamp,
