@@ -57,11 +57,6 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      timestamp2: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-      },
       message_id: {
         type: DataTypes.STRING,
         allowNull: true,

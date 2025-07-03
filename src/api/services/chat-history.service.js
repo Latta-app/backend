@@ -43,7 +43,6 @@ const getAllMessages = async () => {
         journey: message.journey,
         message_type: message.message_type,
         date: message.date,
-        timestamp2: message.timestamp2,
         message_id: message.message_id,
         midia_url: message.midia_url,
         thumb_url: message.midia_url,
