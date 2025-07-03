@@ -16,9 +16,11 @@ const getAllMessages = async () => {
       if (!acc[phone]) {
         let name = message.name;
 
-        if (name === 'Petland Belvedere') {
+        if (name === 'Petland Belvedere' || name === 'Latta') {
           const relatedMessages = allMessages.filter((m) => m.cell_phone === phone);
-          const otherName = relatedMessages.find((m) => m.name !== 'Petland Belvedere')?.name;
+          const otherName = relatedMessages.find(
+            (m) => m.name !== 'Petland Belvedere' || m.name !== 'Latta',
+          )?.name;
 
           name = otherName || 'Nome desconhecido';
         }
@@ -39,6 +41,12 @@ const getAllMessages = async () => {
         timestamp: message.timestamp,
         window_timestamp: message.window_timestamp,
         journey: message.journey,
+        message_type: message.message_type,
+        date: message.date,
+        timestamp2: message.timestamp2,
+        message_id: message.message_id,
+        midia_url: message.midia_url,
+        thumb_url: message.midia_url,
       });
 
       return acc;

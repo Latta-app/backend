@@ -49,6 +49,31 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      message_type: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      date: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      timestamp2: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      message_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      midia_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      thumb_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: 'chat_history',
