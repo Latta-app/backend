@@ -19,7 +19,7 @@ const getAllMessages = async () => {
         if (name === 'Petland Belvedere' || name === 'Latta') {
           const relatedMessages = allMessages.filter((m) => m.cell_phone === phone);
           const otherName = relatedMessages.find(
-            (m) => m.name !== 'Petland Belvedere' || m.name !== 'Latta',
+            (m) => m.name !== 'Petland Belvedere' && m.name !== 'Latta',
           )?.name;
 
           name = otherName || 'Nome desconhecido';
