@@ -104,9 +104,32 @@ const getTerceiros = async (req, res) => {
   }
 };
 
+const proxyRequest = async (req, res) => {
+  try {
+    const path = req.params[0];
+    const query = req.query;
+
+    const data = await VarejonlineService.proxyRequest(path, query);
+    console.log('Proxy request data:', data);
+    return res.status(200).json({
+      code: 'PROXY_SUCCESS',
+      message: 'Requisição enviada com sucesso para a API do Varejo Online',
+      data,
+    });
+  } catch (error) {
+    console.error('Proxy request error:', error.message);
+
+    return res.status(500).json({
+      code: 'PROXY_ERROR',
+      message: 'Erro ao processar requisição para a API do Varejo Online',
+      error: error.message,
+    });
+  }
+};
 export default {
   startAuth,
   handleCallback,
   testAPI,
   getTerceiros,
+  proxyRequest,
 };

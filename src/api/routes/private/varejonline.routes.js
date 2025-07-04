@@ -15,4 +15,6 @@ router.get('/test', VarejonlineController.testAPI);
 // Rota para listar terceiros (exemplo de uso da API)
 router.get('/terceiros', VarejonlineController.getTerceiros);
 
+router.get('/proxy/*', VarejonlineController.proxyRequest);
+
 export default router;

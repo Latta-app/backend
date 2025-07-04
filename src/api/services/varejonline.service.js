@@ -76,9 +76,31 @@ const getTerceiros = async (token) => {
   }
 };
 
+const proxyRequest = async (path, query) => {
+  const url = `https://integrador.varejonline.com.br/apps/api/${path}`;
+  const TOKEN = process.env.VAREJO_API_TOKEN;
+
+  if (!TOKEN) {
+    throw new Error('VAREJO_API_TOKEN não definido');
+  }
+
+  // Adiciona o token nos parâmetros da URL
+  const fullQuery = {
+    ...query,
+    token: TOKEN,
+  };
+
+  const response = await axios.get(url, {
+    params: fullQuery,
+  });
+
+  return response.data;
+};
+
 export default {
   getAuthUrl,
   exchangeCodeForToken,
   testConnection,
   getTerceiros,
+  proxyRequest,
 };
