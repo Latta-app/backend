@@ -80,21 +80,29 @@ const proxyRequest = async (path, query) => {
   const url = `https://integrador.varejonline.com.br/apps/api/${path}`;
   const TOKEN = process.env.VAREJO_API_TOKEN;
 
-  if (!TOKEN) {
-    throw new Error('VAREJO_API_TOKEN não definido');
+  const fullQuery = { ...query, token: TOKEN };
+
+  console.log('--- Proxy Request Debug ---');
+  console.log('URL base:', url);
+  console.log('Query params:', fullQuery);
+  console.log('Token length:', TOKEN?.length);
+  console.log('Env token exists?', !!TOKEN);
+
+  try {
+    const response = await axios.get(url, { params: fullQuery });
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    console.log('Response data snippet:', JSON.stringify(response.data).slice(0, 200));
+    return response.data;
+  } catch (error) {
+    console.error('Proxy request error message:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+      console.error('Response headers:', error.response.headers);
+    }
+    throw error;
   }
-
-  // Adiciona o token nos parâmetros da URL
-  const fullQuery = {
-    ...query,
-    token: TOKEN,
-  };
-
-  const response = await axios.get(url, {
-    params: fullQuery,
-  });
-
-  return response.data;
 };
 
 export default {
