@@ -15,6 +15,7 @@ const requiredEnvs = [
   'FIREBASE_PRIVATE_KEY',
   'DATABASE_URL',
   'ACCESS_LIST',
+  'VAREJO_API_TOKEN',
 ];
 requiredEnvs.forEach((env) => {
   if (!process.env[env]) {
