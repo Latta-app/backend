@@ -9,6 +9,8 @@ import limiter from './config/express.limiter.js';
 import initializeFirebase from './config/firebase.js';
 import { sequelize, checkDatabaseConnection } from './config/database.js';
 
+dotenv.config();
+
 const requiredEnvs = [
   'FIREBASE_PROJECT_ID',
   'FIREBASE_CLIENT_EMAIL',
@@ -24,7 +26,6 @@ requiredEnvs.forEach((env) => {
   }
 });
 
-dotenv.config();
 initializeFirebase();
 checkDatabaseConnection();
 
