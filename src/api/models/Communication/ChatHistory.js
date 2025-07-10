@@ -65,10 +65,6 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      thumb_url: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
     },
     {
       tableName: 'chat_history',

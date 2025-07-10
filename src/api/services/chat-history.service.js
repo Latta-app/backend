@@ -1,4 +1,5 @@
 import ChatRepository from '../repositories/chat-history.repository.js';
+import S3ClientUtil from '../../utils/s3.js';
 
 const getAllMessages = async () => {
   try {
@@ -45,17 +46,36 @@ const getAllMessages = async () => {
         date: message.date,
         message_id: message.message_id,
         midia_url: message.midia_url,
-        thumb_url: message.midia_url,
       });
 
       return acc;
     }, {});
 
-    // Converter objeto em array e ordenar mensagens por timestamp
+    // Converter em array e ordenar por timestamp
     const result = Object.values(groupedMessages).map((group) => ({
       ...group,
       messages: group.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
     }));
+
+    // Gerar signed URLs para mensagens com mídia
+    for (const group of result) {
+      for (const message of group.messages) {
+        if (message.midia_url) {
+          try {
+            const url = new URL(message.midia_url);
+            const key = decodeURIComponent(url.pathname.slice(1)); // remove a primeira "/"
+
+            const signedUrl = await S3ClientUtil.getObjectSignedUrl({
+              bucketName: 'communication-latta',
+              key,
+            });
+            message.midia_url = signedUrl;
+          } catch (e) {
+            console.error('Erro ao assinar URL S3:', e.message);
+          }
+        }
+      }
+    }
 
     return result;
   } catch (error) {
@@ -69,7 +89,6 @@ const getMessagesByPhone = async ({ phone }) => {
       throw new Error('Phone parameter is required');
     }
 
-    // Buscar mensagens por telefone específico
     const messages = await ChatRepository.getMessagesByPhone({ phone });
 
     if (!messages || messages.length === 0) {
@@ -80,13 +99,29 @@ const getMessagesByPhone = async ({ phone }) => {
       };
     }
 
-    // Ordenar mensagens por timestamp
     const sortedMessages = messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-    // Retornar no mesmo formato agrupado
+    // Adiciona signed URLs
+    for (const msg of sortedMessages) {
+      if (msg.midia_url) {
+        try {
+          const url = new URL(msg.midia_url);
+          const key = decodeURIComponent(url.pathname.slice(1));
+
+          const signedUrl = await S3ClientUtil.getObjectSignedUrl({
+            bucketName: 'communication-latta',
+            key,
+          });
+          msg.midia_url = signedUrl;
+        } catch (e) {
+          console.error('Erro ao assinar URL S3:', e.message);
+        }
+      }
+    }
+
     return {
       phone: phone,
-      name: messages[0].name, // Pegar o nome da primeira mensagem
+      name: messages[0].name,
       messages: sortedMessages.map((message) => ({
         id: message.id,
         message: message.message,
@@ -94,6 +129,8 @@ const getMessagesByPhone = async ({ phone }) => {
         timestamp: message.timestamp,
         window_timestamp: message.window_timestamp,
         journey: message.journey,
+        midia_url: message.midia_url,
+        signed_midia_url: message.signed_midia_url,
       })),
     };
   } catch (error) {

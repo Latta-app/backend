@@ -10,6 +10,7 @@ const getAllMessages = async () => {
     if (!messages) {
       throw new Error('Failed to retrieve messages');
     }
+
     return messages;
   } catch (error) {
     throw new Error(`Repository error: ${error.message}`);

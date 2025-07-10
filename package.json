@@ -11,6 +11,9 @@
     "commit-lint": "npx --no -- commitlint --edit $1 --config ./.commitlintrc.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.844.0",
+    "@aws-sdk/lib-storage": "^3.844.0",
+    "@aws-sdk/s3-request-presigner": "^3.844.0",
     "axios": "^0.19.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
