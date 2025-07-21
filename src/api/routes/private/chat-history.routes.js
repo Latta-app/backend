@@ -4,15 +4,13 @@ import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// Obter todas as mensagens (agrupadas por número de telefone)
 router.get(
-  '/messages',
+  '/messages/getAllContactsWithMessages',
   verifyToken,
   checkRole(['admin', 'superAdmin']),
-  ChatController.getAllMessages,
+  ChatController.getAllContactsWithMessages,
 );
 
-// Obter mensagens de um número específico
 router.get(
   '/messages/phone/:phone',
   verifyToken,

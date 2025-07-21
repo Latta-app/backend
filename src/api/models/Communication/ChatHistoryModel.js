@@ -65,6 +65,34 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      midia_name: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      thumb_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      ai_accepted: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+      },
+      reply: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      ai_output: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      pet_owner_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      contact_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
     },
     {
       tableName: 'chat_history',
@@ -77,6 +105,16 @@ const ChatHistory = (sequelize) => {
     model.belongsTo(models.Clinic, {
       foreignKey: 'clinic_id',
       as: 'clinic',
+    });
+
+    model.belongsTo(models.PetOwner, {
+      foreignKey: 'pet_owner_id',
+      as: 'petOwner',
+    });
+
+    model.belongsTo(models.Contact, {
+      foreignKey: 'contact_id',
+      as: 'contact',
     });
   };
 

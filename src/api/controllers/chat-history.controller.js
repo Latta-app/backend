@@ -1,17 +1,20 @@
 import ChatService from '../services/chat-history.service.js';
 
-const getAllMessages = async (_req, res) => {
+const getAllContactsWithMessages = async (req, res) => {
   try {
-    const messages = await ChatService.getAllMessages();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await ChatService.getAllContactsWithMessages(page, limit);
 
     return res.status(200).json({
-      code: 'MESSAGES_RETRIEVED',
-      data: messages,
+      code: 'CONTACTS_RETRIEVED',
+      data: result.contacts,
     });
   } catch (error) {
-    console.error('Error retrieving messages:', error);
+    console.error('Error retrieving contacts and messages:', error);
     return res.status(500).json({
-      code: 'MESSAGES_RETRIEVAL_ERROR',
+      code: 'CONTACTS_RETRIEVAL_ERROR',
       message: error.message,
     });
   }
@@ -36,6 +39,6 @@ const getMessagesByPhone = async (req, res) => {
 };
 
 export default {
-  getAllMessages,
+  getAllContactsWithMessages,
   getMessagesByPhone,
 };

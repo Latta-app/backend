@@ -1,83 +1,73 @@
 import ChatRepository from '../repositories/chat-history.repository.js';
 import S3ClientUtil from '../../utils/s3.js';
 
-const getAllMessages = async () => {
+const getAllContactsWithMessages = async (page, limit) => {
   try {
-    // Buscar todas as mensagens do repository
-    const allMessages = await ChatRepository.getAllMessages();
+    const result = await ChatRepository.getAllContactsWithMessages(page, limit);
+    const contacts = result.contacts;
 
-    if (!allMessages || allMessages.length === 0) {
-      return [];
-    }
+    for (const contact of contacts) {
+      const chatHistory = contact.dataValues?.chatHistory || [];
 
-    // Agrupar mensagens por número de telefone
-    const groupedMessages = allMessages.reduce((acc, message) => {
-      const phone = message.cell_phone;
-
-      if (!acc[phone]) {
-        let name = message.name;
-
-        if (name === 'Petland Belvedere' || name === 'Latta') {
-          const relatedMessages = allMessages.filter((m) => m.cell_phone === phone);
-          const otherName = relatedMessages.find(
-            (m) => m.name !== 'Petland Belvedere' && m.name !== 'Latta',
-          )?.name;
-
-          name = otherName || 'Nome desconhecido';
-        }
-
-        acc[phone] = {
-          phone,
-          name,
-          messages: [],
-        };
-      }
-
-      acc[phone].messages.push({
-        id: message.id,
-        message: message.message,
-        sent_by: message.sent_by,
-        sent_to: message.sent_to,
-        role: message.role,
-        timestamp: message.timestamp,
-        window_timestamp: message.window_timestamp,
-        journey: message.journey,
-        message_type: message.message_type,
-        date: message.date,
-        message_id: message.message_id,
-        midia_url: message.midia_url,
-      });
-
-      return acc;
-    }, {});
-
-    // Converter em array e ordenar por timestamp
-    const result = Object.values(groupedMessages).map((group) => ({
-      ...group,
-      messages: group.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
-    }));
-
-    // Gerar signed URLs para mensagens com mídia
-    for (const group of result) {
-      for (const message of group.messages) {
+      for (const message of chatHistory) {
         if (message.midia_url) {
           try {
             const url = new URL(message.midia_url);
-            const key = decodeURIComponent(url.pathname.slice(1)); // remove a primeira "/"
+            const key = decodeURIComponent(url.pathname.slice(1));
 
             const signedUrl = await S3ClientUtil.getObjectSignedUrl({
               bucketName: 'communication-latta',
               key,
             });
+
             message.midia_url = signedUrl;
           } catch (e) {
             console.error('Erro ao assinar URL S3:', e.message);
           }
         }
       }
+
+      contact.dataValues.chatHistory = chatHistory;
     }
 
-    return result;
+    contacts.sort((a, b) => {
+      const aHistory = a.dataValues?.chatHistory || [];
+      const bHistory = b.dataValues?.chatHistory || [];
+
+      const aLast = aHistory.length
+        ? new Date(
+            aHistory.reduce(
+              (max, m) => (new Date(m.timestamp) > max ? new Date(m.timestamp) : max),
+              new Date(0),
+            ),
+          )
+        : null;
+
+      const bLast = bHistory.length
+        ? new Date(
+            bHistory.reduce(
+              (max, m) => (new Date(m.timestamp) > max ? new Date(m.timestamp) : max),
+              new Date(0),
+            ),
+          )
+        : null;
+
+      if (aLast && bLast) {
+        return bLast - aLast;
+      } else if (aLast && !bLast) {
+        return -1;
+      } else if (!aLast && bLast) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+
+    return {
+      contacts,
+      totalItems: result.totalItems,
+      totalPages: Math.ceil(result.totalItems / limit),
+    };
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -139,6 +129,6 @@ const getMessagesByPhone = async ({ phone }) => {
 };
 
 export default {
-  getAllMessages,
+  getAllContactsWithMessages,
   getMessagesByPhone,
 };

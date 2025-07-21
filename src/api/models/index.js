@@ -1,6 +1,7 @@
 import { sequelize } from '../../config/database.js';
-import ChatHistoryModel from './Communication/ChatHistory.js';
+import ChatHistoryModel from './Communication/ChatHistoryModel.js';
 import ClinicModel from './Clinics/ClinicModel.js';
+import ContactModel from './Communication/ContactModel.js';
 import PaymentMethodModel from './Payments/PaymentMethodModel.js';
 import PaymentStatusModel from './Payments/PaymentStatusModel.js';
 import PetBloodTypeModel from './Pets/PetBloodTypeModel.js';
@@ -29,6 +30,7 @@ import VaccineModel from './Medications/VaccineModel.js';
 const models = {
   ChatHistory: ChatHistoryModel(sequelize),
   Clinic: ClinicModel(sequelize),
+  Contact: ContactModel(sequelize),
   PaymentMethod: PaymentMethodModel(sequelize),
   PaymentStatus: PaymentStatusModel(sequelize),
   Pet: PetModel(sequelize),
@@ -63,6 +65,7 @@ Object.keys(models).forEach((modelName) => {
 
 export const ChatHistory = models.ChatHistory;
 export const Clinic = models.Clinic;
+export const Contact = models.Contact;
 export const PaymentMethod = models.PaymentMethod;
 export const PaymentStatus = models.PaymentStatus;
 export const Pet = models.Pet;
