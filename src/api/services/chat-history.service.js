@@ -13,14 +13,21 @@ const getAllContactsWithMessages = async (page, limit) => {
         if (message.midia_url) {
           try {
             const url = new URL(message.midia_url);
-            const key = decodeURIComponent(url.pathname.slice(1));
 
-            const signedUrl = await S3ClientUtil.getObjectSignedUrl({
-              bucketName: 'communication-latta',
-              key,
-            });
+            if (url.hostname.includes('ai-images-n8n')) {
+              continue;
+            }
 
-            message.midia_url = signedUrl;
+            if (url.hostname.includes('communication-latta')) {
+              const key = decodeURIComponent(url.pathname.slice(1));
+
+              const signedUrl = await S3ClientUtil.getObjectSignedUrl({
+                bucketName: 'communication-latta',
+                key,
+              });
+
+              message.midia_url = signedUrl;
+            }
           } catch (e) {
             console.error('Erro ao assinar URL S3:', e.message);
           }
