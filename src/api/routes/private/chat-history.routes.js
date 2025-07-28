@@ -7,15 +7,15 @@ const router = Router();
 router.get(
   '/messages/getAllContactsWithMessages',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
+  checkRole(['admin', 'superAdmin', 'attendant']),
   ChatController.getAllContactsWithMessages,
 );
 
 router.get(
-  '/messages/phone/:phone',
+  '/messages/searchContacts',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
-  ChatController.getMessagesByPhone,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.searchContacts,
 );
 
 export default router;

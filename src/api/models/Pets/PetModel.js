@@ -19,7 +19,7 @@ const Pet = (sequelize) => {
       },
       pet_gender_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_genders',
           key: 'id',
@@ -27,7 +27,7 @@ const Pet = (sequelize) => {
       },
       pet_breed_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_breeds',
           key: 'id',
@@ -35,7 +35,7 @@ const Pet = (sequelize) => {
       },
       pet_color_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_colors',
           key: 'id',
@@ -43,7 +43,7 @@ const Pet = (sequelize) => {
       },
       pet_size_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_sizes',
           key: 'id',
@@ -51,7 +51,7 @@ const Pet = (sequelize) => {
       },
       pet_fur_type_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_fur_types',
           key: 'id',
@@ -59,7 +59,7 @@ const Pet = (sequelize) => {
       },
       pet_fur_length_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_fur_lengths',
           key: 'id',
@@ -67,7 +67,7 @@ const Pet = (sequelize) => {
       },
       pet_temperament_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_temperaments',
           key: 'id',
@@ -75,7 +75,7 @@ const Pet = (sequelize) => {
       },
       pet_socialization_level_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_socialization_levels',
           key: 'id',
@@ -83,9 +83,18 @@ const Pet = (sequelize) => {
       },
       pet_living_environment_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Alterado para permitir null
         references: {
           model: 'pet_living_environment',
+          key: 'id',
+        },
+      },
+      pet_blood_type_id: {
+        // Campo adicionado
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'pet_blood_types',
           key: 'id',
         },
       },
@@ -94,11 +103,16 @@ const Pet = (sequelize) => {
         allowNull: false,
       },
       date_of_birthday: {
-        type: DataTypes.DATE,
-        allowNull: false,
+        type: DataTypes.DATEONLY, // Alterado de DATE para DATEONLY
+        allowNull: true, // Alterado para permitir null
       },
       photo: {
         type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      original_photo: {
+        // Campo adicionado
+        type: DataTypes.STRING,
         allowNull: true,
       },
       latest_weight: {
@@ -110,8 +124,23 @@ const Pet = (sequelize) => {
         allowNull: true,
       },
       blood_type: {
+        // Campo removido - substituído por pet_blood_type_id
         type: DataTypes.STRING(20),
         allowNull: true,
+      },
+      comments: {
+        // Campo adicionado
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      pet_subscription_id: {
+        // Campo adicionado
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'pet_subscriptions',
+          key: 'id',
+        },
       },
       is_neutered: {
         type: DataTypes.BOOLEAN,
@@ -124,80 +153,132 @@ const Pet = (sequelize) => {
         defaultValue: true,
       },
       death_date: {
-        type: DataTypes.DATE,
+        type: DataTypes.DATEONLY, // Alterado de DATE para DATEONLY
         allowNull: true,
       },
       created_at: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: sequelize.fn('NOW'),
+        allowNull: true, // Alterado para permitir null
+        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'), // Alterado de 'NOW' para 'CURRENT_TIMESTAMP'
       },
       updated_at: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: sequelize.fn('NOW'),
+        allowNull: true, // Alterado para permitir null
+        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'), // Alterado de 'NOW' para 'CURRENT_TIMESTAMP'
       },
     },
     {
       tableName: 'pets',
       timestamps: false,
       underscored: true,
+      // Adicionando validações personalizadas
+      validate: {
+        checkDeathDateActive() {
+          if (this.is_active === true && this.death_date !== null) {
+            throw new Error('Pet ativo não pode ter data de morte');
+          }
+        },
+      },
     },
   );
 
   model.associate = (models) => {
-    model.belongsToMany(models.PetOwner, {
-      through: 'pet_owner_pets',
-      foreignKey: 'pet_id',
-      otherKey: 'pet_owner_id',
-      as: 'owners',
-    });
+    // Verificação se PetOwner existe antes de criar a associação
+    if (models.PetOwner) {
+      model.belongsToMany(models.PetOwner, {
+        through: 'pet_owner_pets',
+        foreignKey: 'pet_id',
+        otherKey: 'pet_owner_id',
+        as: 'owners',
+      });
+    }
 
-    model.belongsTo(models.PetType, {
-      foreignKey: 'pet_type_id',
-      as: 'type',
-    });
-    model.belongsTo(models.PetBreed, {
-      foreignKey: 'pet_breed_id',
-      as: 'breed',
-    });
-    model.belongsTo(models.PetGender, {
-      foreignKey: 'pet_gender_id',
-      as: 'gender',
-    });
-    model.belongsTo(models.PetColor, {
-      foreignKey: 'pet_color_id',
-      as: 'color',
-    });
-    model.belongsTo(models.PetSize, {
-      foreignKey: 'pet_size_id',
-      as: 'size',
-    });
-    model.belongsTo(models.PetFurType, {
-      foreignKey: 'pet_fur_type_id',
-      as: 'furType',
-    });
-    model.belongsTo(models.PetFurLength, {
-      foreignKey: 'pet_fur_length_id',
-      as: 'furLength',
-    });
-    model.belongsTo(models.PetTemperament, {
-      foreignKey: 'pet_temperament_id',
-      as: 'temperament',
-    });
-    model.belongsTo(models.PetSocializationLevel, {
-      foreignKey: 'pet_socialization_level_id',
-      as: 'socializationLevel',
-    });
-    model.belongsTo(models.PetLivingEnvironment, {
-      foreignKey: 'pet_living_environment_id',
-      as: 'livingEnvironment',
-    });
-    model.belongsTo(models.PetBloodType, {
-      foreignKey: 'pet_blood_type_id',
-      as: 'bloodType',
-    });
+    // Associações com verificação de existência
+    if (models.PetType) {
+      model.belongsTo(models.PetType, {
+        foreignKey: 'pet_type_id',
+        as: 'type',
+      });
+    }
+
+    if (models.PetBreed) {
+      model.belongsTo(models.PetBreed, {
+        foreignKey: 'pet_breed_id',
+        as: 'breed',
+      });
+    }
+
+    if (models.PetGender) {
+      model.belongsTo(models.PetGender, {
+        foreignKey: 'pet_gender_id',
+        as: 'gender',
+      });
+    }
+
+    if (models.PetColor) {
+      model.belongsTo(models.PetColor, {
+        foreignKey: 'pet_color_id',
+        as: 'color',
+      });
+    }
+
+    if (models.PetSize) {
+      model.belongsTo(models.PetSize, {
+        foreignKey: 'pet_size_id',
+        as: 'size',
+      });
+    }
+
+    if (models.PetFurType) {
+      model.belongsTo(models.PetFurType, {
+        foreignKey: 'pet_fur_type_id',
+        as: 'furType',
+      });
+    }
+
+    if (models.PetFurLength) {
+      model.belongsTo(models.PetFurLength, {
+        foreignKey: 'pet_fur_length_id',
+        as: 'furLength',
+      });
+    }
+
+    if (models.PetTemperament) {
+      model.belongsTo(models.PetTemperament, {
+        foreignKey: 'pet_temperament_id',
+        as: 'temperament',
+      });
+    }
+
+    if (models.PetSocializationLevel) {
+      model.belongsTo(models.PetSocializationLevel, {
+        foreignKey: 'pet_socialization_level_id',
+        as: 'socializationLevel',
+      });
+    }
+
+    if (models.PetLivingEnvironment) {
+      model.belongsTo(models.PetLivingEnvironment, {
+        foreignKey: 'pet_living_environment_id',
+        as: 'livingEnvironment',
+      });
+    }
+
+    if (models.PetBloodType) {
+      model.belongsTo(models.PetBloodType, {
+        foreignKey: 'pet_blood_type_id',
+        as: 'bloodType',
+      });
+    }
+
+    if (models.PetSubscription) {
+      model.belongsTo(models.PetSubscription, {
+        foreignKey: 'pet_subscription_id',
+        as: 'subscription',
+      });
+    }
   };
+
   return model;
 };
 

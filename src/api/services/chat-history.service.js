@@ -1,74 +1,62 @@
 import ChatRepository from '../repositories/chat-history.repository.js';
 import S3ClientUtil from '../../utils/s3.js';
+import { normalizeQuery } from '../../utils/normalizeQuery.js';
+import { isValidUUID } from '../../utils/validate.js';
 
-const getAllContactsWithMessages = async (page, limit) => {
-  try {
-    const result = await ChatRepository.getAllContactsWithMessages(page, limit);
-    const contacts = result.contacts;
+const signMessagesMediaUrls = async (contacts) => {
+  for (const contact of contacts) {
+    const chatHistory = contact.dataValues?.chatHistory || [];
 
-    for (const contact of contacts) {
-      const chatHistory = contact.dataValues?.chatHistory || [];
+    for (const message of chatHistory) {
+      if (message.midia_url) {
+        try {
+          const url = new URL(message.midia_url);
 
-      for (const message of chatHistory) {
-        if (message.midia_url) {
-          try {
-            const url = new URL(message.midia_url);
-
-            if (url.hostname.includes('ai-images-n8n')) {
-              continue;
-            }
-
-            if (url.hostname.includes('communication-latta')) {
-              const key = decodeURIComponent(url.pathname.slice(1));
-
-              const signedUrl = await S3ClientUtil.getObjectSignedUrl({
-                bucketName: 'communication-latta',
-                key,
-              });
-
-              message.midia_url = signedUrl;
-            }
-          } catch (e) {
-            console.error('Erro ao assinar URL S3:', e.message);
+          if (url.hostname.includes('ai-images-n8n')) {
+            continue;
           }
+
+          if (url.hostname.includes('communication-latta')) {
+            const key = decodeURIComponent(url.pathname.slice(1));
+
+            const signedUrl = await S3ClientUtil.getObjectSignedUrl({
+              bucketName: 'communication-latta',
+              key,
+            });
+
+            message.midia_url = signedUrl;
+          }
+        } catch (e) {
+          console.error('Erro ao assinar URL S3:', e.message);
         }
       }
-
-      contact.dataValues.chatHistory = chatHistory;
     }
 
-    contacts.sort((a, b) => {
-      const aHistory = a.dataValues?.chatHistory || [];
-      const bHistory = b.dataValues?.chatHistory || [];
+    contact.dataValues.chatHistory = chatHistory;
+  }
+  return contacts;
+};
 
-      const aLast = aHistory.length
-        ? new Date(
-            aHistory.reduce(
-              (max, m) => (new Date(m.timestamp) > max ? new Date(m.timestamp) : max),
-              new Date(0),
-            ),
-          )
-        : null;
-
-      const bLast = bHistory.length
-        ? new Date(
-            bHistory.reduce(
-              (max, m) => (new Date(m.timestamp) > max ? new Date(m.timestamp) : max),
-              new Date(0),
-            ),
-          )
-        : null;
-
-      if (aLast && bLast) {
-        return bLast - aLast;
-      } else if (aLast && !bLast) {
-        return -1;
-      } else if (!aLast && bLast) {
-        return 1;
-      } else {
-        return 0;
+const attachReplyMessages = async (contacts) => {
+  for (const contact of contacts) {
+    for (const message of contact.chatHistory) {
+      if (message.reply && isValidUUID(message.reply)) {
+        const replyMessage = await ChatRepository.getReplyMessageById({ replyId: message.reply });
+        if (replyMessage) {
+          message.dataValues.replyMessage = replyMessage;
+        }
       }
-    });
+    }
+  }
+};
+
+const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) => {
+  try {
+    const result = await ChatRepository.getAllContactsWithMessages({ clinic_id, page, limit });
+    const contacts = result.contacts;
+
+    await attachReplyMessages(contacts);
+    await signMessagesMediaUrls(contacts);
 
     return {
       contacts,
@@ -80,56 +68,26 @@ const getAllContactsWithMessages = async (page, limit) => {
   }
 };
 
-const getMessagesByPhone = async ({ phone }) => {
+const searchContacts = async ({ clinic_id, query, page, limit }) => {
   try {
-    if (!phone) {
-      throw new Error('Phone parameter is required');
-    }
+    const cleanedQuery = normalizeQuery(query);
+    const hasLetter = /[a-zA-Z]/.test(cleanedQuery);
 
-    const messages = await ChatRepository.getMessagesByPhone({ phone });
+    const name = cleanedQuery && hasLetter ? cleanedQuery : null;
+    const phone = cleanedQuery && !hasLetter ? cleanedQuery : null;
 
-    if (!messages || messages.length === 0) {
-      return {
-        phone: phone,
-        name: null,
-        messages: [],
-      };
-    }
+    const contacts = await ChatRepository.searchContacts({
+      clinic_id,
+      name,
+      phone,
+      page,
+      limit,
+    });
 
-    const sortedMessages = messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    await attachReplyMessages(contacts);
+    await signMessagesMediaUrls(contacts);
 
-    // Adiciona signed URLs
-    for (const msg of sortedMessages) {
-      if (msg.midia_url) {
-        try {
-          const url = new URL(msg.midia_url);
-          const key = decodeURIComponent(url.pathname.slice(1));
-
-          const signedUrl = await S3ClientUtil.getObjectSignedUrl({
-            bucketName: 'communication-latta',
-            key,
-          });
-          msg.midia_url = signedUrl;
-        } catch (e) {
-          console.error('Erro ao assinar URL S3:', e.message);
-        }
-      }
-    }
-
-    return {
-      phone: phone,
-      name: messages[0].name,
-      messages: sortedMessages.map((message) => ({
-        id: message.id,
-        message: message.message,
-        sent_by: message.sent_by,
-        timestamp: message.timestamp,
-        window_timestamp: message.window_timestamp,
-        journey: message.journey,
-        midia_url: message.midia_url,
-        signed_midia_url: message.signed_midia_url,
-      })),
-    };
+    return contacts;
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -137,5 +95,5 @@ const getMessagesByPhone = async ({ phone }) => {
 
 export default {
   getAllContactsWithMessages,
-  getMessagesByPhone,
+  searchContacts,
 };

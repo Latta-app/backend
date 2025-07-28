@@ -4,8 +4,9 @@ const getAllContactsWithMessages = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const clinic_id = req.user.clinic_id;
 
-    const result = await ChatService.getAllContactsWithMessages(page, limit);
+    const result = await ChatService.getAllContactsWithMessages({ clinic_id, page, limit });
 
     return res.status(200).json({
       code: 'CONTACTS_RETRIEVED',
@@ -20,19 +21,26 @@ const getAllContactsWithMessages = async (req, res) => {
   }
 };
 
-const getMessagesByPhone = async (req, res) => {
+const searchContacts = async (req, res) => {
   try {
-    const { phone } = req.params;
-    const messages = await ChatService.getMessagesByPhone({ phone });
+    const { query, page = 1, limit = 15 } = req.query;
+    const clinic_id = req.user.clinic_id;
+
+    const contacts = await ChatService.searchContacts({
+      clinic_id,
+      query,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
 
     return res.status(200).json({
-      code: 'MESSAGES_BY_PHONE_RETRIEVED',
-      data: messages,
+      code: 'CONTACTS_SEARCH_SUCCESS',
+      data: contacts,
     });
   } catch (error) {
-    console.error('Error retrieving messages by phone:', error);
+    console.error('Error searching contacts:', error);
     return res.status(500).json({
-      code: 'MESSAGES_BY_PHONE_RETRIEVAL_ERROR',
+      code: 'CONTACTS_SEARCH_ERROR',
       message: error.message,
     });
   }
@@ -40,5 +48,5 @@ const getMessagesByPhone = async (req, res) => {
 
 export default {
   getAllContactsWithMessages,
-  getMessagesByPhone,
+  searchContacts,
 };
