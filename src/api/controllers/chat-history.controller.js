@@ -4,9 +4,28 @@ const getAllContactsWithMessages = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const clinic_id = req.user.clinic_id;
+    const { id, role, clinic_id } = req.user;
 
-    const result = await ChatService.getAllContactsWithMessages({ clinic_id, page, limit });
+    const responsibility = req.query.responsibility === 'true';
+    const unread = req.query.unread === 'true';
+    const tags = req?.query?.tags ? req.query.tags.split(',').filter((tag) => tag.trim()) : [];
+
+    const filters = {
+      responsibility,
+      unread,
+      tags,
+    };
+
+    console.log('Filtros aplicados:', filters);
+
+    const result = await ChatService.getAllContactsWithMessages({
+      user_id: id,
+      clinic_id,
+      role: role.role,
+      page,
+      limit,
+      filters,
+    });
 
     return res.status(200).json({
       code: 'CONTACTS_RETRIEVED',
@@ -24,13 +43,29 @@ const getAllContactsWithMessages = async (req, res) => {
 const searchContacts = async (req, res) => {
   try {
     const { query, page = 1, limit = 15 } = req.query;
-    const clinic_id = req.user.clinic_id;
+    const { id, clinic_id, role } = req.user;
+    console.log('id', id);
+    // Captura os filtros da query string (mesma lógica do getAllContacts)
+    const responsibility = req.query.responsibility === 'true';
+    const unread = req.query.unread === 'true';
+    const tags = req.query.tags ? req.query.tags.split(',').filter((tag) => tag.trim()) : [];
+
+    const filters = {
+      responsibility,
+      unread,
+      tags,
+    };
+
+    console.log('Filtros aplicados na busca:', filters);
 
     const contacts = await ChatService.searchContacts({
       clinic_id,
       query,
       page: parseInt(page),
       limit: parseInt(limit),
+      role: role.role,
+      user_id: id,
+      filters, // Novo parâmetro
     });
 
     return res.status(200).json({

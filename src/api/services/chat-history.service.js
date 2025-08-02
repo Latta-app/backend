@@ -50,9 +50,23 @@ const attachReplyMessages = async (contacts) => {
   }
 };
 
-const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) => {
+const getAllContactsWithMessages = async ({
+  clinic_id,
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+}) => {
   try {
-    const result = await ChatRepository.getAllContactsWithMessages({ clinic_id, page, limit });
+    const result = await ChatRepository.getAllContactsWithMessages({
+      clinic_id,
+      role,
+      page,
+      limit,
+      user_id,
+      filters, // Repassa os filtros para o repository
+    });
     const contacts = result.contacts;
 
     await attachReplyMessages(contacts);
@@ -68,7 +82,7 @@ const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) =
   }
 };
 
-const searchContacts = async ({ clinic_id, query, page, limit }) => {
+const searchContacts = async ({ clinic_id, query, page, limit, role, user_id, filters = {} }) => {
   try {
     const cleanedQuery = normalizeQuery(query);
     const hasLetter = /[a-zA-Z]/.test(cleanedQuery);
@@ -82,6 +96,9 @@ const searchContacts = async ({ clinic_id, query, page, limit }) => {
       phone,
       page,
       limit,
+      role,
+      user_id,
+      filters, // Repassa os filtros para o repository
     });
 
     await attachReplyMessages(contacts);

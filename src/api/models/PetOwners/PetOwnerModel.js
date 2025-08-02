@@ -121,6 +121,18 @@ const PetOwner = (sequelize) => {
       otherKey: 'pet_id',
       as: 'pets',
     });
+
+    model.belongsToMany(models.PetOwnerTag, {
+      through: models.PetOwnerTagAssignment,
+      foreignKey: 'pet_owner_id',
+      otherKey: 'tag_id',
+      as: 'tags',
+    });
+
+    model.hasMany(models.PetOwnerTagAssignment, {
+      foreignKey: 'pet_owner_id',
+      as: 'tagAssignments',
+    });
   };
 
   return model;

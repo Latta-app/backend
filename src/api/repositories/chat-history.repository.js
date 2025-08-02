@@ -8,144 +8,122 @@ import {
   PetFurLength,
   PetGender,
   PetOwner,
+  PetOwnerTag,
   PetSize,
   PetType,
 } from '../models/index.js';
-import { isValidUUID } from '../../utils/validate.js';
 
-// const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) => {
-//   // TRAZ TODO MUNDO
-//   try {
-//     const offset = (page - 1) * limit;
-
-//     const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
-//       where: {
-//         clinic_id,
-//       },
-//       limit,
-//       offset,
-//       order: [
-//         [
-//           Sequelize.literal(`(
-//           CASE
-//             WHEN EXISTS (
-//               SELECT 1 FROM chat_history
-//               WHERE chat_history.contact_id = "Contact".id
-//             )
-//             THEN 0
-//             ELSE 1
-//           END
-//         )`),
-//           'ASC',
-//         ],
-//         [
-//           Sequelize.literal(`(
-//           SELECT MAX(chat_history.timestamp)
-//           FROM chat_history
-//           WHERE chat_history.contact_id = "Contact".id
-//         )`),
-//           'DESC',
-//         ],
-//         ['updated_at', 'DESC'],
-//       ],
-//       include: [
-//         {
-//           model: ChatHistory,
-//           as: 'chatHistory',
-//           attributes: [
-//             'id',
-//             'message',
-//             'sent_by',
-//             'sent_to',
-//             'role',
-//             'timestamp',
-//             'window_timestamp',
-//             'journey',
-//             'message_type',
-//             'date',
-//             'message_id',
-//             'midia_url',
-//             'midia_name',
-//           ],
-//           order: [['timestamp', 'ASC']],
-//           include: [
-//             {
-//               model: ChatHistoryContacts,
-//               as: 'chatHistoryContacts',
-//               attributes: [
-//                 'id',
-//                 'contact_name',
-//                 'cellphone',
-//                 'contact_phone',
-//                 'message_id',
-//                 'created_at',
-//                 'updated_at',
-//               ],
-//             },
-//           ],
-//         },
-//         {
-//           model: PetOwner,
-//           as: 'petOwner',
-//           attributes: [
-//             'id',
-//             'name',
-//             'email',
-//             'cell_phone',
-//             'cpf',
-//             'date_of_birth',
-//             'is_active',
-//             'created_at',
-//           ],
-//           include: [
-//             {
-//               model: Pet,
-//               as: 'pets',
-//               attributes: ['id', 'name', 'date_of_birthday', 'photo'],
-//               through: { attributes: [] },
-//               where: {
-//                 is_active: true,
-//                 death_date: null,
-//               },
-//               required: false,
-//               include: [
-//                 { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
-//                 { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
-//                 { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
-//                 { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
-//                 { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
-//               ],
-//             },
-//           ],
-//         },
-//       ],
-//     });
-
-//     return {
-//       contacts,
-//       totalItems,
-//     };
-//   } catch (error) {
-//     throw new Error(`Repository error: ${error.message}`);
-//   }
-// };
-
-const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) => {
+const getAllContactsWithMessages = async ({
+  clinic_id,
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+}) => {
   try {
     const offset = (page - 1) * limit;
+    const { Op } = Sequelize;
+
+    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+    const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
+
+    // Condições de WHERE básicas (mantém a lógica original)
+    let whereConditions = {
+      clinic_id,
+    };
+
+    // Constrói os filtros condicionalmente
+    const additionalConditions = [];
+
+    // FILTRO DE TAGS - Condição OU entre as tags
+    if (filters.tags && filters.tags.length > 0) {
+      // Escape das tags para prevenir SQL injection
+      const escapedTags = filters.tags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(',');
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT DISTINCT c.id 
+            FROM contacts c
+            INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+            INNER JOIN pet_owner_tag_assignments pota ON po.id = pota.pet_owner_id
+            WHERE pota.tag_id IN (${escapedTags})
+            AND c.clinic_id = '${clinic_id}'
+          )`),
+        },
+      });
+    }
+
+    // FILTRO DE RESPONSABILIDADE - Verifica se a mensagem mais recente é do usuário
+    if (filters.responsibility) {
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT c.id 
+            FROM contacts c
+            WHERE c.clinic_id = '${clinic_id}'
+            AND EXISTS (
+              SELECT 1 FROM chat_history ch1
+              WHERE ch1.contact_id = c.id
+              ${shouldFilterLatta ? `AND ch1.path != 'latta'` : ''}
+              AND ch1.timestamp = (
+                SELECT MAX(ch2.timestamp)
+                FROM chat_history ch2
+                WHERE ch2.contact_id = c.id
+                ${shouldFilterLatta ? `AND ch2.path != 'latta'` : ''}
+              )
+              AND ch1.user_id = '${user_id}'
+            )
+          )`),
+        },
+      });
+    }
+
+    // FILTRO DE NÃO LIDAS - Verifica se a mensagem mais recente não foi respondida
+    if (filters.unread) {
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT c.id 
+            FROM contacts c
+            WHERE c.clinic_id = '${clinic_id}'
+            AND EXISTS (
+              SELECT 1 FROM chat_history ch1
+              WHERE ch1.contact_id = c.id
+              ${shouldFilterLatta ? `AND ch1.path != 'latta'` : ''}
+              AND ch1.timestamp = (
+                SELECT MAX(ch2.timestamp)
+                FROM chat_history ch2
+                WHERE ch2.contact_id = c.id
+                ${shouldFilterLatta ? `AND ch2.path != 'latta'` : ''}
+              )
+              AND ch1.is_answered = false
+            )
+          )`),
+        },
+      });
+    }
+
+    // Aplica os filtros adicionais com lógica E
+    if (additionalConditions.length > 0) {
+      whereConditions = {
+        ...whereConditions,
+        [Op.and]: additionalConditions,
+      };
+    }
 
     const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
-      where: {
-        clinic_id,
-      },
+      where: whereConditions,
       limit,
       offset,
+      distinct: true, // Evita duplicatas com joins múltiplos
       order: [
         [
           Sequelize.literal(`(
             SELECT MAX(chat_history.timestamp)
             FROM chat_history
             WHERE chat_history.contact_id = "Contact".id
+            ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
           )`),
           'DESC',
         ],
@@ -156,6 +134,7 @@ const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) =
         {
           model: ChatHistory,
           as: 'chatHistory',
+          where: chatHistoryWhere,
           attributes: [
             'id',
             'message',
@@ -171,6 +150,9 @@ const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) =
             'midia_url',
             'midia_name',
             'reply',
+            'path',
+            'user_id',
+            'is_answered',
           ],
           required: true,
           order: [['timestamp', 'ASC']],
@@ -209,6 +191,7 @@ const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) =
               as: 'pets',
               attributes: ['id', 'name', 'date_of_birthday', 'photo'],
               through: { attributes: [] },
+              where: { is_active: true },
               include: [
                 { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
                 { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
@@ -216,6 +199,16 @@ const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) =
                 { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
                 { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
               ],
+            },
+            {
+              model: PetOwnerTag,
+              as: 'tags',
+              attributes: ['id', 'name', 'label', 'color', 'is_active'],
+              through: {
+                attributes: ['assigned_at', 'user_id'],
+              },
+              where: { is_active: true },
+              required: false,
             },
           ],
         },
@@ -231,9 +224,22 @@ const getAllContactsWithMessages = async ({ clinic_id, page = 1, limit = 15 }) =
   }
 };
 
-const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) => {
+const searchContacts = async ({
+  clinic_id,
+  name,
+  phone,
+  page = 1,
+  limit = 15,
+  role,
+  user_id,
+  filters = {},
+}) => {
   try {
     const { Op } = Sequelize;
+    const offset = (page - 1) * limit;
+
+    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+    const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
 
     let finalConditions = [];
 
@@ -266,17 +272,96 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
       finalConditions.push({ [Op.or]: nameConditions });
     }
 
-    const offset = (page - 1) * limit;
-
-    const whereConditions = {
+    let whereConditions = {
       clinic_id,
       ...(finalConditions.length > 0 ? { [Op.or]: finalConditions } : {}),
     };
+
+    // Aplica os filtros adicionais (mesma lógica do getAllContacts)
+    const additionalConditions = [];
+
+    // FILTRO DE TAGS - Condição OU entre as tags
+    if (filters.tags && filters.tags.length > 0) {
+      const escapedTags = filters.tags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(',');
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT DISTINCT c.id 
+            FROM contacts c
+            INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+            INNER JOIN pet_owner_tag_assignments pota ON po.id = pota.pet_owner_id
+            WHERE pota.tag_id IN (${escapedTags})
+            AND c.clinic_id = '${clinic_id}'
+          )`),
+        },
+      });
+    }
+
+    // FILTRO DE RESPONSABILIDADE - Verifica se a mensagem mais recente é do usuário
+    if (filters.responsibility) {
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT c.id 
+            FROM contacts c
+            WHERE c.clinic_id = '${clinic_id}'
+            AND EXISTS (
+              SELECT 1 FROM chat_history ch1
+              WHERE ch1.contact_id = c.id
+              ${shouldFilterLatta ? `AND ch1.path != 'latta'` : ''}
+              AND ch1.timestamp = (
+                SELECT MAX(ch2.timestamp)
+                FROM chat_history ch2
+                WHERE ch2.contact_id = c.id
+                ${shouldFilterLatta ? `AND ch2.path != 'latta'` : ''}
+              )
+              AND ch1.user_id = '${user_id}'
+            )
+          )`),
+        },
+      });
+    }
+
+    // FILTRO DE NÃO LIDAS - Verifica se a mensagem mais recente não foi respondida
+    if (filters.unread) {
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT c.id 
+            FROM contacts c
+            WHERE c.clinic_id = '${clinic_id}'
+            AND EXISTS (
+              SELECT 1 FROM chat_history ch1
+              WHERE ch1.contact_id = c.id
+              ${shouldFilterLatta ? `AND ch1.path != 'latta'` : ''}
+              AND ch1.timestamp = (
+                SELECT MAX(ch2.timestamp)
+                FROM chat_history ch2
+                WHERE ch2.contact_id = c.id
+                ${shouldFilterLatta ? `AND ch2.path != 'latta'` : ''}
+              )
+              AND ch1.is_answered = false
+            )
+          )`),
+        },
+      });
+    }
+
+    // Combina as condições de busca com os filtros
+    if (additionalConditions.length > 0) {
+      whereConditions = {
+        [Op.and]: [
+          whereConditions, // Condições de busca originais
+          ...additionalConditions, // Filtros adicionais
+        ],
+      };
+    }
 
     const contacts = await Contact.findAll({
       where: whereConditions,
       limit: parseInt(limit),
       offset: parseInt(offset),
+      distinct: true, // Evita duplicatas com joins múltiplos
       order: [
         [
           Sequelize.literal(`(
@@ -284,6 +369,7 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
               WHEN EXISTS (
                 SELECT 1 FROM chat_history
                 WHERE chat_history.contact_id = "Contact".id
+                ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
               )
               THEN 0
               ELSE 1
@@ -296,6 +382,7 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
             SELECT MAX(chat_history.timestamp)
             FROM chat_history
             WHERE chat_history.contact_id = "Contact".id
+            ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
           )`),
           'DESC',
         ],
@@ -306,6 +393,8 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
         {
           model: ChatHistory,
           as: 'chatHistory',
+          where: chatHistoryWhere,
+          required: false, // DIFERENÇA: false para buscar TODOS os contatos, independente de ter mensagem
           attributes: [
             'id',
             'message',
@@ -320,6 +409,10 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
             'message_id',
             'midia_url',
             'midia_name',
+            'reply',
+            'path',
+            'user_id',
+            'is_answered',
           ],
           order: [['timestamp', 'ASC']],
           include: [
@@ -337,7 +430,6 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
               ],
             },
           ],
-          required: false,
         },
         {
           model: PetOwner,
@@ -352,18 +444,12 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
             'is_active',
             'created_at',
           ],
-          required: false,
           include: [
             {
               model: Pet,
               as: 'pets',
               attributes: ['id', 'name', 'date_of_birthday', 'photo'],
               through: { attributes: [] },
-              where: {
-                is_active: true,
-                death_date: null,
-              },
-              required: false,
               include: [
                 { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
                 { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
@@ -371,6 +457,16 @@ const searchContacts = async ({ clinic_id, name, phone, page = 1, limit = 15 }) 
                 { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
                 { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
               ],
+            },
+            {
+              model: PetOwnerTag,
+              as: 'tags',
+              attributes: ['id', 'name', 'label', 'color', 'is_active'],
+              through: {
+                attributes: ['assigned_at', 'user_id'],
+              },
+              where: { is_active: true },
+              required: false,
             },
           ],
         },

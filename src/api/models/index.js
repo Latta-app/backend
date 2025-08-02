@@ -15,6 +15,8 @@ import PetLivingEnvironmentModel from './Pets/PetLivingEnvironmentModel.js';
 import PetModel from './Pets/PetModel.js';
 import PetOwnerModel from './PetOwners/PetOwnerModel.js';
 import PetOwnerPetModel from './PetOwners/PetOwnerModel.js';
+import PetOwnerTagModel from './PetOwners/PetOwnerTagModel.js';
+import PetOwnerTagAssignmentModel from './PetOwners/PetOwnerTagAssignmentModel.js';
 import PetSizeModel from './Pets/PetSizeModel.js';
 import PetSocializationLevelModel from './Pets/PetSocializationLevelModel.js';
 import PetTemperamentModel from './Pets/PetTemperamentModel.js';
@@ -45,6 +47,8 @@ const models = {
   PetLivingEnvironment: PetLivingEnvironmentModel(sequelize),
   PetOwner: PetOwnerModel(sequelize),
   PetOwnerPet: PetOwnerPetModel(sequelize),
+  PetOwnerTag: PetOwnerTagModel(sequelize),
+  PetOwnerTagAssignment: PetOwnerTagAssignmentModel(sequelize),
   PetSize: PetSizeModel(sequelize),
   PetSocializationLevel: PetSocializationLevelModel(sequelize),
   PetTemperament: PetTemperamentModel(sequelize),
@@ -81,6 +85,8 @@ export const PetGender = models.PetGender;
 export const PetLivingEnvironment = models.PetLivingEnvironment;
 export const PetOwner = models.PetOwner;
 export const PetOwnerPet = models.PetOwnerPet;
+export const PetOwnerTag = models.PetOwnerTag;
+export const PetOwnerTagAssignment = models.PetOwnerTagAssignment;
 export const PetSize = models.PetSize;
 export const PetSocializationLevel = models.PetSocializationLevel;
 export const PetTemperament = models.PetTemperament;

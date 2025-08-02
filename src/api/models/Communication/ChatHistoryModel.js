@@ -28,7 +28,7 @@ const ChatHistory = (sequelize) => {
       },
       timestamp: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true,
         defaultValue: DataTypes.NOW,
       },
       window_timestamp: {
@@ -40,25 +40,24 @@ const ChatHistory = (sequelize) => {
         allowNull: true,
       },
       sent_by: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       sent_to: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       role: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       message_type: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       date: {
         type: DataTypes.STRING(10),
         allowNull: true,
-        comment: 'Considere usar DataTypes.DATEONLY para melhor tipagem',
       },
       message_id: {
         type: DataTypes.STRING(255),
@@ -104,6 +103,15 @@ const ChatHistory = (sequelize) => {
       is_modified: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: false,
+      },
+      user_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      is_answered: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
         defaultValue: false,
       },
     },
@@ -159,6 +167,12 @@ const ChatHistory = (sequelize) => {
     model.belongsTo(models.Contact, {
       foreignKey: 'contact_id',
       as: 'contact',
+      onDelete: 'SET NULL',
+    });
+
+    model.belongsTo(models.User, {
+      foreignKey: 'user_id',
+      as: 'user',
       onDelete: 'SET NULL',
     });
 
