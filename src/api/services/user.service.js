@@ -111,6 +111,16 @@ const getAllBathers = async ({ clinic_id }) => {
   }
 };
 
+const getAllAttendants = async ({ clinic_id }) => {
+  try {
+    const attendants = await UserRepository.getAllAttendants({ clinic_id });
+
+    return attendants;
+  } catch (error) {
+    throw new Error(`Error fetching attendants: ${error.message}`);
+  }
+};
+
 const getVeterinaryById = async ({ id }) => {
   try {
     const veterinary = await UserRepository.getVeterinaryById({ id });
@@ -164,6 +174,7 @@ export default {
   getAllPetOwners,
   getAllUsers,
   getAllBathers,
+  getAllAttendants,
   getUserByEmail,
   getVeterinaryById,
   getPetOwnerById,

@@ -16,8 +16,6 @@ const getAllContactsWithMessages = async (req, res) => {
       tags,
     };
 
-    console.log('Filtros aplicados:', filters);
-
     const result = await ChatService.getAllContactsWithMessages({
       user_id: id,
       clinic_id,
@@ -44,8 +42,7 @@ const searchContacts = async (req, res) => {
   try {
     const { query, page = 1, limit = 15 } = req.query;
     const { id, clinic_id, role } = req.user;
-    console.log('id', id);
-    // Captura os filtros da query string (mesma lógica do getAllContacts)
+
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
     const tags = req.query.tags ? req.query.tags.split(',').filter((tag) => tag.trim()) : [];
@@ -55,8 +52,6 @@ const searchContacts = async (req, res) => {
       unread,
       tags,
     };
-
-    console.log('Filtros aplicados na busca:', filters);
 
     const contacts = await ChatService.searchContacts({
       clinic_id,

@@ -89,6 +89,25 @@ const getAllBathers = async (req, res) => {
   }
 };
 
+const getAllAttendants = async (req, res) => {
+  try {
+    const clinicId = req.headers['clinic-id'];
+
+    const attendants = await UserService.getAllAttendants({ clinic_id: clinicId });
+
+    return res.status(200).json({
+      code: 'USERS_FETCHED',
+      data: attendants,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar usuário:', error);
+    return res.status(500).json({
+      code: 'FETCH_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getVeterinaryById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -276,6 +295,7 @@ export default {
   getAllUsers,
   getUserByEmail,
   getAllBathers,
+  getAllAttendants,
   getVeterinaryById,
   getPetOwnerById,
 };

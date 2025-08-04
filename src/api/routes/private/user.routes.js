@@ -45,6 +45,13 @@ router.get(
 );
 
 router.get(
+  '/attendants',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  UserController.getAllAttendants,
+);
+
+router.get(
   '/:email',
   verifyToken,
   checkRole(['admin', 'superAdmin']),

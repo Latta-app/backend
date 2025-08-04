@@ -1,4 +1,9 @@
-import { BATHER_ROLE_ID, PET_OWNER_ROLE_ID, VETERINARY_ROLE_ID } from '../../constants/database.js';
+import {
+  ATTENDANT_ROLE_ID,
+  BATHER_ROLE_ID,
+  PET_OWNER_ROLE_ID,
+  VETERINARY_ROLE_ID,
+} from '../../constants/database.js';
 import { Clinic, User, Role } from '../models/index.js';
 
 const createUser = async ({ userData }) => {
@@ -187,6 +192,34 @@ const getAllBathers = async ({ clinic_id }) => {
   }
 };
 
+const getAllAttendants = async ({ clinic_id }) => {
+  try {
+    const attendants = await User.findAll({
+      where: {
+        role_id: ATTENDANT_ROLE_ID,
+        clinic_id: clinic_id,
+      },
+      include: [
+        {
+          model: Clinic,
+          as: 'clinic',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: Role,
+          as: 'role',
+          attributes: ['id', 'role'],
+        },
+      ],
+      attributes: ['id', 'name', 'email', 'photo'],
+    });
+
+    return attendants;
+  } catch (error) {
+    throw new Error(`Error fetching attendants: ${error.message}`);
+  }
+};
+
 const getUserByEmail = async ({ email, password = false }) => {
   try {
     const attributes = ['id', 'name', 'email', 'role_id', 'clinic_id', 'created_at'];
@@ -285,6 +318,7 @@ export default {
   getAllPetOwners,
   getAllUsers,
   getAllBathers,
+  getAllAttendants,
   getUserByEmail,
   getVeterinaryById,
   getPetOwnerById,
