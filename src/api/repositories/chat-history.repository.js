@@ -10,7 +10,9 @@ import {
   PetOwner,
   PetOwnerTag,
   PetSize,
+  PetSubscription,
   PetType,
+  Template,
 } from '../models/index.js';
 
 const getAllContactsWithMessages = async ({
@@ -116,7 +118,7 @@ const getAllContactsWithMessages = async ({
       where: whereConditions,
       limit,
       offset,
-      distinct: true, // Evita duplicatas com joins múltiplos
+      distinct: true,
       order: [
         [
           Sequelize.literal(`(
@@ -153,6 +155,7 @@ const getAllContactsWithMessages = async ({
             'path',
             'user_id',
             'is_answered',
+            'template_id',
           ],
           required: true,
           order: [['timestamp', 'ASC']],
@@ -169,6 +172,11 @@ const getAllContactsWithMessages = async ({
                 'created_at',
                 'updated_at',
               ],
+            },
+            {
+              model: Template,
+              as: 'template',
+              attributes: ['id', 'template_name', 'template_category', 'template_status'],
             },
           ],
         },
@@ -189,7 +197,7 @@ const getAllContactsWithMessages = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
               through: { attributes: [] },
               where: { is_active: true },
               include: [
@@ -198,6 +206,7 @@ const getAllContactsWithMessages = async ({
                 { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
                 { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
                 { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
+                { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
               ],
             },
             {
@@ -207,6 +216,7 @@ const getAllContactsWithMessages = async ({
               through: {
                 attributes: ['assigned_at', 'user_id'],
               },
+              order: [['name', 'ASC']],
               where: { is_active: true },
               required: false,
             },
@@ -413,6 +423,7 @@ const searchContacts = async ({
             'path',
             'user_id',
             'is_answered',
+            'template_id',
           ],
           order: [['timestamp', 'ASC']],
           include: [
@@ -428,6 +439,11 @@ const searchContacts = async ({
                 'created_at',
                 'updated_at',
               ],
+            },
+            {
+              model: Template,
+              as: 'template',
+              attributes: ['id', 'template_name', 'template_category', 'template_status'],
             },
           ],
         },
@@ -456,6 +472,7 @@ const searchContacts = async ({
                 { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
                 { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
                 { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
+                { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
               ],
             },
             {
@@ -465,6 +482,7 @@ const searchContacts = async ({
               through: {
                 attributes: ['assigned_at', 'user_id'],
               },
+              order: [['name', 'ASC']],
               where: { is_active: true },
               required: false,
             },

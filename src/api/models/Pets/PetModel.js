@@ -19,7 +19,7 @@ const Pet = (sequelize) => {
       },
       pet_gender_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_genders',
           key: 'id',
@@ -27,7 +27,7 @@ const Pet = (sequelize) => {
       },
       pet_breed_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_breeds',
           key: 'id',
@@ -35,7 +35,7 @@ const Pet = (sequelize) => {
       },
       pet_color_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_colors',
           key: 'id',
@@ -43,7 +43,7 @@ const Pet = (sequelize) => {
       },
       pet_size_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_sizes',
           key: 'id',
@@ -51,7 +51,7 @@ const Pet = (sequelize) => {
       },
       pet_fur_type_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_fur_types',
           key: 'id',
@@ -59,7 +59,7 @@ const Pet = (sequelize) => {
       },
       pet_fur_length_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_fur_lengths',
           key: 'id',
@@ -67,7 +67,7 @@ const Pet = (sequelize) => {
       },
       pet_temperament_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_temperaments',
           key: 'id',
@@ -75,7 +75,7 @@ const Pet = (sequelize) => {
       },
       pet_socialization_level_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_socialization_levels',
           key: 'id',
@@ -83,14 +83,13 @@ const Pet = (sequelize) => {
       },
       pet_living_environment_id: {
         type: DataTypes.UUID,
-        allowNull: true, // Alterado para permitir null
+        allowNull: true,
         references: {
           model: 'pet_living_environment',
           key: 'id',
         },
       },
       pet_blood_type_id: {
-        // Campo adicionado
         type: DataTypes.UUID,
         allowNull: true,
         references: {
@@ -103,15 +102,14 @@ const Pet = (sequelize) => {
         allowNull: false,
       },
       date_of_birthday: {
-        type: DataTypes.DATEONLY, // Alterado de DATE para DATEONLY
-        allowNull: true, // Alterado para permitir null
+        type: DataTypes.DATEONLY,
+        allowNull: true,
       },
       photo: {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
       original_photo: {
-        // Campo adicionado
         type: DataTypes.STRING,
         allowNull: true,
       },
@@ -123,18 +121,11 @@ const Pet = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: true,
       },
-      blood_type: {
-        // Campo removido - substituído por pet_blood_type_id
-        type: DataTypes.STRING(20),
-        allowNull: true,
-      },
       comments: {
-        // Campo adicionado
         type: DataTypes.STRING,
         allowNull: true,
       },
       pet_subscription_id: {
-        // Campo adicionado
         type: DataTypes.UUID,
         allowNull: true,
         references: {
@@ -153,25 +144,25 @@ const Pet = (sequelize) => {
         defaultValue: true,
       },
       death_date: {
-        type: DataTypes.DATEONLY, // Alterado de DATE para DATEONLY
+        type: DataTypes.DATEONLY,
         allowNull: true,
       },
       created_at: {
         type: DataTypes.DATE,
-        allowNull: true, // Alterado para permitir null
-        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'), // Alterado de 'NOW' para 'CURRENT_TIMESTAMP'
+        allowNull: true,
+        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'),
       },
       updated_at: {
         type: DataTypes.DATE,
-        allowNull: true, // Alterado para permitir null
-        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'), // Alterado de 'NOW' para 'CURRENT_TIMESTAMP'
+        allowNull: true,
+        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'),
       },
     },
     {
       tableName: 'pets',
       timestamps: false,
       underscored: true,
-      // Adicionando validações personalizadas
+      // Validações personalizadas
       validate: {
         checkDeathDateActive() {
           if (this.is_active === true && this.death_date !== null) {
@@ -183,7 +174,6 @@ const Pet = (sequelize) => {
   );
 
   model.associate = (models) => {
-    // Verificação se PetOwner existe antes de criar a associação
     if (models.PetOwner) {
       model.belongsToMany(models.PetOwner, {
         through: 'pet_owner_pets',
@@ -193,7 +183,6 @@ const Pet = (sequelize) => {
       });
     }
 
-    // Associações com verificação de existência
     if (models.PetType) {
       model.belongsTo(models.PetType, {
         foreignKey: 'pet_type_id',

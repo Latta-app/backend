@@ -12,7 +12,7 @@ const getAllTags = async ({ clinic_id, page = 1, limit = 15 }) => {
       attributes: { exclude: ['is_active', 'created_at', 'updated_at'] },
       // limit,
       // offset,
-      order: [['created_at', 'DESC']],
+      order: [['label', 'ASC']],
     });
 
     return {

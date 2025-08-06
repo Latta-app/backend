@@ -23,7 +23,7 @@ const ChatHistory = (sequelize) => {
         allowNull: true,
       },
       journey: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       timestamp: {
@@ -36,7 +36,7 @@ const ChatHistory = (sequelize) => {
         allowNull: true,
       },
       message: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       sent_by: {
@@ -56,15 +56,15 @@ const ChatHistory = (sequelize) => {
         allowNull: true,
       },
       date: {
-        type: DataTypes.STRING(10),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       message_id: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       midia_url: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       midia_name: {
@@ -72,20 +72,19 @@ const ChatHistory = (sequelize) => {
         allowNull: true,
       },
       thumb_url: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       ai_accepted: {
         type: DataTypes.BOOLEAN,
         allowNull: true,
-        defaultValue: false,
       },
       reply: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       ai_output: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       pet_owner_id: {
@@ -97,13 +96,12 @@ const ChatHistory = (sequelize) => {
         allowNull: true,
       },
       path: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING,
         allowNull: true,
       },
       is_modified: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
+        allowNull: true,
       },
       user_id: {
         type: DataTypes.UUID,
@@ -113,6 +111,10 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.BOOLEAN,
         allowNull: true,
         defaultValue: false,
+      },
+      template_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
       },
     },
     {
@@ -173,6 +175,12 @@ const ChatHistory = (sequelize) => {
     model.belongsTo(models.User, {
       foreignKey: 'user_id',
       as: 'user',
+      onDelete: 'SET NULL',
+    });
+
+    model.belongsTo(models.Template, {
+      foreignKey: 'template_id',
+      as: 'template',
       onDelete: 'SET NULL',
     });
 

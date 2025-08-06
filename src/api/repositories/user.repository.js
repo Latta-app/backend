@@ -211,6 +211,7 @@ const getAllAttendants = async ({ clinic_id }) => {
           attributes: ['id', 'role'],
         },
       ],
+      order: [['name', 'ASC']],
       attributes: ['id', 'name', 'email', 'photo'],
     });
 

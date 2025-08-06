@@ -1,10 +1,17 @@
 import { sequelize } from '../../config/database.js';
 import ChatHistoryModel from './Communication/ChatHistoryModel.js';
 import ChatHistoryContactsModel from './Communication/ChatHistoryContactsModel.js';
+import TemplateModel from './Communication/Templates/TemplateModel.js';
+import TemplateVariableTypeModel from './Communication/Templates/TemplateVariableTypeModel.js';
+import TemplateParameterTypeModel from './Communication/Templates/TemplateParameterTypeModel.js';
+import TemplateComponentTypeModel from './Communication/Templates/TemplateComponentTypeModel.js';
+import TemplateComponentModel from './Communication/Templates/TemplateComponentModel.js';
+import TemplateVariableModel from './Communication/Templates/TemplateVariableModel.js';
 import ClinicModel from './Clinics/ClinicModel.js';
 import ContactModel from './Communication/ContactModel.js';
 import PaymentMethodModel from './Payments/PaymentMethodModel.js';
 import PaymentStatusModel from './Payments/PaymentStatusModel.js';
+import PetSubscriptionModel from './Pets/PetSubscriptionModel.js';
 import PetBloodTypeModel from './Pets/PetBloodTypeModel.js';
 import PetBreedModel from './Pets/PetBreedModel.js';
 import PetColorModel from './Pets/PetColorModel.js';
@@ -33,6 +40,12 @@ import VaccineModel from './Medications/VaccineModel.js';
 const models = {
   ChatHistory: ChatHistoryModel(sequelize),
   ChatHistoryContacts: ChatHistoryContactsModel(sequelize),
+  Template: TemplateModel(sequelize),
+  TemplateVariableType: TemplateVariableTypeModel(sequelize),
+  TemplateParameterType: TemplateParameterTypeModel(sequelize),
+  TemplateComponentType: TemplateComponentTypeModel(sequelize),
+  TemplateComponent: TemplateComponentModel(sequelize),
+  TemplateVariable: TemplateVariableModel(sequelize),
   Clinic: ClinicModel(sequelize),
   Contact: ContactModel(sequelize),
   PaymentMethod: PaymentMethodModel(sequelize),
@@ -53,6 +66,7 @@ const models = {
   PetSocializationLevel: PetSocializationLevelModel(sequelize),
   PetTemperament: PetTemperamentModel(sequelize),
   PetType: PetTypeModel(sequelize),
+  PetSubscription: PetSubscriptionModel(sequelize),
   Plan: PlanModel(sequelize),
   Protocol: ProtocolModel(sequelize),
   Scheduling: SchedulingModel(sequelize),
@@ -71,11 +85,18 @@ Object.keys(models).forEach((modelName) => {
 
 export const ChatHistory = models.ChatHistory;
 export const ChatHistoryContacts = models.ChatHistoryContacts;
+export const Template = models.Template;
+export const TemplateVariableType = models.TemplateVariableType;
+export const TemplateParameterType = models.TemplateParameterType;
+export const TemplateComponentType = models.TemplateComponentType;
+export const TemplateComponent = models.TemplateComponent;
+export const TemplateVariable = models.TemplateVariable;
 export const Clinic = models.Clinic;
 export const Contact = models.Contact;
 export const PaymentMethod = models.PaymentMethod;
 export const PaymentStatus = models.PaymentStatus;
 export const Pet = models.Pet;
+export const PetSubscription = models.PetSubscription;
 export const PetBloodType = models.PetBloodType;
 export const PetBreed = models.PetBreed;
 export const PetColor = models.PetColor;
