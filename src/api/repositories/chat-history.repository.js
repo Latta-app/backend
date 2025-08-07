@@ -13,6 +13,8 @@ import {
   PetSubscription,
   PetType,
   Template,
+  TemplateVariable,
+  TemplateVariableType,
 } from '../models/index.js';
 
 const getAllContactsWithMessages = async ({
@@ -176,7 +178,35 @@ const getAllContactsWithMessages = async ({
             {
               model: Template,
               as: 'template',
-              attributes: ['id', 'template_name', 'template_category', 'template_status'],
+              order: [['template_label', 'ASC']],
+              attributes: [
+                'id',
+                'template_name',
+                'template_label',
+                'template_category',
+                'template_status',
+              ],
+              include: [
+                {
+                  model: TemplateVariable,
+                  as: 'variables',
+                  attributes: [
+                    'id',
+                    'template_id',
+                    'template_component_id',
+                    'template_component_type_id',
+                    'template_varible_type_id',
+                    'variable_position',
+                  ],
+                  include: [
+                    {
+                      model: TemplateVariableType,
+                      as: 'templateVariableType',
+                      attributes: ['id', 'type', 'description', 'n8n_formula'],
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -404,7 +434,7 @@ const searchContacts = async ({
           model: ChatHistory,
           as: 'chatHistory',
           where: chatHistoryWhere,
-          required: false, // DIFERENÇA: false para buscar TODOS os contatos, independente de ter mensagem
+          required: false,
           attributes: [
             'id',
             'message',
@@ -443,7 +473,35 @@ const searchContacts = async ({
             {
               model: Template,
               as: 'template',
-              attributes: ['id', 'template_name', 'template_category', 'template_status'],
+              order: [['template_label', 'ASC']],
+              attributes: [
+                'id',
+                'template_name',
+                'template_label',
+                'template_category',
+                'template_status',
+              ],
+              include: [
+                {
+                  model: TemplateVariable,
+                  as: 'variables',
+                  attributes: [
+                    'id',
+                    'template_id',
+                    'template_component_id',
+                    'template_component_type_id',
+                    'template_varible_type_id',
+                    'variable_position',
+                  ],
+                  include: [
+                    {
+                      model: TemplateVariableType,
+                      as: 'templateVariableType',
+                      attributes: ['id', 'type', 'description', 'n8n_formula'],
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -466,6 +524,7 @@ const searchContacts = async ({
               as: 'pets',
               attributes: ['id', 'name', 'date_of_birthday', 'photo'],
               through: { attributes: [] },
+              where: { is_active: true },
               include: [
                 { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
                 { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },

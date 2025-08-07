@@ -1,4 +1,4 @@
-import { Template } from '../models/index.js';
+import { Template, TemplateVariable, TemplateVariableType } from '../models/index.js';
 
 const getAllTemplates = async ({ page = 1, limit = 15 }) => {
   try {
@@ -9,14 +9,40 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
         'id',
         'template_id',
         'template_name',
+        'template_label',
         'template_language',
         'template_status',
         'template_preview',
         'template_category',
       ],
+      include: [
+        {
+          model: TemplateVariable,
+          as: 'variables',
+          attributes: [
+            'id',
+            'template_id',
+            'template_component_id',
+            'template_component_type_id',
+            'template_varible_type_id', // Note: corrigir typo se possível
+            'variable_position',
+          ],
+          include: [
+            {
+              model: TemplateVariableType,
+              as: 'templateVariableType',
+              attributes: ['id', 'type', 'description', 'n8n_formula'],
+            },
+          ],
+        },
+      ],
       // limit,
       // offset,
-      order: [['template_name', 'ASC']],
+      order: [
+        ['template_label', 'ASC'],
+        // Ordenar as variáveis por posição também
+        [{ model: TemplateVariable, as: 'variables' }, 'variable_position', 'ASC'],
+      ],
     });
 
     return {
@@ -34,15 +60,16 @@ const getTemplateById = async ({ id }) => {
       where: {
         id,
       },
+      order: [['template_label', 'ASC']],
       attributes: [
         'id',
         'template_id',
         'template_name',
+        'template_label',
         'template_language',
         'template_status',
         'template_preview',
         'template_category',
-        'created_at',
       ],
     });
 
@@ -69,6 +96,7 @@ const searchTemplates = async ({ name, page = 1, limit = 15 }) => {
         'id',
         'template_id',
         'template_name',
+        'template_label',
         'template_language',
         'template_status',
         'template_preview',
@@ -76,7 +104,7 @@ const searchTemplates = async ({ name, page = 1, limit = 15 }) => {
       ],
       // limit,
       // offset,
-      order: [['template_name', 'ASC']],
+      order: [['template_label', 'ASC']],
     });
 
     return {

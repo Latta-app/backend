@@ -23,6 +23,10 @@ const TemplateModel = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      template_label: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       template_language: {
         type: DataTypes.STRING,
         allowNull: true,
