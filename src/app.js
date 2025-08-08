@@ -164,6 +164,7 @@ app.post('/api/webhook/new-message', express.json(), (req, res) => {
       contact_id,
       message_id,
       template_id,
+      message_type,
       name,
       window_timestamp,
       message,
@@ -238,6 +239,7 @@ app.post('/api/webhook/new-message', express.json(), (req, res) => {
       cell_phone,
       message_id,
       journey,
+      message_type,
       source: 'client',
     };
 
