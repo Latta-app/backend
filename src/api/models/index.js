@@ -21,6 +21,8 @@ import PetGenderModel from './Pets/PetGenderModel.js';
 import PetLivingEnvironmentModel from './Pets/PetLivingEnvironmentModel.js';
 import PetModel from './Pets/PetModel.js';
 import PetOwnerModel from './PetOwners/PetOwnerModel.js';
+import PetOwnerClinicModel from './PetOwners/PetOwnerClinicModel.js';
+import PetOwnerClinicServiceModel from './PetOwners/PetOwnerClinicServiceModel.js';
 import PetOwnerPetModel from './PetOwners/PetOwnerModel.js';
 import PetOwnerTagModel from './PetOwners/PetOwnerTagModel.js';
 import PetOwnerTagAssignmentModel from './PetOwners/PetOwnerTagAssignmentModel.js';
@@ -59,6 +61,8 @@ const models = {
   PetGender: PetGenderModel(sequelize),
   PetLivingEnvironment: PetLivingEnvironmentModel(sequelize),
   PetOwner: PetOwnerModel(sequelize),
+  PetOwnerClinic:PetOwnerClinicModel(sequelize),
+  PetOwnerClinicService: PetOwnerClinicServiceModel(sequelize),
   PetOwnerPet: PetOwnerPetModel(sequelize),
   PetOwnerTag: PetOwnerTagModel(sequelize),
   PetOwnerTagAssignment: PetOwnerTagAssignmentModel(sequelize),
@@ -105,6 +109,8 @@ export const PetFurType = models.PetFurType;
 export const PetGender = models.PetGender;
 export const PetLivingEnvironment = models.PetLivingEnvironment;
 export const PetOwner = models.PetOwner;
+export const PetOwnerClinic = models.PetOwnerClinic;
+export const PetOwnerClinicService = models.PetOwnerClinicService;
 export const PetOwnerPet = models.PetOwnerPet;
 export const PetOwnerTag = models.PetOwnerTag;
 export const PetOwnerTagAssignment = models.PetOwnerTagAssignment;

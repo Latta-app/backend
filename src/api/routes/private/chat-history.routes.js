@@ -18,4 +18,32 @@ router.get(
   ChatController.searchContacts,
 );
 
+router.get(
+  '/messages/getContactByPetOwnerId/:pet_owner_id',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getContactByPetOwnerId,
+);
+
+router.get(
+  '/messages/loadMore/:pet_owner_id',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getContactByPetOwnerId,
+);
+
+router.get(
+  '/messages/getAllContactsMessagesWithNoFilters',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getAllContactsMessagesWithNoFilters,
+);
+
+router.get(
+  '/messages/loadMoreAllContacts',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getAllContactsMessagesWithNoFilters,
+);
+
 export default router;

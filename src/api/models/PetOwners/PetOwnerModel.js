@@ -11,7 +11,6 @@ const PetOwner = (sequelize) => {
       },
       clinic_id: {
         type: DataTypes.UUID,
-        allowNull: false,
         references: {
           model: 'clinics',
           key: 'id',
@@ -19,87 +18,110 @@ const PetOwner = (sequelize) => {
       },
       name: {
         type: DataTypes.STRING(200),
-        allowNull: false,
       },
       email: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        defaultValue: null,
       },
       cell_phone: {
         type: DataTypes.STRING(20),
-        allowNull: true,
       },
       cpf: {
         type: DataTypes.STRING(14),
-        allowNull: true,
+        defaultValue: null,
       },
       rg: {
         type: DataTypes.STRING(20),
-        allowNull: true,
+        defaultValue: null,
       },
       date_of_birth: {
-        type: DataTypes.DATE,
-        allowNull: true,
+        type: DataTypes.DATEONLY,
       },
       address_street: {
         type: DataTypes.STRING(255),
-        allowNull: true,
+        defaultValue: null,
       },
       address_number: {
         type: DataTypes.STRING(20),
-        allowNull: true,
+        defaultValue: null,
       },
       address_complement: {
         type: DataTypes.STRING(100),
-        allowNull: true,
+        defaultValue: null,
       },
       address_neighborhood: {
         type: DataTypes.STRING(100),
-        allowNull: true,
+        defaultValue: null,
       },
       address_city: {
         type: DataTypes.STRING(100),
-        allowNull: true,
+        defaultValue: null,
       },
       address_state: {
         type: DataTypes.STRING(2),
-        allowNull: true,
+        defaultValue: null,
       },
       address_zipcode: {
         type: DataTypes.STRING(9),
-        allowNull: true,
+        defaultValue: null,
       },
       emergency_contact_name: {
         type: DataTypes.STRING(200),
-        allowNull: true,
+        defaultValue: null,
       },
       emergency_contact_phone: {
         type: DataTypes.STRING(20),
-        allowNull: true,
+        defaultValue: null,
       },
       occupation: {
         type: DataTypes.STRING(100),
-        allowNull: true,
+        defaultValue: null,
       },
       is_active: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
         defaultValue: true,
       },
       has_platform_access: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
         defaultValue: false,
+      },
+      infographic: {
+        type: DataTypes.STRING,
+      },
+      taxi_dog_user: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      latta_choice: {
+        type: DataTypes.STRING,
+        defaultValue: 'não',
+      },
+      preferred_clinic: {
+        type: DataTypes.STRING,
+        defaultValue: 'não',
+      },
+      questioned: {
+        type: DataTypes.STRING,
+        defaultValue: 'não',
+      },
+      pet_photo_commented: {
+        type: DataTypes.STRING,
+        defaultValue: 'não',
+      },
+      interactions: {
+        type: DataTypes.DECIMAL,
+        defaultValue: 0,
+      },
+      varejo_id: {
+        type: DataTypes.STRING,
       },
       created_at: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: sequelize.fn('NOW'),
+        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'),
       },
       updated_at: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: sequelize.fn('NOW'),
+        defaultValue: sequelize.fn('CURRENT_TIMESTAMP'),
       },
     },
     {
@@ -132,6 +154,18 @@ const PetOwner = (sequelize) => {
     model.hasMany(models.PetOwnerTagAssignment, {
       foreignKey: 'pet_owner_id',
       as: 'tagAssignments',
+    });
+
+    model.hasMany(models.PetOwnerClinic, {
+      foreignKey: 'pet_owner_id',
+      as: 'petOwnerClinics',
+    });
+
+    model.belongsToMany(models.Clinic, {
+      through: models.PetOwnerClinic,
+      foreignKey: 'pet_owner_id',
+      otherKey: 'clinic_id',
+      as: 'clinics',
     });
   };
 

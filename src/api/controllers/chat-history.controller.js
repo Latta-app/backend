@@ -76,7 +76,108 @@ const searchContacts = async (req, res) => {
   }
 };
 
+const getContactByPetOwnerId = async (req, res) => {
+  try {
+    const { pet_owner_id } = req.params;
+    const { role } = req.user;
+    const { page = 1, limit = 20 } = req.query;
+
+    // Validação dos parâmetros
+    if (!pet_owner_id) {
+      return res.status(400).json({
+        code: 'MISSING_PET_OWNER_ID',
+        message: 'pet_owner_id is required',
+      });
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        code: 'INVALID_PAGINATION_PARAMS',
+        message: 'Invalid pagination parameters',
+      });
+    }
+
+    console.log('🔍 Controller - Buscando contato para pet_owner_id:', pet_owner_id);
+
+    const result = await ChatService.getContactByPetOwnerId({
+      pet_owner_id,
+      role: role.role,
+      page: pageNum,
+      limit: limitNum,
+    });
+
+    if (!result || !result.contact) {
+      return res.status(404).json({
+        code: 'CONTACT_NOT_FOUND',
+        message: 'No contact found for this pet owner',
+      });
+    }
+
+    return res.status(200).json({
+      code: 'CONTACT_RETRIEVED',
+      data: result.contact,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error('Error retrieving contact by pet owner id:', error);
+    return res.status(500).json({
+      code: 'CONTACT_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+const getAllContactsMessagesWithNoFilters = async (req, res) => {
+  try {
+    const { role } = req.user;
+    const { page = 1, limit = 15 } = req.query; // Mudei de 20 para 15 para manter padrão
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        code: 'INVALID_PAGINATION_PARAMS',
+        message: 'Invalid pagination parameters',
+      });
+    }
+
+    console.log('🔍 Controller - Buscando TODOS os contatos sem filtros');
+
+    const result = await ChatService.getAllContactsMessagesWithNoFilters({
+      role: role.role,
+      page: pageNum,
+      limit: limitNum,
+    });
+
+    // Corrigir estrutura da resposta - deve retornar contacts, não contact
+    if (!result || !result.contacts) {
+      return res.status(404).json({
+        code: 'CONTACTS_NOT_FOUND',
+        message: 'No contacts found',
+      });
+    }
+
+    return res.status(200).json({
+      code: 'CONTACTS_RETRIEVED',
+      data: result.contacts,
+      totalItems: result.totalItems,
+    });
+  } catch (error) {
+    console.error('Error retrieving all contacts without filters:', error);
+    return res.status(500).json({
+      code: 'CONTACTS_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   searchContacts,
+  getAllContactsMessagesWithNoFilters,
+  getContactByPetOwnerId,
 };

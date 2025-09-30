@@ -110,7 +110,64 @@ const searchContacts = async ({ clinic_id, query, page, limit, role, user_id, fi
   }
 };
 
+const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20 }) => {
+  try {
+    const result = await ChatRepository.getContactByPetOwnerId({
+      pet_owner_id,
+      role,
+      page,
+      limit,
+    });
+
+    if (!result.contact) {
+      return null;
+    }
+
+    // Aplica os mesmos tratamentos dos outros métodos
+    await attachReplyMessages([result.contact]);
+    await signMessagesMediaUrls([result.contact]);
+
+    return result;
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
+const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 15 }) => {
+  try {
+    const result = await ChatRepository.getAllContactsMessagesWithNoFilters({
+      page,
+      limit,
+    });
+
+    console.log('🔍 Service - Buscando TODOS os contatos sem filtros', result);
+
+    // Corrigir - deve retornar contacts, não contact
+    if (!result || !result.contacts) {
+      return {
+        contacts: [],
+        totalItems: 0,
+        totalPages: 0,
+      };
+    }
+
+    // Aplica os mesmos tratamentos dos outros métodos
+    await attachReplyMessages(result.contacts);
+    await signMessagesMediaUrls(result.contacts);
+
+    return {
+      contacts: result.contacts,
+      totalItems: result.totalItems,
+      totalPages: Math.ceil(result.totalItems / limit),
+    };
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   searchContacts,
+  getContactByPetOwnerId,
+  getAllContactsMessagesWithNoFilters,
 };
