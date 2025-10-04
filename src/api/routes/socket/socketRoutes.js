@@ -5,27 +5,19 @@ import { isValidUUID } from '../../../utils/validate.js';
 
 // Função para assinar URLs de mídia
 const signMessageMediaUrl = async (messageData) => {
-  if (!messageData.midia_url) {
-    return messageData;
-  }
+  if (!messageData.midia_url) return messageData;
 
   try {
     const url = new URL(messageData.midia_url);
 
-    // Ignora URLs do ai-images-n8n
-    if (url.hostname.includes('ai-images-n8n')) {
-      return messageData;
-    }
+    if (url.hostname.includes('ai-images-n8n')) return messageData;
 
-    // Assina URLs do bucket communication-latta
     if (url.hostname.includes('communication-latta')) {
       const key = decodeURIComponent(url.pathname.slice(1));
-
       const signedUrl = await S3ClientUtil.getObjectSignedUrl({
         bucketName: 'communication-latta',
         key,
       });
-
       messageData.midia_url = signedUrl;
     }
   } catch (e) {
@@ -43,9 +35,7 @@ const attachReplyMessage = async (messageData) => {
         replyId: messageData.reply,
       });
 
-      if (replyMessage) {
-        messageData.replyMessage = replyMessage;
-      }
+      if (replyMessage) messageData.replyMessage = replyMessage;
     } catch (e) {
       console.error('Erro ao buscar mensagem de reply:', e.message);
     }
@@ -57,9 +47,15 @@ const attachReplyMessage = async (messageData) => {
 function createSocketRoutes(io, clinicConnections) {
   const router = express.Router();
 
-  // Webhook para nova mensagem
+  // ==========================================
+  // 🚀 WEBHOOK NOVA MENSAGEM
+  // ==========================================
   router.post('/webhook/new-message', express.json(), async (req, res) => {
     try {
+      console.log('\n==============================');
+      console.log('📩 NOVA MENSAGEM RECEBIDA NO WEBHOOK');
+      console.log('Payload:', req.body);
+
       const {
         id,
         clinic_id,
@@ -88,38 +84,12 @@ function createSocketRoutes(io, clinicConnections) {
         cell_phone,
         timestamp,
         journey,
+        message_type_id,
       } = req.body;
 
-      if (!clinic_id || !contact_id) {
-        return res.status(400).json({
-          success: false,
-          error: 'clinic_id e contact_id são obrigatórios',
-        });
-      }
-
-      // 🔥 MUDANÇA: Verificar atendentes mas não bloquear envio
-      const clinicAttendants = clinicConnections.get(clinic_id);
-
-      if (!clinicAttendants || clinicAttendants.size === 0) {
-        console.log(`📱 Nenhum atendente online na clínica ${clinic_id}`);
-        // MAS AINDA ASSIM ENVIAR PARA DEBUG:
-
-        let messageData = {
-          /* ... */
-        };
-        messageData = await signMessageMediaUrl(messageData);
-        messageData = await attachReplyMessage(messageData);
-
-        io.to('debug_global').emit('new_message', messageData);
-
-        // Retornar que não há atendentes (para N8N não falhar)
-        return res.json({
-          success: true,
-          sent: false,
-          reason: 'no_attendants_online',
-          debug_notified: true,
-          clinic_id,
-        });
+      if (!contact_id) {
+        console.log('❌ BLOQUEADO: contact_id ausente');
+        return res.status(400).json({ success: false, error: 'contact_id é obrigatório' });
       }
 
       let messageData = {
@@ -150,6 +120,7 @@ function createSocketRoutes(io, clinicConnections) {
         timestamp: timestamp || new Date(),
         journey,
         message_type,
+        message_type_id,
         source: 'client',
       };
 
@@ -157,67 +128,73 @@ function createSocketRoutes(io, clinicConnections) {
       messageData = await signMessageMediaUrl(messageData);
       messageData = await attachReplyMessage(messageData);
 
-      // 🔥 SEMPRE enviar, independente de ter atendentes
-      const roomName = `clinic_${clinic_id}`;
+      // ======================
+      // 1️⃣ Log de conexões
+      // ======================
+      const allSockets = Array.from(io.sockets.sockets.values());
+      const debuggerSockets = allSockets.filter((s) => s.user?.email === 'debuger@latta.app');
+      console.log('🧠 TOTAL DE SOCKETS CONECTADOS:', allSockets.length);
+      console.log(
+        '🐞 DEBUGGERS ATIVOS:',
+        debuggerSockets.map((s) => ({
+          id: s.id,
+          email: s.user?.email,
+          salas: Array.from(s.rooms),
+        })),
+      );
 
-      console.log(`📨 Enviando mensagem para sala: ${roomName}`);
-      io.to(roomName).emit('new_message', messageData);
+      // ======================
+      // 2️⃣ Emissão para a clínica
+      // ======================
+      if (clinic_id) {
+        const roomName = `clinic_${clinic_id}`;
+        const clinicAttendants = clinicConnections.get(clinic_id);
+        console.log(`📨 Enviando mensagem para sala: ${roomName}`);
+        console.log(`👥 Atendentes conectados nessa clínica: ${clinicAttendants?.size || 0}`);
 
-      console.log(`🐛 Enviando mensagem para debugger global`);
+        io.to(roomName).emit('new_message', messageData);
+      } else {
+        console.log('⚠️ Mensagem sem clinic_id — será enviada apenas para debug_global');
+      }
+
+      // ======================
+      // 3️⃣ Emissão global
+      // ======================
+      console.log(`🐛 Tentando enviar mensagem para sala 'debug_global'...`);
+      const debugRoom = io.sockets.adapter.rooms.get('debug_global');
+      console.log(
+        debugRoom
+          ? `✅ Sala 'debug_global' existe com ${debugRoom.size} sockets`
+          : '❌ Sala debug_global não existe ou vazia',
+      );
+
       io.to('debug_global').emit('new_message', messageData);
+      console.log('📤 Evento new_message emitido para debug_global com sucesso');
 
-      console.log(`📨 Mensagem enviada - Atendentes na clínica: ${clinicAttendants?.size || 0}`);
-      console.log(`📞 Cliente: ${name} (${cell_phone})`);
-
+      // ======================
+      // 4️⃣ Retorno da API
+      // ======================
       res.json({
         success: true,
         sent: true,
-        attendants_notified: clinicAttendants?.size || 0,
+        clinic_id: clinic_id || null,
         debug_notified: true,
-        clinic_id,
       });
+
+      console.log('✅ Webhook finalizado com sucesso');
+      console.log('==============================\n');
     } catch (error) {
       console.error('❌ Erro ao processar nova mensagem:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor',
-      });
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
   });
 
-  // Status dos WebSockets
-  router.get('/websocket/status', (_req, res) => {
-    const status = {};
-
-    for (const [clinicId, connections] of clinicConnections.entries()) {
-      status[clinicId] = {
-        attendeants_online: connections.size,
-        attendeants: Array.from(connections.values()).map((conn) => ({
-          userName: conn.userName,
-          connectedAt: conn.connectedAt,
-        })),
-      };
-    }
-
-    // 🔥 NOVO: Verificar se há debugger conectado
-    const debuggerSockets = Array.from(io.sockets.sockets.values()).filter(
-      (socket) => socket.user?.email === 'debuger@latta.app',
-    );
-
-    res.json({
-      total_clinics_with_connections: clinicConnections.size,
-      total_connections: Array.from(clinicConnections.values()).reduce(
-        (sum, map) => sum + map.size,
-        0,
-      ),
-      debugger_connected: debuggerSockets.length > 0,
-      debugger_sessions: debuggerSockets.length,
-      clinics: status,
-    });
-  });
-
-  router.post('/test-socket', express.json(), async (req, res) => {
-    console.log('🧪 TESTE: Enviando mensagem para debug_global');
+  // ==========================================
+  // TESTE SOCKET
+  // ==========================================
+  router.post('/test-socket', express.json(), async (_req, res) => {
+    console.log('\n🧪 TESTE MANUAL DE SOCKET');
+    console.log('📡 Emitindo mensagens de teste para as salas...');
 
     const testMessage = {
       id: 'test-' + Date.now(),
@@ -230,16 +207,26 @@ function createSocketRoutes(io, clinicConnections) {
       role: 'client',
     };
 
-    console.log('🧪 Enviando para clinic_524f5b01-20b7-45e0-adf4-7b4eecea938a');
-    io.to('clinic_524f5b01-20b7-45e0-adf4-7b4eecea938a').emit('new_message', testMessage);
+    // Log das salas antes de emitir
+    const allRooms = Array.from(io.sockets.adapter.rooms.keys());
+    console.log('📡 Todas as salas atuais:', allRooms);
 
-    console.log('🧪 Enviando para debug_global');
+    const debugRoom = io.sockets.adapter.rooms.get('debug_global');
+    console.log(
+      debugRoom
+        ? `✅ Sala debug_global com ${debugRoom.size} sockets`
+        : '❌ Sala debug_global inexistente',
+    );
+
+    io.to('clinic_524f5b01-20b7-45e0-adf4-7b4eecea938a').emit('new_message', testMessage);
     io.to('debug_global').emit('new_message', testMessage);
+
+    console.log('✅ Mensagens de teste emitidas com sucesso');
 
     res.json({
       success: true,
-      message: 'Mensagens enviadas',
-      rooms: Array.from(io.sockets.adapter.rooms.keys()),
+      rooms: allRooms,
+      debugRoomSize: debugRoom?.size || 0,
     });
   });
 

@@ -140,8 +140,6 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 15 }) => 
       limit,
     });
 
-    console.log('🔍 Service - Buscando TODOS os contatos sem filtros', result);
-
     // Corrigir - deve retornar contacts, não contact
     if (!result || !result.contacts) {
       return {
