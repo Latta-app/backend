@@ -85,16 +85,11 @@ function initializeSocket(httpServer) {
       // DEBUGGER: Entra APENAS na sala global
       // ==========================================
 
-      // 🧹 CORREÇÃO: remover conexões antigas do mesmo debugger
       const existingDebugSockets = Array.from(io.sockets.sockets.values()).filter(
-        (s) => s.user?.email === 'debuger@latta.app' && s.id !== socket.id,
+        (s) => s.user?.email === 'debuger@latta.app',
       );
 
-      for (const oldSocket of existingDebugSockets) {
-        console.log(`🧹 Removendo sessão antiga do debugger: ${oldSocket.id}`);
-        oldSocket.leave('debug_global');
-        oldSocket.disconnect(true);
-      }
+      console.log(`🐛 Total de debugers conectados: ${existingDebugSockets.length}`);
 
       socket.join('debug_global');
       console.log(`✅ Debugger adicionado à sala 'debug_global'`);
