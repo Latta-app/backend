@@ -18,19 +18,14 @@ const runCheckoutFlow = async (checkoutData) => {
       projectId: process.env.BROWSERBASE_PROJECT_ID,
       modelName: process.env.MODEL_NAME ?? 'claude-3-7-sonnet-latest',
       modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
-      headless: true,
       enableCaching: false,
-      // Forçar opções do Playwright
-      browserOptions: {
+      localBrowserLaunchOptions: {
         headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--no-zygote',
-          '--single-process',
         ],
       },
     });
