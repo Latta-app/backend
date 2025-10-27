@@ -82,20 +82,6 @@ const runCheckoutFlow = async (checkoutData) => {
 
     await page.waitForTimeout(3000);
 
-    // 🔍 DEBUG: Ver se .cep-search existe
-    const debugInfo = await page.evaluate(() => {
-      return {
-        hasCepSearch: !!document.querySelector('.cep-search'),
-        hasChangeAddress: !!document.querySelector('[data-testid="ptz-bag-address-change"]'),
-        currentCep: document.querySelector('[data-testid="ptz-checkout-address-zipcode"]')
-          ?.textContent,
-        pageHTML: document.body.innerHTML.substring(0, 2000),
-      };
-    });
-    console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));
-
-    await page.waitForTimeout(3000);
-
     const carrinhoLimpo = await page.evaluate(() => {
       const limparBtn = Array.from(document.querySelectorAll('button, a')).find((el) =>
         el.textContent
@@ -137,7 +123,22 @@ const runCheckoutFlow = async (checkoutData) => {
     // === CEP ===
     console.log(`📮 Configurando CEP ${checkoutData.address.cep}...`);
     await page.goto('https://www.petz.com.br/checkout/cart/', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('.cep-search', { timeout: 15000 });
+
+    // 🔍 DEBUG: Ver se .cep-search existe
+    const debugInfo = await page.evaluate(() => {
+      return {
+        hasCepSearch: !!document.querySelector('.cep-search'),
+        hasChangeAddress: !!document.querySelector('[data-testid="ptz-bag-address-change"]'),
+        currentCep: document.querySelector('[data-testid="ptz-checkout-address-zipcode"]')
+          ?.textContent,
+        pageHTML: document.body.innerHTML.substring(0, 2000),
+      };
+    });
+    console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));
+
+    await page.waitForTimeout(3000);
+
+    // await page.waitForSelector('.cep-search', { timeout: 15000 });
 
     const cepState = await page.evaluate((cep) => {
       const input = document.querySelector('#cepSearch');
