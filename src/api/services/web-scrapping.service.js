@@ -79,6 +79,21 @@ const runCheckoutFlow = async (checkoutData) => {
 
     console.log('✅ Sessão válida. Limpando carrinho...');
     await page.goto('https://www.petz.com.br/checkout/cart/', { waitUntil: 'domcontentloaded' });
+
+    await page.waitForTimeout(3000);
+
+    // 🔍 DEBUG: Ver se .cep-search existe
+    const debugInfo = await page.evaluate(() => {
+      return {
+        hasCepSearch: !!document.querySelector('.cep-search'),
+        hasChangeAddress: !!document.querySelector('[data-testid="ptz-bag-address-change"]'),
+        currentCep: document.querySelector('[data-testid="ptz-checkout-address-zipcode"]')
+          ?.textContent,
+        pageHTML: document.body.innerHTML.substring(0, 2000),
+      };
+    });
+    console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));
+
     await page.waitForTimeout(3000);
 
     const carrinhoLimpo = await page.evaluate(() => {
