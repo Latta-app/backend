@@ -18,7 +18,21 @@ const runCheckoutFlow = async (checkoutData) => {
       projectId: process.env.BROWSERBASE_PROJECT_ID,
       modelName: process.env.MODEL_NAME ?? 'claude-3-7-sonnet-latest',
       modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
-      headless: true, // 🔥 ADICIONE ESTA LINHA
+      headless: true,
+      enableCaching: false,
+      // Forçar opções do Playwright
+      browserOptions: {
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--no-zygote',
+          '--single-process',
+        ],
+      },
     });
 
     console.log(`🚀 Stagehand iniciado em modo ${useCloud ? 'CLOUD' : 'LOCAL'}...`);
