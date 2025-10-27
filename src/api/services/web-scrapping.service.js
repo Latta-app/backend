@@ -18,6 +18,7 @@ const runCheckoutFlow = async (checkoutData) => {
       projectId: process.env.BROWSERBASE_PROJECT_ID,
       modelName: process.env.MODEL_NAME ?? 'claude-3-7-sonnet-latest',
       modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
+      headless: true, // 🔥 ADICIONE ESTA LINHA
     });
 
     console.log(`🚀 Stagehand iniciado em modo ${useCloud ? 'CLOUD' : 'LOCAL'}...`);
