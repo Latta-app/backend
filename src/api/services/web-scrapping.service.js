@@ -20,12 +20,16 @@ const runCheckoutFlow = async (checkoutData) => {
       modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
       enableCaching: false,
       localBrowserLaunchOptions: {
-        headless: true,
+        headless: false, // ← MUDAR AQUI
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--window-size=1920,1080',
+          '--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Safari/537.36',
+          '--disable-blink-features=AutomationControlled',
+          '--disable-features=IsolateOrigins,site-per-process',
         ],
       },
     });
@@ -33,6 +37,16 @@ const runCheckoutFlow = async (checkoutData) => {
     console.log(`🚀 Stagehand iniciado em modo ${useCloud ? 'CLOUD' : 'LOCAL'}...`);
     await stagehand.init();
     page = stagehand.page;
+    await stagehand.init();
+    page = stagehand.page;
+
+    const context = page.context();
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      window.navigator.chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt', 'en-US', 'en'] });
+    });
 
     // === Sessão ===
     const hasSession = await restoreSession(page);
@@ -52,6 +66,15 @@ const runCheckoutFlow = async (checkoutData) => {
     // === Login válido ===
     await page.goto('https://www.petz.com.br', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1500);
+
+    // 🔍 DEBUG: Testar se a home page funciona
+    const homeTest = await page.evaluate(() => ({
+      title: document.title,
+      hasAccessDenied: document.body.innerHTML.includes('Access Denied'),
+      url: window.location.href,
+    }));
+    console.log('🔍 Home page test:', JSON.stringify(homeTest, null, 2));
+
     const logged = await page.evaluate(() => {
       const hasUser = !!document.querySelector(
         '.header-user, .header__user-name, [data-testid="user-name"]',
@@ -116,12 +139,26 @@ const runCheckoutFlow = async (checkoutData) => {
       const link = checkoutData.products[i];
       console.log(`🧩 Produto ${i + 1}/${checkoutData.products.length}: ${link}`);
       await page.goto(link, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2000);
+
+      // 🔍 DEBUG: Verificar se página do produto carregou
+      const productTest = await page.evaluate(() => ({
+        hasAccessDenied: document.body.innerHTML.includes('Access Denied'),
+        hasAddButton:
+          !!document.querySelector('[data-testid="add-to-cart"]') ||
+          document.body.textContent.includes('Adicionar'),
+      }));
+      console.log('🔍 Product page test:', JSON.stringify(productTest, null, 2));
+
       await page.act("Click 'Adicionar à sacola' and wait for cart to open");
       await page.waitForTimeout(2000);
     }
 
     // === CEP ===
     console.log(`📮 Configurando CEP ${checkoutData.address.cep}...`);
+
+    const userAgent = await page.evaluate(() => navigator.userAgent);
+    console.log('🔍 User-Agent:', userAgent);
     await page.goto('https://www.petz.com.br/checkout/cart/', { waitUntil: 'domcontentloaded' });
 
     // 🔍 DEBUG: Ver se .cep-search existe

@@ -5,7 +5,7 @@
       "value": "egB2AtH1",
       "domain": ".www.rnengage.com",
       "path": "/api/e/ca171105/",
-      "expires": 1761852032.965169,
+      "expires": 1761852032.132936,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
@@ -95,7 +95,7 @@
       "value": "34UjdfZD6mZ6sTYtnMtdwde3v5w",
       "domain": ".tiktok.com",
       "path": "/",
-      "expires": 1795231037.733389,
+      "expires": 1795235242.955592,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
@@ -106,6 +106,36 @@
       "domain": ".teads.tv",
       "path": "/",
       "expires": 1792724736.456214,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TapAd_TS",
+      "value": "1761275170143",
+      "domain": ".tapad.com",
+      "path": "/",
+      "expires": 1766459170.35528,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TapAd_DID",
+      "value": "6196efbe-b502-4158-9b78-672c78dd55e9",
+      "domain": ".tapad.com",
+      "path": "/",
+      "expires": 1766459170.355352,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TapAd_3WAY_SYNCS",
+      "value": "",
+      "domain": ".tapad.com",
+      "path": "/",
+      "expires": 1766459170.355383,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
@@ -153,6 +183,126 @@
       "sameSite": "None"
     },
     {
+      "name": "sa-user-id",
+      "value": "s%3A0-2496970d-1af1-5922-71f9-2c386a4e0791.M7sYrg1PjbD2jfEmmd4egXjMgGqdufVIC567RIMb4TM",
+      "domain": "sync.srv.stackadapt.com",
+      "path": "/",
+      "expires": 1792811169.412376,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sa-user-id",
+      "value": "s%3A0-2496970d-1af1-5922-71f9-2c386a4e0791.M7sYrg1PjbD2jfEmmd4egXjMgGqdufVIC567RIMb4TM",
+      "domain": ".srv.stackadapt.com",
+      "path": "/",
+      "expires": 1792811169.412609,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sa-user-id-v2",
+      "value": "s%3AJJaXDRrxWSJx-Sw4ak4HkbG4c54.Ay3tDYdb9m1b7lkUoIBQEQReLrL42a%2FNeOiWIDmb4to",
+      "domain": "sync.srv.stackadapt.com",
+      "path": "/",
+      "expires": 1792811169.412757,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sa-user-id-v2",
+      "value": "s%3AJJaXDRrxWSJx-Sw4ak4HkbG4c54.Ay3tDYdb9m1b7lkUoIBQEQReLrL42a%2FNeOiWIDmb4to",
+      "domain": ".srv.stackadapt.com",
+      "path": "/",
+      "expires": 1792811169.412887,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sa-user-id-v3",
+      "value": "s%3AAQAKIH7RgxA4FM5VhfIpBG1kDptHSoTuJHsCdmWnRiEhX-dyEAEYAyCh2uvHBjABOgSRrVXoQgSqdRT_.t3QqYSbabp97ljpbFYOv1Ty48krdKXFxKMq%2BcKReYr0",
+      "domain": "sync.srv.stackadapt.com",
+      "path": "/",
+      "expires": 1792811169.413003,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sa-user-id-v3",
+      "value": "s%3AAQAKIH7RgxA4FM5VhfIpBG1kDptHSoTuJHsCdmWnRiEhX-dyEAEYAyCh2uvHBjABOgSRrVXoQgSqdRT_.t3QqYSbabp97ljpbFYOv1Ty48krdKXFxKMq%2BcKReYr0",
+      "domain": ".srv.stackadapt.com",
+      "path": "/",
+      "expires": 1792811169.41313,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "pid",
+      "value": "3655703410963291022",
+      "domain": ".smartadserver.com",
+      "path": "/",
+      "expires": 1769051278.128192,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TestIfCookieP",
+      "value": "ok",
+      "domain": ".smartadserver.com",
+      "path": "/",
+      "expires": 1795403278.128363,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "csync",
+      "value": "79:k-0nLNbfltlaUHdvKILuu2oWEs-zbYShBk0z2-bw",
+      "domain": ".smartadserver.com",
+      "path": "/",
+      "expires": 1764117585.17403,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "ssi",
+      "value": "4b05fbbd-a94f-41da-b682-a7d1c5513207#1761275169729",
+      "domain": ".sitescout.com",
+      "path": "/",
+      "expires": 1792811169.995148,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ssuma",
+      "value": "eyI1OSI6MTc2MTI3NTE2OTg3NiwiMzkiOjE3NjEyNzUxNjk4NzZ9",
+      "domain": ".sitescout.com",
+      "path": "/",
+      "expires": 1763867169.995248,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "thx_guid",
+      "value": "3d983873d4c486b23bc09bc4b800ace1",
+      "domain": "imgs.signifyd.com",
+      "path": "/",
+      "expires": 1795835254.361959,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
       "name": "khaos",
       "value": "MH49QP11-1L-GYCL",
       "domain": ".rubiconproject.com",
@@ -185,6 +335,28 @@
       "sameSite": "None",
       "partitionKey": "https://petz.com.br",
       "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "audit_p",
+      "value": "1|f1MN06TZfwbRi6L6WIV8qQLdHLm74fNf+z0FL8IqA19ADOesVrr4fbQJwT5fWnT8B7O9Pq2vc1gwHTRO1/p4iCck1N7K9KkV0dqlR5NoluSCD9zFQIvrTVGk3ZSWqdvP4NaaK7Wo1a5kkip/CzaL5QS+rXM9IqgIPzkaxi3rP+V16h2LKXkYaJDy+KCnXKr4N6JXMcYuiJM=",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1793061584.166473,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://petz.com.br",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "audit",
+      "value": "1|f1MN06TZfwbRi6L6WIV8qQLdHLm74fNf+z0FL8IqA19ADOesVrr4fbQJwT5fWnT8B7O9Pq2vc1gwHTRO1/p4iCck1N7K9KkV0dqlR5NoluSCD9zFQIvrTVGk3ZSWqdvP4NaaK7Wo1a5kkip/CzaL5QS+rXM9IqgIPzkaxi3rP+V16h2LKXkYaJDy+KCnXKr4N6JXMcYuiJM=",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1793061584.166718,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
     },
     {
       "name": "v1_151",
@@ -221,7 +393,7 @@
       "value": "1",
       "domain": ".pinterest.com",
       "path": "/",
-      "expires": 1793071037.822398,
+      "expires": 1793075243.234937,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
@@ -241,7 +413,7 @@
       "value": "mh49lpzq00dfycvf2qgn",
       "domain": "www.petz.com.br",
       "path": "/",
-      "expires": 1793071002,
+      "expires": 1793075203,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -271,7 +443,7 @@
       "value": "fb.2.1761275134482.269068063581068158",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1769311037,
+      "expires": 1769315242,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -281,7 +453,7 @@
       "value": "1",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795231037,
+      "expires": 1795235242,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -291,7 +463,7 @@
       "value": "01K8A2VGQ20YCNV0FN112NY0PW_.tt.2",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795231037,
+      "expires": 1795235242,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -304,6 +476,116 @@
       "expires": 1761879934,
       "httpOnly": false,
       "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_hjSessionUser_257734",
+      "value": "eyJpZCI6IjhiZTcyYjYwLWRiNWMtNWZjOS1iMjA5LWU1OTdiMTQ0MjliYyIsImNyZWF0ZWQiOjE3NjEyNzUxMzQ1OTIsImV4aXN0aW5nIjp0cnVlfQ==",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1793075183,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_pin_unauth",
+      "value": "dWlkPU5UVXdOR016TWpRdFl6QmxNaTAwTldFM0xXSTRPRGN0TldVMk9EZGxNekV4TXpneg",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1793075243,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "petzCarrinho",
+      "value": "true",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "386C6C1FB142785C487BA6FC8B1AC6C3",
+      "domain": "www.petz.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gid",
+      "value": "GA1.3.1296650692.1761524957",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1761625603,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "TOKEN_ASM",
+      "value": "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJhc20iLCJzdWIiOiJyYWZhZWwuYXVndXN0by5wczA3QGdtYWlsLmNvbSIsImdyYW50cyI6W10sImNkbS1jdXN0b21lci1pZCI6IjM0M2IyNDk1LTAxY2ItNGM4Mi1iZTY3LWEyYTRjNWFmYmRiNSIsImNkbS1kb2N1bWVudCI6IjAwNjc4NTIzNjA2IiwidG9rZW4iOiIwYmYxMGIyZi04NmNhLTQ4YzktODBhMS01NjVlZWRmY2YzZjQiLCJpYXQiOjE3NjE1MjU0ODYsImV4cCI6MTc2MTYxMTg4Nn0.dGQbB_cl0Ymgv-ELXhm0StdO6asoaeD2kVkvMpXkrgQygTZMARs1LBal8QFhus__fEAQZtbzIxcLe_wrLBZaJd6ELboNN5T0Pvi5VAccvE1yfuLpoZn-1PGYS65vJg1DlTx2dwcfmvQqevkSpeXDa14JTm08YzD5CdRImHGc-QJk96vRB4DN9D6RtSIqVK99Yp2B-vSLUbiLqZFVdCqVkLIpNH3PNpX3wnQiuGHf2G2tZQuVsJAYKbf8dnF9FbeLZVxNoQeyof-pZi9xGTjNOtt4lc0Ws63W1bp18RHcIIWU03WesAA6qgh8EIq7fUVX3mByBAEEpgc7WiZ64z9QIxxqz_oXg1B7bjprTEzpIjf8FjEcTPDkUz0SKOmZZSAKvPL9b4EFxpes3PYrM_8oRHag78dXJRmrIL8cohRuFzuvvRovE6Lgrmoq6_H2PLQEWPeCvMD4XjUhdBficiUb7HXeiNgp2igfitO0f-jHE1xTvSAr7MCcJi73Ni1uiy0CpsUpmAKCsUGzAhJ6p4Zl0h9BLkco5klvwhvSxkdUeM5-syhJjolDlWJx8M8TeuHF8vQeK33Ovll6CLTWLte5wIGlhjNC_FHOXuYUfJZ5KjUxwTQisSwM462cvevWwPa1kmbRefEYLoY1BswEpCQ3xLt29UzePPu4z4nSAgKWSSU",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1796085486.90967,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "petzUserName",
+      "value": "Rafael",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1762130287.332187,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "petzCliente",
+      "value": "87540489",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1762130287.332279,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ajs_user_id",
+      "value": "MDA2Nzg1MjM2MDY=",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1793075242,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_hjSession_257734",
+      "value": "eyJpZCI6ImZhMjVhOTA5LWQ0YWEtNDA5ZS1hYTJjLTkwMDYxMTY1YTY0YSIsImMiOjE3NjE1MzgwNzk3NzgsInMiOjAsInIiOjAsInNiIjowLCJzciI6MCwic2UiOjAsImZzIjowLCJzcCI6MH0=",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1761539879,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TOKEN_INFO",
+      "value": "%7B%22access_token%22%3A%223a6e3953cc6c2731b47131a875674672%22%2C%22refresh_token%22%3A%22ca4407f2babdf03f17018714a67a9176%22%2C%22createdAt%22%3A%22Mon+Oct+27+01%3A05%3A35+GMT-03%3A00+2025%22%2C%22expires_in%22%3A3600%7D",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1761800880.229467,
+      "httpOnly": false,
+      "secure": true,
       "sameSite": "Lax"
     },
     {
@@ -377,11 +659,31 @@
       "sameSite": "None"
     },
     {
+      "name": "data-c-ts",
+      "value": "1761525584",
+      "domain": ".media.net",
+      "path": "/",
+      "expires": 1764117584.225422,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "ar_debug",
+      "value": "1",
+      "domain": ".www.google-analytics.com",
+      "path": "/",
+      "expires": 1769315243.539497,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
       "name": "ckid",
       "value": "C046236F-A5DA-443E-A238EDA1B72AE1EC",
       "domain": ".getblue.io",
       "path": "/",
-      "expires": 1793071037.593099,
+      "expires": 1793075241.957613,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
@@ -463,6 +765,56 @@
       "path": "/",
       "expires": 1766459141.169675,
       "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "dsp_79",
+      "value": "bG4c54",
+      "domain": ".user-sync.fwmrm.net",
+      "path": "/",
+      "expires": 1766459169.559135,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "dsp_48",
+      "value": "1-4252",
+      "domain": ".user-sync.fwmrm.net",
+      "path": "/",
+      "expires": 1766459170.514319,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "dsp_60",
+      "value": "a01ed0",
+      "domain": ".user-sync.fwmrm.net",
+      "path": "/",
+      "expires": 1766459171.437101,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "dsp_29",
+      "value": "078672",
+      "domain": ".user-sync.fwmrm.net",
+      "path": "/",
+      "expires": 1766459171.970634,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "IDE",
+      "value": "AHWqTUlyq_CPRnbWgXHKH3KCymbeK_IowA0pl2aFRHk3XWXyU302oHyb-TZ1GhdnfIA",
+      "domain": ".doubleclick.net",
+      "path": "/",
+      "expires": 1796084957.462979,
+      "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
@@ -693,6 +1045,16 @@
       "sameSite": "None"
     },
     {
+      "name": "anj",
+      "value": "dTM7k!M41$D>6NRF']wIg2IldtG`UA!A#EfN'ycOAwH@>^ySB'19EO=Uq0i5aeq2HanEzHUq-M$6_<qCaDS]@6lluMak21D%nM]7vHfwMO=`@IP9R>>:ckM?:F48oAadSeDb5imVGF*nFwSx^a<2Cj@I-S6?PwSRY=mA!X^U<5cLmZx*f=kW*g0D(i0I0R",
+      "domain": ".adnxs.com",
+      "path": "/",
+      "expires": 1769301584.56487,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
       "name": "C",
       "value": "1",
       "domain": ".adform.net",
@@ -755,338 +1117,6 @@
       "sameSite": "None"
     },
     {
-      "name": "_rxuuid",
-      "value": "%7B%22rx_uuid%22%3A%22RX-3f41441b-3f32-43aa-ac30-16f3689df838-005%22%7D",
-      "domain": ".1rx.io",
-      "path": "/",
-      "expires": 1792811136.959188,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "_hjSessionUser_257734",
-      "value": "eyJpZCI6IjhiZTcyYjYwLWRiNWMtNWZjOS1iMjA5LWU1OTdiMTQ0MjliYyIsImNyZWF0ZWQiOjE3NjEyNzUxMzQ1OTIsImV4aXN0aW5nIjp0cnVlfQ==",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1793070985,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "_pin_unauth",
-      "value": "dWlkPU5UVXdOR016TWpRdFl6QmxNaTAwTldFM0xXSTRPRGN0TldVMk9EZGxNekV4TXpneg",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1793071037,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "sa-user-id",
-      "value": "s%3A0-2496970d-1af1-5922-71f9-2c386a4e0791.M7sYrg1PjbD2jfEmmd4egXjMgGqdufVIC567RIMb4TM",
-      "domain": "sync.srv.stackadapt.com",
-      "path": "/",
-      "expires": 1792811169.412376,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "sa-user-id",
-      "value": "s%3A0-2496970d-1af1-5922-71f9-2c386a4e0791.M7sYrg1PjbD2jfEmmd4egXjMgGqdufVIC567RIMb4TM",
-      "domain": ".srv.stackadapt.com",
-      "path": "/",
-      "expires": 1792811169.412609,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "sa-user-id-v2",
-      "value": "s%3AJJaXDRrxWSJx-Sw4ak4HkbG4c54.Ay3tDYdb9m1b7lkUoIBQEQReLrL42a%2FNeOiWIDmb4to",
-      "domain": "sync.srv.stackadapt.com",
-      "path": "/",
-      "expires": 1792811169.412757,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "sa-user-id-v2",
-      "value": "s%3AJJaXDRrxWSJx-Sw4ak4HkbG4c54.Ay3tDYdb9m1b7lkUoIBQEQReLrL42a%2FNeOiWIDmb4to",
-      "domain": ".srv.stackadapt.com",
-      "path": "/",
-      "expires": 1792811169.412887,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "sa-user-id-v3",
-      "value": "s%3AAQAKIH7RgxA4FM5VhfIpBG1kDptHSoTuJHsCdmWnRiEhX-dyEAEYAyCh2uvHBjABOgSRrVXoQgSqdRT_.t3QqYSbabp97ljpbFYOv1Ty48krdKXFxKMq%2BcKReYr0",
-      "domain": "sync.srv.stackadapt.com",
-      "path": "/",
-      "expires": 1792811169.413003,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "sa-user-id-v3",
-      "value": "s%3AAQAKIH7RgxA4FM5VhfIpBG1kDptHSoTuJHsCdmWnRiEhX-dyEAEYAyCh2uvHBjABOgSRrVXoQgSqdRT_.t3QqYSbabp97ljpbFYOv1Ty48krdKXFxKMq%2BcKReYr0",
-      "domain": ".srv.stackadapt.com",
-      "path": "/",
-      "expires": 1792811169.41313,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "dsp_79",
-      "value": "bG4c54",
-      "domain": ".user-sync.fwmrm.net",
-      "path": "/",
-      "expires": 1766459169.559135,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "ssi",
-      "value": "4b05fbbd-a94f-41da-b682-a7d1c5513207#1761275169729",
-      "domain": ".sitescout.com",
-      "path": "/",
-      "expires": 1792811169.995148,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "_ssuma",
-      "value": "eyI1OSI6MTc2MTI3NTE2OTg3NiwiMzkiOjE3NjEyNzUxNjk4NzZ9",
-      "domain": ".sitescout.com",
-      "path": "/",
-      "expires": 1763867169.995248,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "TapAd_TS",
-      "value": "1761275170143",
-      "domain": ".tapad.com",
-      "path": "/",
-      "expires": 1766459170.35528,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "TapAd_DID",
-      "value": "6196efbe-b502-4158-9b78-672c78dd55e9",
-      "domain": ".tapad.com",
-      "path": "/",
-      "expires": 1766459170.355352,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "TapAd_3WAY_SYNCS",
-      "value": "",
-      "domain": ".tapad.com",
-      "path": "/",
-      "expires": 1766459170.355383,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "dsp_48",
-      "value": "1-4252",
-      "domain": ".user-sync.fwmrm.net",
-      "path": "/",
-      "expires": 1766459170.514319,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "dsp_60",
-      "value": "a01ed0",
-      "domain": ".user-sync.fwmrm.net",
-      "path": "/",
-      "expires": 1766459171.437101,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "dsp_29",
-      "value": "078672",
-      "domain": ".user-sync.fwmrm.net",
-      "path": "/",
-      "expires": 1766459171.970634,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "ar_debug",
-      "value": "1",
-      "domain": ".www.google-analytics.com",
-      "path": "/",
-      "expires": 1769311037.555067,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "petzCarrinho",
-      "value": "true",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "thx_guid",
-      "value": "3d983873d4c486b23bc09bc4b800ace1",
-      "domain": "imgs.signifyd.com",
-      "path": "/",
-      "expires": 1795835254.361959,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "pid",
-      "value": "3655703410963291022",
-      "domain": ".smartadserver.com",
-      "path": "/",
-      "expires": 1769051278.128192,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "TestIfCookieP",
-      "value": "ok",
-      "domain": ".smartadserver.com",
-      "path": "/",
-      "expires": 1795403278.128363,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "csync",
-      "value": "79:k-0nLNbfltlaUHdvKILuu2oWEs-zbYShBk0z2-bw",
-      "domain": ".smartadserver.com",
-      "path": "/",
-      "expires": 1764117585.17403,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "JSESSIONID",
-      "value": "386C6C1FB142785C487BA6FC8B1AC6C3",
-      "domain": "www.petz.com.br",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_gid",
-      "value": "GA1.3.1296650692.1761524957",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1761621402,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "IDE",
-      "value": "AHWqTUlyq_CPRnbWgXHKH3KCymbeK_IowA0pl2aFRHk3XWXyU302oHyb-TZ1GhdnfIA",
-      "domain": ".doubleclick.net",
-      "path": "/",
-      "expires": 1796084957.462979,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "TOKEN_ASM",
-      "value": "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJhc20iLCJzdWIiOiJyYWZhZWwuYXVndXN0by5wczA3QGdtYWlsLmNvbSIsImdyYW50cyI6W10sImNkbS1jdXN0b21lci1pZCI6IjM0M2IyNDk1LTAxY2ItNGM4Mi1iZTY3LWEyYTRjNWFmYmRiNSIsImNkbS1kb2N1bWVudCI6IjAwNjc4NTIzNjA2IiwidG9rZW4iOiIwYmYxMGIyZi04NmNhLTQ4YzktODBhMS01NjVlZWRmY2YzZjQiLCJpYXQiOjE3NjE1MjU0ODYsImV4cCI6MTc2MTYxMTg4Nn0.dGQbB_cl0Ymgv-ELXhm0StdO6asoaeD2kVkvMpXkrgQygTZMARs1LBal8QFhus__fEAQZtbzIxcLe_wrLBZaJd6ELboNN5T0Pvi5VAccvE1yfuLpoZn-1PGYS65vJg1DlTx2dwcfmvQqevkSpeXDa14JTm08YzD5CdRImHGc-QJk96vRB4DN9D6RtSIqVK99Yp2B-vSLUbiLqZFVdCqVkLIpNH3PNpX3wnQiuGHf2G2tZQuVsJAYKbf8dnF9FbeLZVxNoQeyof-pZi9xGTjNOtt4lc0Ws63W1bp18RHcIIWU03WesAA6qgh8EIq7fUVX3mByBAEEpgc7WiZ64z9QIxxqz_oXg1B7bjprTEzpIjf8FjEcTPDkUz0SKOmZZSAKvPL9b4EFxpes3PYrM_8oRHag78dXJRmrIL8cohRuFzuvvRovE6Lgrmoq6_H2PLQEWPeCvMD4XjUhdBficiUb7HXeiNgp2igfitO0f-jHE1xTvSAr7MCcJi73Ni1uiy0CpsUpmAKCsUGzAhJ6p4Zl0h9BLkco5klvwhvSxkdUeM5-syhJjolDlWJx8M8TeuHF8vQeK33Ovll6CLTWLte5wIGlhjNC_FHOXuYUfJZ5KjUxwTQisSwM462cvevWwPa1kmbRefEYLoY1BswEpCQ3xLt29UzePPu4z4nSAgKWSSU",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1796085486.90967,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "petzUserName",
-      "value": "Rafael",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1762130287.332187,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "petzCliente",
-      "value": "87540489",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1762130287.332279,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "ajs_user_id",
-      "value": "MDA2Nzg1MjM2MDY=",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1793071037,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "audit_p",
-      "value": "1|f1MN06TZfwbRi6L6WIV8qQLdHLm74fNf+z0FL8IqA19ADOesVrr4fbQJwT5fWnT8B7O9Pq2vc1gwHTRO1/p4iCck1N7K9KkV0dqlR5NoluSCD9zFQIvrTVGk3ZSWqdvP4NaaK7Wo1a5kkip/CzaL5QS+rXM9IqgIPzkaxi3rP+V16h2LKXkYaJDy+KCnXKr4N6JXMcYuiJM=",
-      "domain": ".rubiconproject.com",
-      "path": "/",
-      "expires": 1793061584.166473,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None",
-      "partitionKey": "https://petz.com.br",
-      "_crHasCrossSiteAncestor": true
-    },
-    {
-      "name": "audit",
-      "value": "1|f1MN06TZfwbRi6L6WIV8qQLdHLm74fNf+z0FL8IqA19ADOesVrr4fbQJwT5fWnT8B7O9Pq2vc1gwHTRO1/p4iCck1N7K9KkV0dqlR5NoluSCD9zFQIvrTVGk3ZSWqdvP4NaaK7Wo1a5kkip/CzaL5QS+rXM9IqgIPzkaxi3rP+V16h2LKXkYaJDy+KCnXKr4N6JXMcYuiJM=",
-      "domain": ".rubiconproject.com",
-      "path": "/",
-      "expires": 1793061584.166718,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
       "name": "um",
       "value": "!38,m2jzRH6tDTzlLTzegOOJk.nSl0HX6SJaJO3m81-i6d2M3KOglOrkbibGMpOMrcBN5uI6aBgNJcAi-wYw9s.xrG0ZG9M,1769301584",
       "domain": ".360yield.com",
@@ -1107,51 +1137,21 @@
       "sameSite": "None"
     },
     {
-      "name": "data-c-ts",
-      "value": "1761525584",
-      "domain": ".media.net",
+      "name": "_rxuuid",
+      "value": "%7B%22rx_uuid%22%3A%22RX-3f41441b-3f32-43aa-ac30-16f3689df838-005%22%7D",
+      "domain": ".1rx.io",
       "path": "/",
-      "expires": 1764117584.225422,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "anj",
-      "value": "dTM7k!M41$D>6NRF']wIg2IldtG`UA!A#EfN'ycOAwH@>^ySB'19EO=Uq0i5aeq2HanEzHUq-M$6_<qCaDS]@6lluMak21D%nM]7vHfwMO=`@IP9R>>:ckM?:F48oAadSeDb5imVGF*nFwSx^a<2Cj@I-S6?PwSRY=mA!X^U<5cLmZx*f=kW*g0D(i0I0R",
-      "domain": ".adnxs.com",
-      "path": "/",
-      "expires": 1769301584.56487,
+      "expires": 1792811136.959188,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
     {
-      "name": "TOKEN_INFO",
-      "value": "%7B%22access_token%22%3A%22dc4b1990a3d40b700379ca66c2f020cf%22%2C%22refresh_token%22%3A%22ca4407f2babdf03f17018714a67a9176%22%2C%22createdAt%22%3A%22Sun+Oct+26+23%3A37%3A34+GMT-03%3A00+2025%22%2C%22expires_in%22%3A3600%7D",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1761795599.686831,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_hjSession_257734",
-      "value": "eyJpZCI6IjVjMjM2YjgyLWI5NDMtNDkwZi1iNWY1LTNjNDU3MzBlMDIwOCIsImMiOjE3NjE1MzQxMzcxNjksInMiOjAsInIiOjAsInNiIjowLCJzciI6MCwic2UiOjAsImZzIjowLCJzcCI6MH0=",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1761535937,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
       "name": "blueID",
-      "value": "777fe59e-fccc-46c2-8337-34fd72da2edb",
+      "value": "6987d022-3203-4de0-94d3-8ff9af10ffaa",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1793070946,
+      "expires": 1793075140,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -1161,24 +1161,14 @@
       "value": "17802dd6-8171-4abd-a600-d09920f61f3f",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1793071037,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "OptanonConsent",
-      "value": "isGpcEnabled=0&datestamp=Sun+Oct+26+2025+23%3A16%3A24+GMT-0400+(Eastern+Daylight+Time)&version=202404.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=f89250ad-0e39-4eda-a9f6-a4ea682354fa&interactionCount=0&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0003%3A1%2CC0002%3A1%2CC0004%3A1&AwaitingReconsent=false",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1793070984,
+      "expires": 1793075242,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "cp_session",
-      "value": "fU21_ECDMCO69jMQEVmPGJI~hI04MmpSZf9ez2zn2XtaRr~37km~8wV__Y9C1yjZmxRcrz7Tb_Q8qPRqJYdjkwCY2kAjmyMKTem_ZqvrFuIN27lhDOabUgK~0LNGd5lqyzF5ytDqSAMoQxPcoQN9WaH9rXABpob7w5L5NOEfnggv48LKIxdGWGHykB~xiwArb6RhWlo5gA4RSZk5TK~WbPSlnUFU4OQVueIH~l7mznQaabmNXHVm5vV0fr6gxXpjOsC7dMcKtavBdf_rIEeXpJrMz1QcUe1DBDtPQaVuIzz7U_THj3y7gE04yRjyaY5mIN15CMqSovFMa6OG2rU5JxdreEjSWE25sNg71LwOrs9aiYJWVj5KX7pEgmI9tqaSCapvyaTZVZWXrkrQemvT4SZE8k0jfjA1sPJAqhHpdvuhDS0XdVAXlUr1KADfGNJS~gbLqzTTBIxDMV5uP_9gzhwoS~ZXWyT~Ow",
+      "value": "fUu7plaNljGkMu8F39bGrwUReAMNxTWCRTVVgiRpQMis3DFx82kuFN5uhrieFtmgo7Pu_cbobSEch0YyD3J~FyzS4CTwfjNLByqwCfgoAg8OKTsP9xt72zw9q20ezGFNqyTT9LUP404gJfRemoMzX~nC8vCQih07H_MK1Cg07PDUIcDG1mp6DnkKubX~PMzXDdGV2rrNeBsKu6lvUzPrpzFtUjvBpP4HFRA_aZOAtDZOOu2ivXPJqvYkwdHlLHGjpXhtb8rEJ0dB8AhIAaXN9E1DU_JjVbA3eAbrcgHDNZLwtoqYhNJP9dTf6tOQBycek77csTulsuh~_I0OIGhXkh8yUkuuFlSTk37nowRV3bKTUHWutztcWft5FUMvifdEN29GA57D7~e~0RvXBs50pP28Jgs_ZmSFDE~Qf_3_sVPgD8THOF_RxeF5uGqA5JPP_YFpTCynM1tt9MJE3oxFPErT72Anfax3tV",
       "domain": "petz.custhelp.com",
       "path": "/",
       "expires": -1,
@@ -1187,11 +1177,21 @@
       "sameSite": "None"
     },
     {
-      "name": "_scid_r",
-      "value": "lh5Uznr9i1YoKb5PI2RFWZSjEECbWJ927lxS9A",
+      "name": "OptanonConsent",
+      "value": "isGpcEnabled=0&datestamp=Mon+Oct+27+2025+00%3A26%3A22+GMT-0400+(Eastern+Daylight+Time)&version=202404.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=f89250ad-0e39-4eda-a9f6-a4ea682354fa&interactionCount=0&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0003%3A1%2CC0002%3A1%2CC0004%3A1&AwaitingReconsent=false",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795752985,
+      "expires": 1793075182,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_scid_r",
+      "value": "nx5Uznr9i1YoKb5PI2RFWZSjEECbWJ927lxSDA",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1795757182,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -1201,77 +1201,77 @@
       "value": "GA1.1.1896391624.1761274904",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1796095002.899623,
+      "expires": 1796099204.165735,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gat_gtag_UA_58792402_1",
+      "value": "1",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1761539283,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "tmx_guid",
-      "value": "AAzOrnUFerlLpoc9ZHRhYSg4HfDSi46eLSRCGOhTTF9jGoQhCbo1i6xy0rqsQw9Ei-5TDo-ri5NILbET0766NkRIy3FiwA",
+      "value": "AAw_uJDMrUUAD1kv06ItgUZLeU0u7ShbBFc5B5HBZZmEb9oi0BMt7CH-XySKRjxghgBQpFDLCZP-OogSF2vj4KO8KThPjw",
       "domain": "imgs.signifyd.com",
       "path": "/",
-      "expires": 1796095028.269212,
+      "expires": 1796099233.864375,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
     {
       "name": "RT",
-      "value": "\"z=1&dm=www.petz.com.br&si=30072270-5f97-4784-921f-281c71e90289&ss=mh8eh1cd&sl=4o&tt=1gt4&obo=3h&rl=1\"",
+      "value": "\"z=1&dm=www.petz.com.br&si=30072270-5f97-4784-921f-281c71e90289&ss=mh8eh1cd&sl=52&tt=1klt&obo=3t&rl=1\"",
       "domain": ".www.petz.com.br",
       "path": "/",
-      "expires": 1762139836,
+      "expires": 1762144042,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "AWSALB",
-      "value": "AfvUMh2nZ5ja4ZLmWjAytsYPI0t7dRn8qQD45IpzwzJ+wPE8WBseDkbvJ+x+ZS1T7+iHkOlCOn1iJCEkITjOzfff82iWQ6pu3eVjjNNnXRBJEbnhxN0KUcwIkOnt",
+      "value": "Zy9Ydr1wKTezk5C83e0BbrE52fq3rgINhxKeF9l/zbN7sp9kM0EC00EVlODpZojY/SmxNEsKB1DmjJga0JTVArbIoLJHP6ucYTpG+r7P494a8E5unK9U7gcTixKR",
       "domain": "www.petz.com.br",
       "path": "/",
-      "expires": 1762139837.36733,
+      "expires": 1762144042.787047,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "AWSALBCORS",
-      "value": "AfvUMh2nZ5ja4ZLmWjAytsYPI0t7dRn8qQD45IpzwzJ+wPE8WBseDkbvJ+x+ZS1T7+iHkOlCOn1iJCEkITjOzfff82iWQ6pu3eVjjNNnXRBJEbnhxN0KUcwIkOnt",
+      "value": "Zy9Ydr1wKTezk5C83e0BbrE52fq3rgINhxKeF9l/zbN7sp9kM0EC00EVlODpZojY/SmxNEsKB1DmjJga0JTVArbIoLJHP6ucYTpG+r7P494a8E5unK9U7gcTixKR",
       "domain": "www.petz.com.br",
       "path": "/",
-      "expires": 1762139837.367545,
+      "expires": 1762144042.787127,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
     },
     {
       "name": "gaPetzTransactionId",
-      "value": "410204567",
+      "value": "410235626",
       "domain": "www.petz.com.br",
       "path": "/",
-      "expires": 1762399037,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_ga_JB2JHD7FCJ",
-      "value": "GS2.1.s1761528290$o4$g1$t1761535037$j43$l0$h0",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1796095037.414969,
+      "expires": 1762403242,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64",
-      "value": "%7B%22g%22%3A%225de79e9a-e539-d42f-de67-68cd49fc66e5%22%2C%22e%22%3A1761535067471%2C%22c%22%3A1761535037080%2C%22l%22%3A1761535037471%7D",
+      "value": "%7B%22g%22%3A%22606a63fc-68f2-bb78-801c-b1114de47d4a%22%2C%22e%22%3A1761539272853%2C%22c%22%3A1761539242716%2C%22l%22%3A1761539242853%7D",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1793091977,
+      "expires": 1793096182,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -1281,7 +1281,7 @@
       "value": "f90b1970b2cb11f0a340459109f379c3",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1761621437,
+      "expires": 1761625642,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -1291,47 +1291,57 @@
       "value": "4f1d4d30b08611f0bdb8df4ee9337dd6",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795231037,
+      "expires": 1795235242,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
-      "name": "_pinterest_ct_ua",
-      "value": "TWc9PSZaZnZBNDRJbFRuYjJaSWVFT3poVWM3WW80RmsyZUtiWGZsWUwzVU1qd2Zsb3FGMDF4dE1WdGMxSGx1emJETStRMHVmTG5ZUTJwQkcxSHNDM0ZSRzNsdE9KQ3lKekgweGpaakVsU0YzR0F5ND0mV21wU283VCtNYjEwaXdTYk5UWmlsNnBPMjhzPQ==",
-      "domain": ".ct.pinterest.com",
-      "path": "/",
-      "expires": 1793071037.822536,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
       "name": "ttcsid",
-      "value": "1761528286068::nzgPX2HiHsdkfXaou4jU.4.1761535037993.0",
+      "value": "1761538079926::QoFC0eQ1OyHAnhwlNEo0.5.1761539243193.0",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795231037,
+      "expires": 1795235243,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "ttcsid_C2AEV27MU8Q03RAIJFUG",
-      "value": "1761528286066::VqBo6KuQfwF-zAuEBKD-.4.1761535037993.0",
+      "value": "1761538079925::WpRUa50aQ8DwJF08LQN8.5.1761539243193.0",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795231037,
+      "expires": 1795235243,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_pinterest_ct_ua",
+      "value": "TWc9PSZQZG1tNDJOL0ZwUWZoTFpxd2o3MXJhYkJYaUxNN3RqQWtKQ0w1SkVWdWVqKzhqRUMzcTE5cHJkL3BnbmxwUDI0U0ZHWFNKYnRlbE00OTVxRnNZTHk2M0hnZjloK0RZWitlU3R3TVVnMVdNaz0mM1paL1lLZlc0amkrNzhveTN3ZWV4LzNBa3ZFPQ==",
+      "domain": ".ct.pinterest.com",
+      "path": "/",
+      "expires": 1793075243.235131,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga_JB2JHD7FCJ",
+      "value": "GS2.1.s1761538084$o5$g1$t1761539243$j41$l0$h0",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1796099243.348896,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "cto_bundle",
-      "value": "_-S60l9odWk2M2ozNmNwdDlRUGRESDBaSTU3Z1JlUnglMkJtaFklMkJWSEExdVczSFAwb2FSTm5uTzFXbDd5elpINlY3dVpHdG5ESEhJWVpyWTg4OEtReDk5NHg4WHYlMkJYUXA1UWVndnNTRExla3lSMU91Y2lEMWpJSUhGTHZCemVES2pUbVFoODNCJTJGMmV1b0NwZ2FSNkdIMHVrOTNSZyUzRCUzRA",
+      "value": "UpLIRF9JMmJHZjVKNGxLdCUyRmlvYWhmS0JRQTZESkdpc29ScnJLJTJCRm1SN1daczJIJTJGa0Y5bXlLNnVXMnJBeFVCSXlQeXM5dHVTWEg2OWdVY3U2N0dtSG0wTXpkZE10ZERHYnlwZEplTEdyRTh1bnVlVlUxeVdBMGlqZnVBUmFWMktrSERYOTdKQlRzSmV1WFJHUmV4U25ieTdIeUElM0QlM0Q",
       "domain": ".criteo.com",
       "path": "/",
-      "expires": 1795231038.446204,
+      "expires": 1795235242.687167,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None",
@@ -1340,10 +1350,10 @@
     },
     {
       "name": "cto_bundle",
-      "value": "yHR1BV8zM2pTTzVUdEdZcEtDMVZ2MEcwYVllbGRlR2xTOTlyQzNsbnRqWXd6eW5nMHdkMnpXVmtzb2hwM2N1ZmV1TnhzRzJCUUxQelRSZ0hCN0xRJTJGSkhCcFdrMElBdmclMkJLRXVBJTJCTE0xZGRaMTRDYWYwJTJGcHpyZ0NnMFdoY3lJMWRXQkRtVDJaTHRvaGphR1ZDTVdlejVDb3pkdyUzRCUzRA",
+      "value": "pKlBIV8zM2pTTzVUdEdZcEtDMVZ2MEcwYVliaGZiZlV5M0ZQMHJEaEFZblRUUjVLJTJCV0w1cE1Mc3UlMkJOalZaQkdacHRQSkpNTHJRSWNQell2JTJCcU5oN3FBaUFKMW5Ib3A3c0NST2dLVEg4TUNESiUyRjNEdGJxV1VRckF2NWExSCUyRmhPbEYyYVViemslMkZoblRCVEhOdSUyRjRaZ0ZUVW84USUzRCUzRA",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795699038,
+      "expires": 1795703243,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -1351,17 +1361,17 @@
   ],
   "localStorage": {
     "u_sclid": "HwDJB34l4LZATQqaXDu5CjcUhYmfgPTWe55Uznr9i1YoKb5PI2RFWZSjEECbWJ92",
-    "_uetvid_exp": "Sat, 21 Nov 2026 03:17:17 GMT",
-    "cto_bundle": "yHR1BV8zM2pTTzVUdEdZcEtDMVZ2MEcwYVllbGRlR2xTOTlyQzNsbnRqWXd6eW5nMHdkMnpXVmtzb2hwM2N1ZmV1TnhzRzJCUUxQelRSZ0hCN0xRJTJGSkhCcFdrMElBdmclMkJLRXVBJTJCTE0xZGRaMTRDYWYwJTJGcHpyZ0NnMFdoY3lJMWRXQkRtVDJaTHRvaGphR1ZDTVdlejVDb3pkdyUzRCUzRA",
-    "5718FABB002E": "AAx4mLGLZVjGH93aXTq8cwtGeIJc-Zu4cp_VI6jpKUePChKIps94swFpJieZfpzsFbLWK3YJjxesfzbzkSNIl0HOzjzxbQ",
+    "_uetvid_exp": "Sat, 21 Nov 2026 04:27:22 GMT",
+    "cto_bundle": "pKlBIV8zM2pTTzVUdEdZcEtDMVZ2MEcwYVliaGZiZlV5M0ZQMHJEaEFZblRUUjVLJTJCV0w1cE1Mc3UlMkJOalZaQkdacHRQSkpNTHJRSWNQell2JTJCcU5oN3FBaUFKMW5Ib3A3c0NST2dLVEg4TUNESiUyRjNEdGJxV1VRckF2NWExSCUyRmhPbEYyYVViemslMkZoblRCVEhOdSUyRjRaZ0ZUVW84USUzRCUzRA",
+    "5718FABB002E": "AAyA8mmJCrHsB5duEWAlSiPk1NYEvSDhRml8HTgQNtgnaLuGsnumb5KrHL7xB9ls_T3JeggC4sljNKn07m17nkTjgEXVeA",
     "_gcl_ls": "{\"schema\":\"gcl\",\"version\":1,\"gcl_ctr\":{\"value\":{\"value\":0,\"timeouts\":0,\"creationTimeMs\":1761274986919},\"expires\":1769050986919}}",
-    "ab.storage.triggers.ts.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1761535037306}",
+    "ab.storage.triggers.ts.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1761539242980}",
     "ed73f20edbf2b73": "277a372f6e444406bca8e0cea36da930_1916795254757",
     "_grecaptcha": "09ADiQh0f6XDGZZZpPSiM0BhVSuWKUXcqMlxC2Tfv0YEbIQm2WhzrJZOCf2A4HOXInGiJ2EyYLUcr-YP-AZfLiat1f-gC37QblsvFF8DAM-jWb9Y-Do0Y27MZwFrP8FO_AILOva3N4a-VWvJwWk-5TEbqPrnkgVR7pF48Az6eP-E06vTGQXeZJxmQ5WG_h",
     "ab.storage.ccImpressions.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{}}",
-    "_pin_unauth_ls": "{\"value\":\"dWlkPU5UVXdOR016TWpRdFl6QmxNaTAwTldFM0xXSTRPRGN0TldVMk9EZGxNekV4TXpneg\",\"expires\":\"2026-10-27T03:17:17.666Z\"}",
+    "_pin_unauth_ls": "{\"value\":\"dWlkPU5UVXdOR016TWpRdFl6QmxNaTAwTldFM0xXSTRPRGN0TldVMk9EZGxNekV4TXpneg\",\"expires\":\"2026-10-27T04:27:23.068Z\"}",
     "ab.storage.ccDismissals.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{}}",
-    "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"5de79e9a-e539-d42f-de67-68cd49fc66e5\",\"e\":1761535067471,\"c\":1761535037080,\"l\":1761535037471}}",
+    "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"606a63fc-68f2-bb78-801c-b1114de47d4a\",\"e\":1761539272853,\"c\":1761539242716,\"l\":1761539242853}}",
     "ab.storage.deviceId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"cfc6acd7-f8fc-97f8-55cf-b2c5dfbbdce5\",\"c\":1761274989274,\"l\":1761274989274}}",
     "HTConfigMenuFirstActivation": "true",
     "ab.storage.deviceId.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":{\"g\":\"b776e6e2-e108-5265-c84a-b73c44f75edb\",\"c\":1761275183783,\"l\":1761275183783}}",
@@ -1369,25 +1379,25 @@
     "lastExternalReferrer": "empty",
     "ed73f20edbf2b74": "0:1:1761275253584:1761275253584:3d418f4b9b7764c0335ca672f431753b",
     "ab.storage.userId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"MDA2Nzg1MjM2MDY=\",\"c\":1761275134814,\"l\":1761275134814}}",
-    "ab.storage.ccLastFullSync.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1761535037}",
+    "ab.storage.ccLastFullSync.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1761539242}",
     "ajs_anonymous_id": "\"17802dd6-8171-4abd-a600-d09920f61f3f\"",
     "ajs_user_traits": "{\"name\":\"Rafael Souza\",\"email\":\"rafael.augusto.ps07@gmail.com\",\"address\":169663282,\"birthday\":null}",
-    "YUNO_EVENT_LOGS_www.petz.com.br": "[{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mh8kfkf0000w5908cmiu\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-10-27T03:15:57.864Z\",\"sdk_version\":\"9.9.17\",\"url\":\"https://www.petz.com.br/checkout/cart/\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.17\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mh49lpzq00dfycvf2qgn\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mh8kfzpx00csicel4893\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-10-27T03:16:17.696Z\",\"sdk_version\":\"9.9.17\",\"url\":\"https://www.petz.com.br/checkout/cart/1326827814\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.17\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mh49lpzq00dfycvf2qgn\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mh8kgdn200v4f7s4428g\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-10-27T03:16:35.729Z\",\"sdk_version\":\"9.9.17\",\"url\":\"https://www.petz.com.br/checkout/cart/1326827814\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.17\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mh49lpzq00dfycvf2qgn\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mh8kgivq00uj0om0dru8\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-10-27T03:16:42.528Z\",\"sdk_version\":\"9.9.17\",\"url\":\"https://www.petz.com.br/checkout/cart/1326827814\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.17\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mh49lpzq00dfycvf2qgn\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"}]",
-    "ab.storage.device.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"browser\":\"Chrome\",\"browser_version\":\"141.0.0.0\",\"os_version\":\"Linux\",\"resolution\":\"1288x711\",\"locale\":\"en-us\",\"time_zone\":\"America/New_York\",\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"}}",
+    "YUNO_EVENT_LOGS_www.petz.com.br": "[]",
+    "ab.storage.device.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"browser\":\"Chrome\",\"browser_version\":\"141.0.7390.37\",\"os_version\":\"Linux\",\"resolution\":\"1288x711\",\"locale\":\"en-us\",\"time_zone\":\"America/New_York\",\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Safari/537.36\"}}",
     "YUNO_METRIC_LOGS_www.petz.com.br": "[]",
-    "topicsLastReferenceTime": "1761535037526",
     "blueID": "9a0a2e22-91a4-4ef8-914e-38ad156ae86c",
+    "topicsLastReferenceTime": "1761539242931",
     "ab.storage.cc.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[]}",
     "ab.storage.ccLastCardUpdated.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":0}",
     "_uetsid": "f90b1970b2cb11f0a340459109f379c3",
     "ab.storage.serverConfig.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"s\":\"2.4.3\",\"l\":1761239728,\"e\":[\"#{563*629}\"],\"a\":[\"Mzk5Mjk2NDk4MTY\",\"VAR_MIRCRO\",\"eg_update\",\"last_engagement_date\",\"segmento_petz\"],\"p\":[\"Checkout Started\"],\"m\":21600,\"v\":\"BMyk-ccExs5aOqnmDtmgtVDpEbAKZXGNFcHjY1PGj9i4IB6v9-3-YcJ4uJMhvml5bwRJh3dixI9xhskxa4maiIs=\",\"c\":{\"enabled\":true}}}",
     "ab.storage.triggers.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[]}",
     "_boomr_akamaiXhrRetry": "{\"items\":{},\"expires\":1761526766663}",
-    "u_sclid_r": "8mFBlUxP0OHY2ya7BnJn3QH1DRd8J0INwWp0HpYeVM56_YtWKCm-TyNkRVmUoxBAm1ifdu5cUvQ",
-    "lastExternalReferrerTime": "1761535002951",
-    "_uetsid_exp": "Tue, 28 Oct 2025 03:17:17 GMT",
-    "ab.storage.events.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761535037463,\"s\":\"5de79e9a-e539-d42f-de67-68cd49fc66e5\",\"d\":{\"n\":\"Order Placed\",\"p\":{\"affiliation\":\"Site/Desktop\",\"cart_id\":1326827814,\"checkout_id\":410204567,\"currency\":\"BRL\",\"discount\":35,\"order_id\":1326827814,\"payment_method\":\"PIX\",\"revenue\":104.97999999999999,\"shipping\":9.31,\"shipping_method\":\"economic\",\"subtotal\":139.98,\"total\":120.19000000000001,\"app_platform\":\"web\",\"fbpCookie\":\"fb.2.1761275134482.269068063581068158\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761535037466,\"s\":\"5de79e9a-e539-d42f-de67-68cd49fc66e5\",\"d\":{\"n\":\"Payment Info Entered\",\"p\":{\"checkout_id\":1326827814,\"order_id\":410204567,\"payment_method\":\"PIX\",\"shipping_method\":\"economic\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761535037469,\"s\":\"5de79e9a-e539-d42f-de67-68cd49fc66e5\",\"d\":{\"n\":\"Cart Order\",\"p\":{\"type\":\"confirmation\",\"cart_id\":1326827814,\"order_id\":410204567}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761535037472,\"s\":\"5de79e9a-e539-d42f-de67-68cd49fc66e5\",\"d\":{\"n\":\"Checkout Step Viewed\",\"p\":{\"screen_name\":\"Cart Order\",\"screen_type\":\"confirmation\"}}}]}",
-    "ab.storage.sessionId.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":{\"g\":\"ad426981-97a8-1561-a131-8337241d8225\",\"e\":1761536784859,\"c\":1761528313401,\"l\":1761534984859}}",
+    "u_sclid_r": "Wkh1szbAdHCYnlAG-mCrXD_cMTVm6OTEtVi4nZ8eVM56_YtWKCm-TyNkRVmUoxBAm1ifdu5cUgw",
+    "lastExternalReferrerTime": "1761539204224",
+    "_uetsid_exp": "Tue, 28 Oct 2025 04:27:22 GMT",
+    "ab.storage.events.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761539242844,\"s\":\"606a63fc-68f2-bb78-801c-b1114de47d4a\",\"d\":{\"n\":\"Order Placed\",\"p\":{\"affiliation\":\"Site/Desktop\",\"cart_id\":1326842367,\"checkout_id\":410235626,\"currency\":\"BRL\",\"discount\":27,\"order_id\":1326842367,\"payment_method\":\"PIX\",\"revenue\":32.99,\"shipping\":7.35,\"shipping_method\":\"economic\",\"subtotal\":59.99,\"total\":46.24,\"app_platform\":\"web\",\"fbpCookie\":\"fb.2.1761275134482.269068063581068158\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761539242847,\"s\":\"606a63fc-68f2-bb78-801c-b1114de47d4a\",\"d\":{\"n\":\"Payment Info Entered\",\"p\":{\"checkout_id\":1326842367,\"order_id\":410235626,\"payment_method\":\"PIX\",\"shipping_method\":\"economic\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761539242850,\"s\":\"606a63fc-68f2-bb78-801c-b1114de47d4a\",\"d\":{\"n\":\"Cart Order\",\"p\":{\"type\":\"confirmation\",\"cart_id\":1326842367,\"order_id\":410235626}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1761539242853,\"s\":\"606a63fc-68f2-bb78-801c-b1114de47d4a\",\"d\":{\"n\":\"Checkout Step Viewed\",\"p\":{\"screen_name\":\"Cart Order\",\"screen_type\":\"confirmation\"}}}]}",
+    "ab.storage.sessionId.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":{\"g\":\"c8f96d75-16bb-5265-8ffd-bea309b3ab21\",\"e\":1761540982508,\"c\":1761538097943,\"l\":1761539182508}}",
     "ab.storage.messagingSessionStart.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1761524966454}",
     "ajs_user_id": "\"MDA2Nzg1MjM2MDY=\"",
     "ab.storage.messagingSessionStart.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":1761275183781}"
