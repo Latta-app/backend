@@ -37,8 +37,9 @@ const startScrapping = async (req, res) => {
     // Promise que aguarda a mensagem IPC do worker
     const pixCodePromise = new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        // ✅ armazena a referência
         reject(new Error('TIMEOUT'));
-      }, 240000); // 4 minutos
+      }, 360000);
 
       child.on('message', (msg) => {
         console.log('📨 [controller] Recebeu mensagem do worker:', msg);

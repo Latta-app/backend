@@ -19,34 +19,29 @@ const runCheckoutFlow = async (checkoutData) => {
       modelName: process.env.MODEL_NAME ?? 'claude-3-7-sonnet-latest',
       modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
       enableCaching: false,
-      localBrowserLaunchOptions: {
-        headless: false, // ← MUDAR AQUI
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--window-size=1920,1080',
-          '--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Safari/537.36',
-          '--disable-blink-features=AutomationControlled',
-          '--disable-features=IsolateOrigins,site-per-process',
-        ],
-      },
+      // ⚠️ CRÍTICO: keepAlive mantém a sessão BrowserBase viva
+      ...(useCloud && {
+        browserbaseSessionCreateParams: {
+          keepAlive: true,
+        },
+      }),
+      // Configurações para modo local
+      ...(!useCloud && {
+        localBrowserLaunchOptions: {
+          headless: false,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+          ],
+        },
+      }),
     });
 
     console.log(`🚀 Stagehand iniciado em modo ${useCloud ? 'CLOUD' : 'LOCAL'}...`);
     await stagehand.init();
     page = stagehand.page;
-    await stagehand.init();
-    page = stagehand.page;
-
-    const context = page.context();
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      window.navigator.chrome = { runtime: {} };
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-      Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt', 'en-US', 'en'] });
-    });
 
     // === Sessão ===
     const hasSession = await restoreSession(page);
@@ -66,15 +61,6 @@ const runCheckoutFlow = async (checkoutData) => {
     // === Login válido ===
     await page.goto('https://www.petz.com.br', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1500);
-
-    // 🔍 DEBUG: Testar se a home page funciona
-    const homeTest = await page.evaluate(() => ({
-      title: document.title,
-      hasAccessDenied: document.body.innerHTML.includes('Access Denied'),
-      url: window.location.href,
-    }));
-    console.log('🔍 Home page test:', JSON.stringify(homeTest, null, 2));
-
     const logged = await page.evaluate(() => {
       const hasUser = !!document.querySelector(
         '.header-user, .header__user-name, [data-testid="user-name"]',
@@ -139,60 +125,27 @@ const runCheckoutFlow = async (checkoutData) => {
       const link = checkoutData.products[i];
       console.log(`🧩 Produto ${i + 1}/${checkoutData.products.length}: ${link}`);
       await page.goto(link, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(2000);
-
-      // 🔍 DEBUG: Verificar se página do produto carregou
-      const productTest = await page.evaluate(() => ({
-        hasAccessDenied: document.body.innerHTML.includes('Access Denied'),
-        hasAddButton:
-          !!document.querySelector('[data-testid="add-to-cart"]') ||
-          document.body.textContent.includes('Adicionar'),
-      }));
-      console.log('🔍 Product page test:', JSON.stringify(productTest, null, 2));
-
       await page.act("Click 'Adicionar à sacola' and wait for cart to open");
       await page.waitForTimeout(2000);
     }
 
-    // === CEP ===
+    // === CEP - LÓGICA CORRETA ===
     console.log(`📮 Configurando CEP ${checkoutData.address.cep}...`);
-
-    const userAgent = await page.evaluate(() => navigator.userAgent);
-    console.log('🔍 User-Agent:', userAgent);
     await page.goto('https://www.petz.com.br/checkout/cart/', { waitUntil: 'domcontentloaded' });
-
-    // 🔍 DEBUG: Ver se .cep-search existe
-    const debugInfo = await page.evaluate(() => {
-      return {
-        hasCepSearch: !!document.querySelector('.cep-search'),
-        hasChangeAddress: !!document.querySelector('[data-testid="ptz-bag-address-change"]'),
-        currentCep: document.querySelector('[data-testid="ptz-checkout-address-zipcode"]')
-          ?.textContent,
-        pageHTML: document.body.innerHTML.substring(0, 2000),
-      };
-    });
-    console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));
-
     await page.waitForTimeout(3000);
 
-    // await page.waitForSelector('.cep-search', { timeout: 15000 });
-
-    const cepState = await page.evaluate((cep) => {
+    // Verifica se campo CEP tem algo preenchido
+    const cepState = await page.evaluate(() => {
       const input = document.querySelector('#cepSearch');
       if (!input) return { success: false, message: 'Campo CEP não encontrado' };
 
       const currentValue = input.value.trim();
-      const hasExistingCep = currentValue !== '';
-
-      if (hasExistingCep) {
-        const alterarBtn = document.querySelector('[data-testid="ptz-bag-zip-code-apply"]');
-        if (alterarBtn && alterarBtn.textContent.trim() === 'Alterar') {
-          alterarBtn.click();
-          return { success: true, needsWait: true, message: 'Clicou em Alterar' };
-        }
-      }
-      return { success: true, needsWait: false, message: 'Campo CEP vazio' };
-    }, checkoutData.address.cep);
+      return {
+        success: true,
+        hasExistingCep: currentValue !== '',
+        currentValue: currentValue,
+      };
+    });
 
     if (!cepState.success) {
       console.log('❌ Erro:', cepState.message);
@@ -200,15 +153,48 @@ const runCheckoutFlow = async (checkoutData) => {
       return { pixCode: null };
     }
 
-    if (cepState.needsWait) {
-      console.log('Aguardando após clicar em Alterar...');
-      await page.waitForTimeout(2000);
+    console.log(`🔍 CEP atual no campo: ${cepState.currentValue || '(vazio)'}`);
+
+    // Se tem CEP preenchido, clica em "Alterar" primeiro
+    if (cepState.hasExistingCep) {
+      console.log('⚠️ Campo CEP preenchido. Clicando em "Alterar"...');
+      await page.evaluate(() => {
+        const alterarBtn = document.querySelector('[data-testid="ptz-bag-zip-code-apply"]');
+        if (alterarBtn && alterarBtn.textContent.trim() === 'Alterar') {
+          alterarBtn.click();
+        }
+      });
+      console.log('⏳ Aguardando 1 segundo...');
+      await page.waitForTimeout(1000);
     }
 
-    console.log('Aguardando processamento do CEP...');
+    // Digita o CEP
+    console.log(`✏️ Digitando CEP ${checkoutData.address.cep}...`);
+    await page.evaluate((cep) => {
+      const input = document.querySelector('#cepSearch');
+      if (input) {
+        input.value = cep;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }, checkoutData.address.cep);
+
+    console.log('⏳ Aguardando 3 segundos...');
     await page.waitForTimeout(3000);
 
-    console.log('Aguardando opções de entrega...');
+    // Clica em "Aplicar"
+    console.log('🔘 Clicando em "Aplicar"...');
+    await page.evaluate(() => {
+      const aplicarBtn = document.querySelector('[data-testid="ptz-bag-zip-code-apply"]');
+      if (aplicarBtn) {
+        aplicarBtn.click();
+      }
+    });
+
+    console.log('⏳ Aguardando processamento do CEP (3 segundos)...');
+    await page.waitForTimeout(3000);
+
+    console.log('⏳ Aguardando opções de entrega...');
     await page.waitForSelector('.btnCardSelect', { timeout: 15000 });
     await page.waitForTimeout(2000);
 
@@ -350,20 +336,59 @@ const runCheckoutFlow = async (checkoutData) => {
       return { pixCode: null };
     }
 
+    // === SELEÇÃO DE PIX OTIMIZADA ===
     console.log('💰 Selecionando pagamento PIX...');
-    await page.act("Select 'Pix' payment method on payment page");
-    await page.waitForTimeout(2500);
+    const pixClicked = await page.evaluate(() => {
+      const pixBtn = document.querySelector('[data-testid="ptz-payment-method-pix"]');
+      if (pixBtn) {
+        pixBtn.click();
+        return true;
+      }
+      return false;
+    });
 
+    if (!pixClicked) {
+      console.log('⚠️ Não encontrou PIX pelo data-testid, tentando fallback...');
+      await page.evaluate(() => {
+        const pixElements = Array.from(
+          document.querySelectorAll('.payment-method-item'),
+        ).find((el) => el.textContent?.toLowerCase().includes('pix'));
+        pixElements?.click();
+      });
+    }
+
+    console.log('⏳ Aguardando confirmação da seleção do PIX...');
+    await page.waitForTimeout(2000);
+
+    // === BOTÃO PAGAR AGORA OTIMIZADO ===
     console.log('🪙 Clicando em "Pagar agora"...');
-    await page.evaluate(() => {
+    const payButtonClicked = await page.evaluate(() => {
+      // Tenta primeiro pelo data-testid (mais confiável)
+      const btnTestId = document.querySelector('[data-testid="ptz-checkout-pay-now"]');
+      if (btnTestId) {
+        btnTestId.click();
+        return true;
+      }
+
+      // Fallback: busca por texto
       const btn = Array.from(document.querySelectorAll('button, a')).find((el) =>
         el.textContent
           ?.trim()
           ?.toLowerCase()
           .includes('pagar agora'),
       );
-      btn?.click();
+      if (btn) {
+        btn.click();
+        return true;
+      }
+      return false;
     });
+
+    if (!payButtonClicked) {
+      console.log('⚠️ Não encontrou botão "Pagar agora"');
+      await stagehand.close();
+      return { pixCode: null };
+    }
 
     console.log('Aguardando página de PIX carregar...');
     await page.waitForTimeout(8000);
