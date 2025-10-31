@@ -46,21 +46,56 @@ const runCheckoutFlow = async (checkoutData) => {
     // === Sessão ===
     const hasSession = await restoreSession(page);
     if (!hasSession) {
-      console.log('⚠️ Nenhuma sessão encontrada. Faça login manual...');
-      await page.goto('https://www.petz.com.br/entrar', { waitUntil: 'domcontentloaded' });
-      console.log('🧑‍💻 Faça login e pressione ENTER quando terminar.');
-      await new Promise((resolve) => {
-        process.stdin.resume();
-        process.stdin.on('data', () => resolve());
+      console.log('⚠️ Nenhuma sessão encontrada.');
+      console.log('🌐 Abrindo página de login...');
+
+      // Abre a página de login CORRETA
+      await page.goto('https://www.petz.com.br/checkout/login/indexLogado_Loja', {
+        waitUntil: 'domcontentloaded',
       });
+
+      console.log('');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🧑‍💻 FAÇA LOGIN MANUALMENTE NO NAVEGADOR');
+      console.log('   (Email + Senha + SMS se necessário)');
+      console.log('');
+      console.log('Quando terminar e voltar para https://www.petz.com.br/');
+      console.log('com "Olá, Rafael" visível, crie o arquivo:');
+      console.log('');
+      console.log('   touch /tmp/petz-login-done');
+      console.log('');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('');
+      console.log('⏳ Aguardando você fazer login...');
+
+      // Aguarda arquivo de flag
+      const flagFile = '/tmp/petz-login-done';
+      if (fs.existsSync(flagFile)) fs.unlinkSync(flagFile);
+
+      while (!fs.existsSync(flagFile)) {
+        await page.waitForTimeout(1000);
+      }
+
+      console.log('✅ Flag detectada!');
+      console.log('💾 Salvando sessão...');
+      fs.unlinkSync(flagFile);
       await saveSession(page);
+      console.log('✅ Sessão salva em session.json');
+      console.log('');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('⚠️ IMPORTANTE: Pare o servidor (Ctrl+C) e rode novamente');
+      console.log('   para testar se está logado com a nova sessão');
+      console.log('═══════════════════════════════════════════════════');
+
       await stagehand.close();
-      return { pixCode: null };
+      return { pixCode: null, message: 'SESSION_CREATED' };
     }
 
-    // === Login válido ===
+    // === Verificar se sessão é válida ===
+    console.log('🔍 Verificando validade da sessão...');
     await page.goto('https://www.petz.com.br', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
+
     const logged = await page.evaluate(() => {
       const hasUser = !!document.querySelector(
         '.header-user, .header__user-name, [data-testid="user-name"]',
@@ -74,16 +109,12 @@ const runCheckoutFlow = async (checkoutData) => {
       );
       return hasUser || !hasLoginButton;
     });
+
     if (!logged) {
-      console.log('⚠️ Sessão expirada. Faça login novamente.');
-      await page.goto('https://www.petz.com.br/entrar');
-      await new Promise((resolve) => {
-        process.stdin.resume();
-        process.stdin.on('data', () => resolve());
-      });
-      await saveSession(page);
+      console.log('❌ Sessão expirada.');
+      console.log('💡 Solução: Delete session.json e rode novamente para fazer novo login');
       await stagehand.close();
-      return { pixCode: null };
+      return { pixCode: null, error: 'SESSION_EXPIRED' };
     }
 
     console.log('✅ Sessão válida. Limpando carrinho...');
@@ -363,14 +394,12 @@ const runCheckoutFlow = async (checkoutData) => {
     // === BOTÃO PAGAR AGORA OTIMIZADO ===
     console.log('🪙 Clicando em "Pagar agora"...');
     const payButtonClicked = await page.evaluate(() => {
-      // Tenta primeiro pelo data-testid (mais confiável)
       const btnTestId = document.querySelector('[data-testid="ptz-checkout-pay-now"]');
       if (btnTestId) {
         btnTestId.click();
         return true;
       }
 
-      // Fallback: busca por texto
       const btn = Array.from(document.querySelectorAll('button, a')).find((el) =>
         el.textContent
           ?.trim()
@@ -401,7 +430,6 @@ const runCheckoutFlow = async (checkoutData) => {
     if (pixCode) {
       console.log('✅ Código PIX obtido:', pixCode);
 
-      // 💾 Salva o PIX no arquivo temporário
       try {
         fs.mkdirSync(path.dirname(PIX_FILE), { recursive: true });
         fs.writeFileSync(
@@ -419,7 +447,6 @@ const runCheckoutFlow = async (checkoutData) => {
 
     await saveSession(page);
 
-    // Retorna imediatamente (não bloqueia o event loop)
     const close = async () => {
       try {
         console.log('🔒 [runCheckoutFlow] Fechando Stagehand manualmente...');
