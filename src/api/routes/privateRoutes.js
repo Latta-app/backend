@@ -10,6 +10,7 @@ import TagsRoutes from './private/tags.routes.js';
 import TemplateRoutes from './private/template.routes.js';
 import UserRoutes from './private/user.routes.js';
 import VaccineRoutes from './private/vaccine.routes.js';
+import N8NRoutes from './private/n8n.routes.js';
 import WebScrappingRoutes from './private/web-scrapping.route.js';
 import VarejonlineRoutes from './private/varejonline.routes.js';
 
@@ -26,6 +27,7 @@ router.use('/tags', TagsRoutes);
 router.use('/template', TemplateRoutes);
 router.use('/users', UserRoutes);
 router.use('/vaccine', VaccineRoutes);
+router.use('/n8n', N8NRoutes);
 router.use('/web-scrapping', WebScrappingRoutes);
 router.use('/oauth/varejonline', VarejonlineRoutes);
 
