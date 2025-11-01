@@ -1,5 +1,6 @@
 import path from 'path';
 import { fork } from 'child_process';
+import n8nService from '../services/n8n.service.js';
 
 const downloadImage = async (req, res) => {
   console.log('==============================');
@@ -58,4 +59,38 @@ const downloadImage = async (req, res) => {
   }
 };
 
-export default { downloadImage };
+const whatsappFlow = async (req, res) => {
+  try {
+    const { encrypted_flow_data, encrypted_aes_key, initial_vector } = req.body;
+    const { decryptFlowPayload, encryptFlowResponse } = n8nService;
+
+    if (!encrypted_flow_data || !encrypted_aes_key || !initial_vector) {
+      return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+    }
+
+    const { data, aesKey, iv, aesAlg } = decryptFlowPayload({
+      encrypted_flow_data,
+      encrypted_aes_key,
+      initial_vector,
+    });
+
+    console.log('📩 Flow recebido do WhatsApp:', data);
+
+    // sua lógica de negócio:
+    const responseObject = { status: 'ok', received: data };
+
+    const encrypted_response_data = encryptFlowResponse({
+      responseObject,
+      aesKey,
+      iv,
+      aesAlg,
+    });
+
+    return res.json({ encrypted_response_data });
+  } catch (err) {
+    console.error('❌ Erro no whatsappFlow:', err);
+    return res.status(400).json({ error: err.message });
+  }
+};
+
+export default { downloadImage, whatsappFlow };
