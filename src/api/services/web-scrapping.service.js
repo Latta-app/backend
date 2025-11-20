@@ -153,17 +153,80 @@ const runCheckoutFlow = async (checkoutData) => {
 
     // === Adiciona produtos ===
     for (let i = 0; i < checkoutData.products.length; i++) {
-      const link = checkoutData.products[i];
-      console.log(`🧩 Produto ${i + 1}/${checkoutData.products.length}: ${link}`);
+      const product = checkoutData.products[i];
+      const link = product.url;
+      const amount = product.amount || 1;
+      const value = product.value || null;
+
+      console.log(`🧩 Produto ${i + 1}/${checkoutData.products.length}:`);
+      console.log(`   URL: ${link}`);
+      console.log(`   Quantidade: ${amount}`);
+      console.log(`   Valor/Tamanho: ${value || 'N/A'}`);
+
       await page.goto(link, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2000);
+
+      // === Seleção de tamanho/peso (value) ===
+      if (value) {
+        console.log(`📐 Selecionando variação: ${value}`);
+
+        // Verifica se existe o popup de variações
+        const hasVariationPopup = await page.evaluate(() => {
+          return !!document.querySelector('#popupVariacoes');
+        });
+
+        if (hasVariationPopup) {
+          // Abre o popup de variações
+          await page.evaluate(() => {
+            const button = document.querySelector('.size-select-button, .size-select-button-hidden');
+            if (button) button.click();
+          });
+
+          await page.waitForTimeout(1000);
+
+          // Seleciona a variação desejada
+          const variationSelected = await page.evaluate((targetValue) => {
+            const popup = document.querySelector('#popupVariacoes');
+            if (!popup) return false;
+
+            const items = Array.from(popup.querySelectorAll('.variacao-item'));
+            const targetItem = items.find((item) => {
+              const itemName = item.querySelector('.item-name');
+              return itemName && itemName.textContent.trim() === targetValue;
+            });
+
+            if (targetItem) {
+              targetItem.click();
+              return true;
+            }
+            return false;
+          }, value);
+
+          if (variationSelected) {
+            console.log(`✅ Variação "${value}" selecionada com sucesso`);
+            await page.waitForTimeout(1500);
+          } else {
+            console.log(`⚠️ Variação "${value}" não encontrada`);
+          }
+        } else {
+          console.log('⚠️ Produto não possui variações');
+        }
+      }
+
       await page.act("Click 'Adicionar à sacola' and wait for cart to open");
       await page.waitForTimeout(2000);
     }
 
-    // === CEP - LÓGICA CORRETA ===
-    console.log(`📮 Configurando CEP ${checkoutData.address.cep}...`);
+    // === Navegando para o carrinho ===
+    console.log('🛒 Indo para o carrinho...');
     await page.goto('https://www.petz.com.br/checkout/cart/', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(3000);
+
+    // === Limpa carrinho primeiro (será ajustado depois do CEP e cupom) ===
+    console.log('🧹 Preparando carrinho...');
+
+    // === CEP - LÓGICA CORRETA ===
+    console.log(`📮 Configurando CEP ${checkoutData.address.cep}...`);
 
     // Verifica se campo CEP tem algo preenchido
     const cepState = await page.evaluate(() => {
@@ -273,6 +336,112 @@ const runCheckoutFlow = async (checkoutData) => {
       else console.log('⚠️ Cupom pode não ter sido aplicado corretamente.');
     }
 
+    // === AGORA SIM: AJUSTE DE QUANTIDADES (DEPOIS DO CEP E CUPOM) ===
+    console.log('🔢 Ajustando quantidades dos produtos no carrinho...');
+    await page.waitForTimeout(2000);
+
+    // Ajusta quantidade de cada produto digitando diretamente no input
+    for (let i = 0; i < checkoutData.products.length; i++) {
+      const product = checkoutData.products[i];
+      const targetAmount = product.amount || 1;
+
+      console.log(`📦 Produto ${i + 1}: ajustando para ${targetAmount} unidade(s)...`);
+
+      // Verifica quantidade atual
+      const currentQty = await page.evaluate(({ index }) => {
+        const items = document.querySelectorAll('.cart-list-item');
+        if (index >= items.length) return null;
+
+        const item = items[index];
+        const qtyInput = item.querySelector('input[data-testid="ptz-bag-product-quantity"]');
+        return qtyInput ? parseInt(qtyInput.value || '1', 10) : null;
+      }, { index: i });
+
+      if (currentQty === null) {
+        console.log('⚠️ Erro: Produto não encontrado no carrinho');
+        continue;
+      }
+
+      if (currentQty === targetAmount) {
+        console.log('✅ Quantidade já correta');
+        continue;
+      }
+
+      console.log(`✏️ Alterando quantidade de ${currentQty} para ${targetAmount}...`);
+
+      // Digita o valor diretamente no input e tira o foco
+      await page.evaluate(
+        ({ index, targetQty }) => {
+          const items = document.querySelectorAll('.cart-list-item');
+          if (index < items.length) {
+            const item = items[index];
+            const qtyInput = item.querySelector('input[data-testid="ptz-bag-product-quantity"]');
+            if (qtyInput) {
+              // Foca no input
+              qtyInput.focus();
+              // Seleciona todo o texto
+              qtyInput.select();
+              // Define o novo valor
+              qtyInput.value = targetQty.toString();
+              // Dispara eventos
+              qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+              qtyInput.dispatchEvent(new Event('change', { bubbles: true }));
+              // Remove o foco do input (blur) para disparar a atualização
+              qtyInput.blur();
+            }
+          }
+        },
+        { index: i, targetQty: targetAmount },
+      );
+
+      console.log('✅ Valor digitado e foco removido do input');
+
+      // Aguarda o loading do carrinho processar
+      console.log('⏳ Aguardando processamento do carrinho...');
+      await page.waitForTimeout(4000);
+
+      // Valida se a quantidade foi alterada
+      const newQty = await page.evaluate(({ index }) => {
+        const items = document.querySelectorAll('.cart-list-item');
+        if (index >= items.length) return null;
+
+        const item = items[index];
+        const qtyInput = item.querySelector('input[data-testid="ptz-bag-product-quantity"]');
+        return qtyInput ? parseInt(qtyInput.value || '1', 10) : null;
+      }, { index: i });
+
+      if (newQty === targetAmount) {
+        console.log(`✅ Quantidade confirmada: ${newQty}`);
+      } else {
+        console.log(`⚠️ AVISO: Quantidade esperada ${targetAmount}, mas está ${newQty}`);
+      }
+    }
+
+    console.log('✅ Todas as quantidades ajustadas!');
+    await page.waitForTimeout(2000);
+
+    // === VALIDAÇÃO FINAL DAS QUANTIDADES NO CARRINHO ===
+    console.log('🔍 Verificação final das quantidades no carrinho...');
+    const finalCartQuantities = await page.evaluate(() => {
+      const items = document.querySelectorAll('.cart-list-item');
+      return Array.from(items).map((item, index) => {
+        const nameEl = item.querySelector('[data-testid="ptz-bag-product-description"] div');
+        const qtyInput = item.querySelector('input[data-testid="ptz-bag-product-quantity"]');
+        return {
+          index: index + 1,
+          name: nameEl?.textContent?.trim() || 'N/A',
+          quantity: qtyInput ? parseInt(qtyInput.value || '1', 10) : null,
+        };
+      });
+    });
+
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🛒 QUANTIDADES FINAIS NO CARRINHO:');
+    finalCartQuantities.forEach((item) => {
+      console.log(`   ${item.index}. ${item.name}: ${item.quantity} unidade(s)`);
+    });
+    console.log('═══════════════════════════════════════════════════');
+
     // === Validar antes de checkout ===
     console.log('🔍 Validando antes de prosseguir...');
     const canProceed = await page.evaluate(() => {
@@ -332,17 +501,40 @@ const runCheckoutFlow = async (checkoutData) => {
 
       await page.evaluate((address) => {
         const numInput = document.querySelector('[data-testid="ptz-bag-address-register-number"]');
+        const complementInput = document.querySelector(
+          '[data-testid="ptz-bag-address-register-complement"]',
+        );
+        const referenceInput = document.querySelector(
+          '[data-testid="ptz-bag-address-register-reference"]',
+        );
         const aliasInput = document.querySelector(
           '[data-testid="ptz-bag-address-register-nickname"]',
         );
+
+        // Número (obrigatório)
         if (numInput) {
           numInput.value = address.number || '';
           numInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
+
+        // Complemento (opcional)
+        if (complementInput && address.complement) {
+          complementInput.value = address.complement;
+          complementInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // Referência (opcional)
+        if (referenceInput && address.reference) {
+          referenceInput.value = address.reference;
+          referenceInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // Apelido do endereço
         if (aliasInput) {
           aliasInput.value = address.alias || '';
           aliasInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
+
         const saveBtn = document.querySelector('[data-testid="ptz-bag-address-register-save"]');
         saveBtn?.click();
       }, checkoutData.address);
@@ -365,6 +557,105 @@ const runCheckoutFlow = async (checkoutData) => {
       console.log(`Título atual: "${currentTitle}"`);
       await stagehand.close();
       return { pixCode: null };
+    }
+
+    // === VALIDAÇÃO DOS PRODUTOS ===
+    console.log('🔍 Validando produtos na página de checkout...');
+    const productsInfo = await page.evaluate(() => {
+      const productContents = Array.from(document.querySelectorAll('.product-content'));
+
+      const products = productContents.map((productEl) => {
+        const nameEl = productEl.querySelector('[data-testid="ptz-checkout-product-name"]');
+        const quantityEl = productEl.querySelector('.product-quantity p');
+        const priceEl = productEl.querySelector('.product-price .price-unit');
+        const totalEl = productEl.querySelector('.product-total strong');
+
+        return {
+          name: nameEl?.textContent?.trim() || 'N/A',
+          quantity: quantityEl?.textContent?.trim() || 'N/A',
+          unitPrice: priceEl?.textContent?.trim() || 'N/A',
+          total: totalEl?.textContent?.trim() || 'N/A',
+        };
+      });
+
+      return products;
+    });
+
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🛒 PRODUTOS NO CHECKOUT:');
+    productsInfo.forEach((product, index) => {
+      console.log(`\n   Produto ${index + 1}:`);
+      console.log(`   Nome: ${product.name}`);
+      console.log(`   Quantidade: ${product.quantity}`);
+      console.log(`   Preço Unitário: ${product.unitPrice}`);
+      console.log(`   Total: ${product.total}`);
+    });
+    console.log('═══════════════════════════════════════════════════');
+
+    // === VALIDAÇÃO DO ENDEREÇO ===
+    console.log('🔍 Validando endereço de entrega na página de checkout...');
+    const addressInfo = await page.evaluate(() => {
+      const addressContainer = document.querySelector('.delivery-address');
+      if (!addressContainer) {
+        return { found: false, error: 'Container de endereço não encontrado' };
+      }
+
+      const nameEl = addressContainer.querySelector('.delivery-address-name');
+      const infoContainer = addressContainer.querySelector('.delivery-address-info');
+
+      if (!infoContainer) {
+        return { found: false, error: 'Informações de endereço não encontradas' };
+      }
+
+      const infoDivs = Array.from(infoContainer.querySelectorAll('div'));
+      let street = '';
+      let number = '';
+      let neighborhood = '';
+      let city = '';
+      let state = '';
+
+      // Primeira linha: Rua + Número
+      if (infoDivs[0]) {
+        const spans = infoDivs[0].querySelectorAll('span');
+        if (spans.length >= 2) {
+          street = spans[0]?.textContent?.trim() || '';
+          number = spans[1]?.textContent?.trim() || '';
+        }
+      }
+
+      // Segunda linha: Bairro - Cidade - Estado
+      if (infoDivs[1]) {
+        const spans = infoDivs[1].querySelectorAll('span');
+        if (spans.length >= 3) {
+          neighborhood = spans[0]?.textContent?.trim() || '';
+          city = spans[1]?.textContent?.trim() || '';
+          state = spans[2]?.textContent?.trim() || '';
+        }
+      }
+
+      return {
+        found: true,
+        name: nameEl?.textContent?.trim() || 'N/A',
+        street,
+        number,
+        neighborhood,
+        city,
+        state,
+      };
+    });
+
+    if (!addressInfo.found) {
+      console.log(`⚠️ Erro ao validar endereço: ${addressInfo.error}`);
+    } else {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('📍 ENDEREÇO DE ENTREGA DETECTADO:');
+      console.log(`   Nome: ${addressInfo.name}`);
+      console.log(`   Rua: ${addressInfo.street}`);
+      console.log(`   Número: ${addressInfo.number}`);
+      console.log(`   Bairro: ${addressInfo.neighborhood}`);
+      console.log(`   Cidade: ${addressInfo.city}`);
+      console.log(`   Estado: ${addressInfo.state}`);
+      console.log('═══════════════════════════════════════════════════');
     }
 
     // === SELEÇÃO DE PIX OTIMIZADA ===
@@ -458,7 +749,7 @@ const runCheckoutFlow = async (checkoutData) => {
     };
 
     console.log('🚀 [runCheckoutFlow] Finalizando e retornando PIX...');
-    return { pixCode, close };
+    return { pixCode, address: addressInfo, products: productsInfo, close };
   } catch (error) {
     console.error('❌ Erro durante o processo de checkout:', error);
     if (stagehand) {

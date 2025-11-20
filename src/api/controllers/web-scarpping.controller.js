@@ -17,8 +17,26 @@ const startScrapping = async (req, res) => {
     });
   }
 
+  // Validação da nova estrutura de produtos
+  const invalidProducts = checkoutData.products.filter(
+    (product) => !product.url || typeof product.url !== 'string',
+  );
+  if (invalidProducts.length > 0) {
+    return res.status(400).json({
+      code: 'INVALID_PRODUCT_STRUCTURE',
+      message: 'Cada produto deve ter uma propriedade "url" válida',
+    });
+  }
+
+  // Validação do endereço
+  if (!checkoutData?.address?.cep) {
+    return res.status(400).json({
+      code: 'INVALID_ADDRESS',
+      message: 'O campo "address.cep" é obrigatório',
+    });
+  }
+
   try {
-    // Limpa arquivo antigo
     if (fs.existsSync(PIX_FILE)) fs.unlinkSync(PIX_FILE);
 
     const workerPath = path.resolve('src/api/workers/scrapper-runner.js');
@@ -26,11 +44,9 @@ const startScrapping = async (req, res) => {
 
     const child = fork(workerPath, [JSON.stringify(checkoutData)], {
       silent: true,
-      // Importante: habilita IPC
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     });
 
-    // Logs do worker
     child.stdout.on('data', (d) => process.stdout.write(`[worker] ${d}`));
     child.stderr.on('data', (d) => process.stderr.write(`[worker-err] ${d}`));
 
@@ -46,7 +62,11 @@ const startScrapping = async (req, res) => {
         clearTimeout(timeout);
 
         if (msg.status === 'success') {
-          resolve(msg.pixCode);
+          resolve({
+            pixCode: msg.pixCode,
+            address: msg.address,
+            products: msg.products,
+          });
         } else {
           reject(new Error(msg.message || 'Worker error'));
         }
@@ -60,9 +80,9 @@ const startScrapping = async (req, res) => {
       });
     });
 
-    const pixCode = await pixCodePromise;
+    const result = await pixCodePromise;
 
-    if (!pixCode) {
+    if (!result.pixCode) {
       console.log('⚠️ [controller] PIX não encontrado.');
       return res.status(500).json({
         code: 'NO_PIX',
@@ -70,10 +90,15 @@ const startScrapping = async (req, res) => {
       });
     }
 
-    console.log('✅ [controller] PIX obtido:', pixCode);
+    console.log('✅ [controller] PIX obtido:', result.pixCode);
 
     // Responde ao cliente ANTES de fechar o browser
-    res.status(200).json({ success: true, pix: pixCode });
+    res.status(200).json({
+      success: true,
+      pix: result.pixCode,
+      address: result.address,
+      products: result.products,
+    });
 
     // Agora sim, sinaliza o worker para fechar o browser
     console.log('📤 [controller] Enviando sinal de fechamento para o worker...');

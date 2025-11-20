@@ -11,6 +11,8 @@ const data = JSON.parse(process.argv[2] || '{}');
       process.send({
         status: 'success',
         pixCode: result.pixCode,
+        address: result.address,
+        products: result.products,
       });
     }
 
