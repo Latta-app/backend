@@ -213,8 +213,30 @@ const runCheckoutFlow = async (checkoutData) => {
         }
       }
 
-      await page.act("Click 'Adicionar à sacola' and wait for cart to open");
-      await page.waitForTimeout(2000);
+      // Clica em "Adicionar à sacola"
+      console.log('🛍️ Clicando em "Adicionar à sacola"...');
+      const addedToCart = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a'));
+        const addButton = buttons.find((btn) =>
+          btn.textContent
+            ?.trim()
+            .toLowerCase()
+            .includes('adicionar à sacola'),
+        );
+        if (addButton) {
+          addButton.click();
+          return true;
+        }
+        return false;
+      });
+
+      if (!addedToCart) {
+        console.log('⚠️ Botão "Adicionar à sacola" não encontrado');
+      } else {
+        console.log('✅ Produto adicionado ao carrinho');
+      }
+
+      await page.waitForTimeout(3000);
     }
 
     // === Navegando para o carrinho ===
