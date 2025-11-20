@@ -5,7 +5,7 @@
       "value": "wtkLX9I3",
       "domain": ".www.rnengage.com",
       "path": "/api/e/ca171105/",
-      "expires": 1764014720.2359,
+      "expires": 1764014720.949105,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
@@ -35,7 +35,7 @@
       "value": "GA1.3.1389635893.1763437358",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1763697385,
+      "expires": 1763758276,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -45,7 +45,7 @@
       "value": "mi412lkt00j2p8ih5afd",
       "domain": "www.petz.com.br",
       "path": "/",
-      "expires": 1795146930,
+      "expires": 1795207796,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -55,7 +55,7 @@
       "value": "5F256DE4-46B8-46C6-B40A41B5F6603B68",
       "domain": ".getblue.io",
       "path": "/",
-      "expires": 1795146985.656474,
+      "expires": 1795207877.509719,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
@@ -65,7 +65,7 @@
       "value": "fb.2.1763437358734.29957650419948782",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1771386985,
+      "expires": 1771447876,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -75,7 +75,7 @@
       "value": "35dQEhUcVOjyYWX7J9P3Zx2CF5G",
       "domain": ".tiktok.com",
       "path": "/",
-      "expires": 1797306985.603915,
+      "expires": 1797367876.238725,
       "httpOnly": false,
       "secure": true,
       "sameSite": "None"
@@ -85,7 +85,7 @@
       "value": "1",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1797306985,
+      "expires": 1797367876,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -95,7 +95,7 @@
       "value": "01KAAGXBTXM7FD5E6GN3BJW3DH_.tt.2",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1797306985,
+      "expires": 1797367876,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -241,7 +241,7 @@
       "value": "MDA2Nzg1MjM2MDY=",
       "domain": ".petz.com.br",
       "path": "/",
-      "expires": 1795146986,
+      "expires": 1795207877,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -619,7 +619,7 @@
       "value": "1",
       "domain": ".www.google-analytics.com",
       "path": "/",
-      "expires": 1771386985.639797,
+      "expires": 1771446059.987096,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
@@ -653,7 +653,7 @@
       "value": "Qs83Ap1QXSA",
       "domain": ".youtube.com",
       "path": "/",
-      "expires": 1779162835.18728,
+      "expires": 1779223743.299138,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None",
@@ -665,7 +665,7 @@
       "value": "CgJCUhIEGgAgGw%3D%3D",
       "domain": ".youtube.com",
       "path": "/",
-      "expires": 1779162835.187372,
+      "expires": 1779223743.299236,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None",
@@ -693,36 +693,6 @@
       "sameSite": "None"
     },
     {
-      "name": "JSESSIONID",
-      "value": "0114ACCC573CC5DF79D98C384D94CCDE",
-      "domain": "www.petz.com.br",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "TOKEN_INFO",
-      "value": "%7B%22access_token%22%3A%22e90bc30255b8698e2cfd5bdee9b146cd%22%2C%22refresh_token%22%3A%22275067aa2f343052e37b919c9b2b5749%22%2C%22createdAt%22%3A%22Thu+Nov+20+00%3A43%3A37+GMT-03%3A00+2025%22%2C%22expires_in%22%3A3600%7D",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1763873025.9794,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "blueID",
-      "value": "e05fcbf6-c111-468d-af7b-acb43066ae73",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1795146227,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
       "name": "IDE",
       "value": "AHWqTUkb_Ghug7n6yDXZ-AhowcPZRZVlMs_63MyidWgn7pxGsSewgx52XZdBQQgZII8",
       "domain": ".doubleclick.net",
@@ -731,16 +701,6 @@
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
-    },
-    {
-      "name": "ajs_anonymous_id",
-      "value": "e1af5365-7a5a-42a3-bed1-75a57bcda20e",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1795146986,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
     },
     {
       "name": "__Secure-ROLLOUT_TOKEN",
@@ -753,176 +713,6 @@
       "sameSite": "None",
       "partitionKey": "https://petz.com.br",
       "_crHasCrossSiteAncestor": true
-    },
-    {
-      "name": "NID",
-      "value": "526=ByZXx3jP01k-JJFzpE4z_TSXgXUMOVSSFWLJcM-Aw24bRMr_tXhbTMPEKZ99NSA2LYnS7lZIuGt8G3YdUqklS4dTZO5IcjbuIn5Fhw_oNwCKEqt4vf0Sg9uRAMkCuuwD_XEjXIzoQuiwXaKklrsv2sEnVDN4LuuWidVpHx4BtpBzpYUSkAgn6amKOvviMkgfDYqgFyl63xTVDyE",
-      "domain": ".google.com",
-      "path": "/",
-      "expires": 1779422035.173323,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "cp_session",
-      "value": "fUV2PqI5VD5wbe_kJvh0R4VGBgxtCHyOE2mspar7Wc4UWUbAZsLiO~W7KI9Pl8bEAzsoL39916uFBR7Yvy9r0PU5cHexkf0AHlNT9HZkuKwP~LWfTlY1tgXYRDTmWG0fkBab8QQRy4u2q0CAzSgnv_ksDIccZ7ODlYchDGAPC~53QF1bz_7CtNnKt0qFEMARrXCsNt3cwKNrHb~fIzNYFEGR0OKumaKrbeWbCcnN2mzceCAEEctHENs6Lc1LgKrLpbDbHvpWuobxHzFGxNiz47xvV_iEFETpLHey22OgjyAED8YnFWfyvyN0roiEuBN8lX5rPMmGhl~HdHhYHbH6SGzX9SW8SYQhSRGTMb9zc2DeiwhF8L1wRU~mMq3fxvB_IbtOkcljUfN~IGd2~JHclcOfcbVM2__EdVH7pVg9YfeMkJJ_YPae8Q~r1K1oE_19BCpyhJGSHphaT54LTbOWMCbRvkdMXHfLc6x~IMkmpOoksGmyALbZZqrw!!",
-      "domain": "petz.custhelp.com",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "tmx_guid",
-      "value": "AAwx6UTFJYG1A4AUYMen6PGKszahJXvGYIWQZB6n98zoU2A3Znr2x5lnOy3s7TGr4-hSLpL2LfuHUJ6micnUaISX_JgMzg",
-      "domain": "imgs.signifyd.com",
-      "path": "/",
-      "expires": 1798170980.079539,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "RT",
-      "value": "\"z=1&dm=www.petz.com.br&si=e2da6b8b-d369-42c2-a781-ae3d00cd34c7&ss=mi6vzq0w&sl=a&tt=6n8&obo=7&rl=1\"",
-      "domain": ".www.petz.com.br",
-      "path": "/",
-      "expires": 1764215784,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_gat",
-      "value": "1",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1763611045,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "OptanonConsent",
-      "value": "isGpcEnabled=0&datestamp=Wed+Nov+19+2025+22%3A56%3A25+GMT-0500+(Eastern+Standard+Time)&version=202404.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=e4532792-a231-4a26-930e-4ea7a34b43d0&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0003%3A1%2CC0002%3A1%2CC0004%3A1&AwaitingReconsent=false",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1795146985,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "AWSALB",
-      "value": "clOrQHMqub/mIfNdhUnJVMZsw5kR/zhH6HnjwsUpxJEEFSWizYxpIpJTpkiVp0s4bhWhJGAc1BEPI5ZfWwcxmylIHut3DK2DbJ5U8KOcIX/SgCMGUcoOHRd8nWi4",
-      "domain": "www.petz.com.br",
-      "path": "/",
-      "expires": 1764215785.396914,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "AWSALBCORS",
-      "value": "clOrQHMqub/mIfNdhUnJVMZsw5kR/zhH6HnjwsUpxJEEFSWizYxpIpJTpkiVp0s4bhWhJGAc1BEPI5ZfWwcxmylIHut3DK2DbJ5U8KOcIX/SgCMGUcoOHRd8nWi4",
-      "domain": "www.petz.com.br",
-      "path": "/",
-      "expires": 1764215785.396996,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None"
-    },
-    {
-      "name": "gaPetzTransactionId",
-      "value": "417598828",
-      "domain": "www.petz.com.br",
-      "path": "/",
-      "expires": 1764474985,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_ga",
-      "value": "GA1.1.1990715992.1763437358",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1798170985.426065,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_ga_JB2JHD7FCJ",
-      "value": "GS2.1.s1763610231$o3$g1$t1763610985$j59$l0$h0",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1798170985.435593,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_uetsid",
-      "value": "a127cd40c43011f094ffb1634b64ac12",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1763697385,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_uetvid",
-      "value": "a127dda0c43011f09453a31cbbee9ddb",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1797306985,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "ttcsid_C2AEV27MU8Q03RAIJFUG",
-      "value": "1763610227606::ZF0bU4sKNUvwjA5U_tJv.3.1763610985610.0",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1797306985,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "ttcsid",
-      "value": "1763610227607::u4LS9c5rd3Hxo13923Tj.3.1763610985610.0",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1797306985,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "cto_bundle",
-      "value": "VTBtGl9ReXZxN2hQdVMyYXFHdzFtbXNVYUtvOWJpckJRVmxhMDIlMkZHd2x0NTNsQkVPYUN6Ym96a3NUYUFVSURrUjBDZ09idDM1UUhQRFY1S05xc050MUdvR01lRUZMSThOciUyQnp6USUyRkExJTJCdHdpY2YwbGVhdUJ5eGpleUJEY2ROOVhRUFlWdFolMkZwS29hQ0lOMlN1aSUyRlBYUlJ5b3clM0QlM0Q",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1797774985,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64",
-      "value": "%7B%22g%22%3A%226d7a582c-c15b-a327-6a70-c18cc18d66d5%22%2C%22e%22%3A1763611016212%2C%22c%22%3A1763610984980%2C%22l%22%3A1763610986212%7D",
-      "domain": ".petz.com.br",
-      "path": "/",
-      "expires": 1795167926,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
     },
     {
       "name": "audit_p",
@@ -977,18 +767,6 @@
       "sameSite": "None"
     },
     {
-      "name": "cto_bundle",
-      "value": "F4eGwl9RNCUyRk1jUSUyRkFWVHlFS1R0aFZpdU1TcjZWWjMza3ZObkRiNGxCVSUyQkpFbE1IcVc2RDJOdFptaFZBY2RKeFhXdkZCbE1zQmRIN1AzcWY5dzdERTBSRnZvY0p5Q3VlVTEyYWRDJTJCdWI0R1llWERQUlJKcjBsMzlKc3F1S1o3ZnE2WUVBRyUyQldIMWk4NFhrJTJCMVpaOUF4RVdqcEElM0QlM0Q",
-      "domain": ".criteo.com",
-      "path": "/",
-      "expires": 1797306986.957595,
-      "httpOnly": false,
-      "secure": true,
-      "sameSite": "None",
-      "partitionKey": "https://petz.com.br",
-      "_crHasCrossSiteAncestor": true
-    },
-    {
       "name": "anj",
       "value": "dTM7k!M41$D>6NRF']wIg2E>@h5IP6!]tcsRiiH?GPyL6e'Ms3Z28J2E<><iG</OUp'#O@WF_2L=JQs<''Y+NgklOWWbnZkjrIhVNpco8g+DU7g*wa<BPyG$/m>Qnf1S[xeU4%GjGzR63aE6I^Ys$F5*Oizm)t9^kN)>3n>[lS.JS<!(Md+>)fy*i/v(!^",
       "domain": ".adnxs.com",
@@ -997,19 +775,251 @@
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "DBB9DA8799EF7616C4CABC8CD1284290",
+      "domain": "www.petz.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "NID",
+      "value": "526=hlpdms9ULLoqXWYgg5HofknmQEPynvVyna0jh8TWxeJO2q5opcl0thVQTETjFGRRO_Bg9NmLY-Q8IKoYRMwd3jmvwMC5VoUWOabgnzUntB5zT7Sp_FZZXEK6OOeBfyr4s-8zsSDSNB60460RY3-DQ6MFWqS3krQBRLPQPdQ_Rq773EOeKQTYcpVLbTA702IbW9IKjnKo03DFhB4",
+      "domain": ".google.com",
+      "path": "/",
+      "expires": 1779422035.216043,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TOKEN_INFO",
+      "value": "%7B%22access_token%22%3A%224a4b983420cb261677dda0d94cb398c5%22%2C%22refresh_token%22%3A%22275067aa2f343052e37b919c9b2b5749%22%2C%22createdAt%22%3A%22Thu+Nov+20+17%3A47%3A26+GMT-03%3A00+2025%22%2C%22expires_in%22%3A3600%7D",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1763934456.789402,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "blueID",
+      "value": "a538b928-c9db-4fed-bf06-eb457a9f57c2",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1795207659,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ajs_anonymous_id",
+      "value": "e1af5365-7a5a-42a3-bed1-75a57bcda20e",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1795207877,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cp_session",
+      "value": "fUWATi87obP1d37lGxuua6uPfGuiCucaxtu1Ni6P7vOCXaI_98AE41G88w0f2bBuBukcPEgPDqjwCvWHntFXVSm1_z9v1kpEJEgRdb6xSwSjGS1tNcZyucY9_jWuEwujLOUOqv~ACwDke7XDgTKQ4qGCNOve6584WUR4QBhF3YNflmdzNdxh75KLuCMiQ9BusHxVngy5qIJUyqJI4gOeiH8PFZZvcMYX9xpA7d~jlKL~Tn76DMeSqV8CdqrAsdXZG~I77qX9mEzBqQMlWQXPhLtoBXiltX6w19xJffn1v~abnMmJhg16nu2Bd9OMqYY1UnNQ1bIFy_SpKu66RrLHje~cz70U3KgRplKJUFlkxNP4MwKQPWGvRpTcFIK8fUu06GMfKQsEuwWEYJcw0jS0hqjHtvF9Mzqk0A2SJJrDdR_n2k8QNTaUO0OO1A8PCa5Pt9CnX_5AxQEdHTCYygr87q~AkO_ZK3FtIGD_dXpIcoUl0pBepAGPYm1g!!",
+      "domain": "petz.custhelp.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_gat_gtag_UA_58792402_1",
+      "value": "1",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1763671917,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "tmx_guid",
+      "value": "AAyq46nn1N-qiUEwBAkFHkuwh-fNKuYGFf88ke_yF2NvZFrztmOi5dqvCY6pkHIBDdmoTX3h5-jqzzD6eZdZks17AFBzRQ",
+      "domain": "imgs.signifyd.com",
+      "path": "/",
+      "expires": 1798231864.705136,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "RT",
+      "value": "\"z=1&dm=www.petz.com.br&si=e2da6b8b-d369-42c2-a781-ae3d00cd34c7&ss=mi7vemrw&sl=r&tt=u2l&obo=i&rl=1\"",
+      "domain": ".www.petz.com.br",
+      "path": "/",
+      "expires": 1764276671,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "AWSALB",
+      "value": "pEalNMoH8IBU0sLbtcHQo5QlhYnq7YdYHSQ/b1SNLNlGMnVRAVr1qy6NsRZUg7NfpiFEFYyKh878dIhiFz34dOpYlsGNnE9j3iR17nCE9XitlrFdkhJBQ7vphA3e",
+      "domain": "www.petz.com.br",
+      "path": "/",
+      "expires": 1764276672.515935,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "AWSALBCORS",
+      "value": "pEalNMoH8IBU0sLbtcHQo5QlhYnq7YdYHSQ/b1SNLNlGMnVRAVr1qy6NsRZUg7NfpiFEFYyKh878dIhiFz34dOpYlsGNnE9j3iR17nCE9XitlrFdkhJBQ7vphA3e",
+      "domain": "www.petz.com.br",
+      "path": "/",
+      "expires": 1764276672.51611,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "gaPetzTransactionId",
+      "value": "417807932",
+      "domain": "www.petz.com.br",
+      "path": "/",
+      "expires": 1764535875,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_JB2JHD7FCJ",
+      "value": "GS2.1.s1763667743$o4$g1$t1763671875$j55$l0$h0",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1798231875.95064,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.3.1990715992.1763437358",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1798231876.121761,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gat",
+      "value": "1",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1763671936,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_uetsid",
+      "value": "a127cd40c43011f094ffb1634b64ac12",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1763758276,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_uetvid",
+      "value": "a127dda0c43011f09453a31cbbee9ddb",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1797367876,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "OptanonConsent",
+      "value": "isGpcEnabled=0&datestamp=Thu+Nov+20+2025+20%3A51%3A17+GMT%2B0000+(Coordinated+Universal+Time)&version=202404.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=e4532792-a231-4a26-930e-4ea7a34b43d0&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0003%3A1%2CC0002%3A1%2CC0004%3A1&AwaitingReconsent=false",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1795207877,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ttcsid",
+      "value": "1763667739839::XW24gyGi6hW7GXiSqz4x.4.1763671877212.0",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1797367877,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ttcsid_C2AEV27MU8Q03RAIJFUG",
+      "value": "1763667739838::4rfBtz6YAnT9lwA4stWo.4.1763671877212.0",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1797367877,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64",
+      "value": "%7B%22g%22%3A%22d4b7b538-bf0f-2e8f-c426-82174ed6e26b%22%2C%22e%22%3A1763671907255%2C%22c%22%3A1763671872424%2C%22l%22%3A1763671877255%7D",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1795228817,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cto_bundle",
+      "value": "ZyEshl9XeVNsQWtHRnI5SlVmck1NMjklMkJmVXdLVkRWNVZacWw3amo5N3ZkQmwxekwyWW5xeERSa2JteHB5ayUyQmtTaTNCUkxCSEJIbVpHOHF6QjQ3SHRPd253VXU0JTJGTFhwWFRLb09vQ2NadTdKWUpwR2RjQ2UlMkJvREYxRWNtcDcxbzBKaWFVVFQ4VEg3ZTY3aXpBYk1RaiUyQnZ1M01RJTNEJTNE",
+      "domain": ".criteo.com",
+      "path": "/",
+      "expires": 1797367880.889431,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://petz.com.br",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "cto_bundle",
+      "value": "I_Nf7V9ReXZxN2hQdVMyYXFHdzFtbXNVYUtoYTE4RCUyRjlMN2clMkJwWkF4Z2JINEtlZHBJck84dyUyRiUyRjk1SW5CVUUzV01vdm5SeUZQd3RoUDFkdjZ3VFQ5RFExbXhBVXR3YjJwMkRQa01OVkhjbk5jUHVPVUt4b1psJTJCOUFKVm1KbzIwdSUyRmxNR2FBV09MNE9FWTFIYVl1Q09yT3BrZnclM0QlM0Q",
+      "domain": ".petz.com.br",
+      "path": "/",
+      "expires": 1797835880,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
     }
   ],
   "localStorage": {
-    "_uetvid_exp": "Tue, 15 Dec 2026 03:56:25 GMT",
-    "cto_bundle": "VTBtGl9ReXZxN2hQdVMyYXFHdzFtbXNVYUtvOWJpckJRVmxhMDIlMkZHd2x0NTNsQkVPYUN6Ym96a3NUYUFVSURrUjBDZ09idDM1UUhQRFY1S05xc050MUdvR01lRUZMSThOciUyQnp6USUyRkExJTJCdHdpY2YwbGVhdUJ5eGpleUJEY2ROOVhRUFlWdFolMkZwS29hQ0lOMlN1aSUyRlBYUlJ5b3clM0QlM0Q",
-    "5718FABB002E": "AAxwc1LllxOu3EaXi-uIgMPerarS8L1fs0dH6vwExU7iO-swX8NoMEIsTg8gFJVzHrAQPGXz71tu4_f-RC1HUpbei6EjjA",
+    "_uetvid_exp": "Tue, 15 Dec 2026 20:51:16 GMT",
+    "cto_bundle": "I_Nf7V9ReXZxN2hQdVMyYXFHdzFtbXNVYUtoYTE4RCUyRjlMN2clMkJwWkF4Z2JINEtlZHBJck84dyUyRiUyRjk1SW5CVUUzV01vdm5SeUZQd3RoUDFkdjZ3VFQ5RFExbXhBVXR3YjJwMkRQa01OVkhjbk5jUHVPVUt4b1psJTJCOUFKVm1KbzIwdSUyRmxNR2FBV09MNE9FWTFIYVl1Q09yT3BrZnclM0QlM0Q",
+    "5718FABB002E": "AAy6IY60cCyJfFo6EtgrI5JDzhJQyVX-djCwaLrW2rOt_wiKYlCt-zBB3wbUBfztNurBZpNIBWLjMQbuR3dzBflroW_yzg",
     "_gcl_ls": "{\"schema\":\"gcl\",\"version\":1,\"gcl_ctr\":{\"value\":{\"value\":0,\"timeouts\":0,\"creationTimeMs\":1763437389730},\"expires\":1771213389730}}",
-    "ab.storage.triggers.ts.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1763610985196}",
+    "ab.storage.triggers.ts.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1763671876061}",
     "ed73f20edbf2b73": "eb73b87083e04ea7a5b8cec9038027f3_1918957494943",
     "_grecaptcha": "09ADiQh0ekzpYYuMdVpBirGHUbRzVLOwWCmnabmeZ9dHxaiZBDJsgw9Ylk12u0kmCf1KVg4hdRlKp22J3WVZgt1E1wY3BG12kRDreZwdaPA81XOIGYKizOWF5bTVm4IZdWO3yN7D3CAlkM-k3lZ8FJfVDSUO8HDxfW5ieYDNHGUfdWKMq8qxy8MGLh0TsA",
     "ab.storage.ccImpressions.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{}}",
     "ab.storage.ccDismissals.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{}}",
-    "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"e\":1763611016212,\"c\":1763610984980,\"l\":1763610986212}}",
+    "ab.storage.sessionId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"e\":1763671907255,\"c\":1763671872424,\"l\":1763671877255}}",
     "ab.storage.deviceId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"a17afc80-3ac6-0f34-8e75-ff4fd33134cf\",\"c\":1763437393055,\"l\":1763437393055}}",
     "HTConfigMenuFirstActivation": "true",
     "ab.storage.deviceId.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":{\"g\":\"cc42c61b-2c68-5d5a-cb56-ee563fe0edb1\",\"c\":1763437447388,\"l\":1763437447388}}",
@@ -1017,25 +1027,26 @@
     "lastExternalReferrer": "empty",
     "ed73f20edbf2b74": "0:1:1763437493888:1763437493888:f603d485d6c66ccc861e6bad4a48d81c",
     "ab.storage.userId.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"g\":\"MDA2Nzg1MjM2MDY=\",\"c\":1763437393053,\"l\":1763437393053}}",
-    "ab.storage.ccLastFullSync.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1763610985}",
+    "ab.storage.ccLastFullSync.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1763671872}",
     "ajs_anonymous_id": "\"e1af5365-7a5a-42a3-bed1-75a57bcda20e\"",
     "ajs_user_traits": "{\"address\":169663282,\"birthday\":null,\"email\":\"rafael.augusto.ps07@gmail.com\",\"name\":\"Rafael Souza\"}",
-    "YUNO_EVENT_LOGS_www.petz.com.br": "[{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6w10ph00xa13i7wz79\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:44:44.511Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328871973\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6w15x200aej06b8xc6\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:44:51.288Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6wc2cj00knz8xjrn4t\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:53:19.857Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6wcndn00bz74ojnf4j\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:53:47.110Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328872647\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6wd55400o4t0dsy0qf\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:54:10.130Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328872647\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6wepz500io4gjkpp26\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:55:23.791Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328872647\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi6wevew0005k3d8ioo9\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T03:55:30.834Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328872647\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"141.0.0.0\",\"major\":\"141\"},\"engine\":{\"name\":\"Blink\",\"version\":\"141.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"}]",
-    "ab.storage.device.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"browser\":\"Chrome\",\"browser_version\":\"141.0.0.0\",\"os_version\":\"Linux\",\"resolution\":\"1288x711\",\"locale\":\"en-us\",\"time_zone\":\"America/New_York\",\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"}}",
+    "YUNO_EVENT_LOGS_www.petz.com.br": "[{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi7wl30300y3z0m6cjgs\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T20:48:06.813Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"142.0.0.0\",\"major\":\"142\"},\"engine\":{\"name\":\"Blink\",\"version\":\"142.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi7wlzrm005l5fskbme3\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T20:48:49.247Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328920031\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"142.0.0.0\",\"major\":\"142\"},\"engine\":{\"name\":\"Blink\",\"version\":\"142.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi7wmqq6000d0kk07g1x\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T20:49:24.188Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328920031\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"142.0.0.0\",\"major\":\"142\"},\"engine\":{\"name\":\"Blink\",\"version\":\"142.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"},{\"os\":\"Linux\",\"organization_name\":\"www.petz.com.br\",\"client_app_domain\":\"www.petz.com.br\",\"application_session\":\"mi7wng0p00bbavpyet7v\",\"application_name\":\"sdk-web\",\"environment\":\"production\",\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"customer_session\":null,\"checkout_session\":null,\"original_created_at\":\"2025-11-20T20:49:56.964Z\",\"sdk_version\":\"9.9.23\",\"url\":\"https://www.petz.com.br/checkout/cart/1328920031\",\"params\":{\"vaulted_token\":false,\"application\":\"SDK\",\"additional_data\":null},\"description\":\"Understand when the sdk was initialized by the merchant\",\"source\":\"sdk-web\",\"event\":\"sdk_initialized\",\"headers\":{\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"platform\":\"Web\",\"accept_language\":\"en-US\",\"x-version\":\"9.9.23\",\"sdk_type\":\"sdk_full\"},\"device_id\":\"mi412lkt00j2p8ih5afd\",\"metadata\":{\"browser_info\":{\"ua\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\",\"browser\":{\"name\":\"Chrome\",\"version\":\"142.0.0.0\",\"major\":\"142\"},\"engine\":{\"name\":\"Blink\",\"version\":\"142.0.0.0\"},\"os\":{\"name\":\"Linux\",\"version\":\"x86_64\"},\"device\":{},\"cpu\":{\"architecture\":\"amd64\"}},\"public_api_key\":\"prod_gAAAAABml9agAfIaZsIhNTt9j1tPNvl02fl31jZTzukSh5aFSr9pjIv10Kgo2h8YlrLSmbiGX8089d7rTpV01lA_JTfdEhk0RbGKWUMX7DtJYdCqSJRjVUe_Cn2-eC8TpcToGAq3sRlOPII6hSST27qCipi61l6tXc6KnkkHlmxwNFKKfbhWHdA2sUrrxiJPiRgYfhBuURMBOKbvc_UbV03w1D-iWiXlZTRe3dG4NR9NzDdUKw6LIb0nWZYbICHkXi71ZcwH-ozF\",\"language\":\"en-US\"},\"level\":\"INFO\",\"type\":\"EVENT\"}]",
+    "ab.storage.device.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"browser\":\"Chrome\",\"browser_version\":\"142.0.0.0\",\"os_version\":\"Linux\",\"resolution\":\"1288x711\",\"locale\":\"en-us\",\"time_zone\":\"UTC\",\"user_agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\"}}",
     "YUNO_METRIC_LOGS_www.petz.com.br": "[]",
-    "topicsLastReferenceTime": "1763610985461",
+    "topicsLastReferenceTime": "1763671876547",
     "blueID": "8ce214ea-d0a8-4a87-98fc-8198ece65873",
     "ab.storage.cc.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[]}",
     "ab.storage.ccLastCardUpdated.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":0}",
     "_uetsid": "a127cd40c43011f094ffb1634b64ac12",
+    "ab.storage.attributes.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"MDA2Nzg1MjM2MDY=\":{\"user_id\":\"MDA2Nzg1MjM2MDY=\",\"push_token\":null,\"custom_push_public_key\":null,\"custom_push_user_auth\":null,\"custom_push_vapid_public_key\":null}}}",
     "ab.storage.serverConfig.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":{\"s\":\"2.4.3\",\"l\":1762445201,\"e\":[\"#{563*629}\"],\"a\":[\"Mzk5Mjk2NDk4MTY\",\"VAR_MIRCRO\",\"eg_update\",\"last_engagement_date\",\"segmento_petz\"],\"p\":[\"Checkout Started\"],\"m\":21600,\"v\":\"BMyk-ccExs5aOqnmDtmgtVDpEbAKZXGNFcHjY1PGj9i4IB6v9-3-YcJ4uJMhvml5bwRJh3dixI9xhskxa4maiIs=\",\"c\":{\"enabled\":true}}}",
     "ab.storage.triggers.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[]}",
-    "_boomr_akamaiXhrRetry": "{\"items\":{},\"expires\":1763612028393}",
-    "lastExternalReferrerTime": "1763610930942",
-    "_uetsid_exp": "Fri, 21 Nov 2025 03:56:25 GMT",
-    "ab.storage.events.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763610985513,\"s\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"d\":{\"n\":\"Order Placed\",\"p\":{\"affiliation\":\"Site/Desktop\",\"cart_id\":1328872647,\"checkout_id\":417598828,\"currency\":\"BRL\",\"discount\":379,\"order_id\":1328872647,\"payment_method\":\"PIX\",\"revenue\":2285.88,\"shipping\":14,\"shipping_method\":\"economic\",\"subtotal\":2664.88,\"total\":2305.78,\"app_platform\":\"web\",\"fbpCookie\":\"fb.2.1763437358734.29957650419948782\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763610985518,\"s\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"d\":{\"n\":\"Payment Info Entered\",\"p\":{\"checkout_id\":1328872647,\"order_id\":417598828,\"payment_method\":\"PIX\",\"shipping_method\":\"economic\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763610985522,\"s\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"d\":{\"n\":\"Cart Order\",\"p\":{\"type\":\"confirmation\",\"cart_id\":1328872647,\"order_id\":417598828}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763610985527,\"s\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"d\":{\"n\":\"Checkout Step Viewed\",\"p\":{\"screen_name\":\"Cart Order\",\"screen_type\":\"confirmation\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763610986200,\"s\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"d\":{\"n\":\"Facebook Identification\",\"p\":{\"properties.fbc\":\"isGpcEnabled=0&datestamp=Wed+Nov+19+2025+22:56:25+GMT-0500+(Eastern+Standard+Time)&version=202404.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=e4532792-a231-4a26-930e-4ea7a34b43d0&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001:1,C0003:1,C0002:1,C0004:1&AwaitingReconsent=false\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763610986213,\"s\":\"6d7a582c-c15b-a327-6a70-c18cc18d66d5\",\"d\":{\"n\":\"Facebook Identification\",\"p\":{\"properties.fbp\":\"isGpcEnabled=0&datestamp=Wed+Nov+19+2025+22:56:25+GMT-0500+(Eastern+Standard+Time)&version=202404.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=e4532792-a231-4a26-930e-4ea7a34b43d0&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001:1,C0003:1,C0002:1,C0004:1&AwaitingReconsent=false\"}}}]}",
-    "ab.storage.sessionId.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":{\"g\":\"8008a1d0-09de-4998-2f57-7f4dd123c7ef\",\"e\":1763612657105,\"c\":1763610244710,\"l\":1763610857105}}",
-    "ab.storage.messagingSessionStart.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1763610232480}",
+    "_boomr_akamaiXhrRetry": "{\"items\":{},\"expires\":1763671527521}",
+    "lastExternalReferrerTime": "1763671775064",
+    "_uetsid_exp": "Fri, 21 Nov 2025 20:51:16 GMT",
+    "ab.storage.events.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":[{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763671876312,\"s\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"d\":{\"n\":\"Order Placed\",\"p\":{\"affiliation\":\"Site/Desktop\",\"cart_id\":1328920031,\"checkout_id\":417807932,\"currency\":\"BRL\",\"discount\":379,\"order_id\":1328920031,\"payment_method\":\"PIX\",\"revenue\":2285.88,\"shipping\":14,\"shipping_method\":\"economic\",\"subtotal\":2664.88,\"total\":2305.78,\"app_platform\":\"web\",\"fbpCookie\":\"fb.2.1763437358734.29957650419948782\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763671876343,\"s\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"d\":{\"n\":\"Payment Info Entered\",\"p\":{\"checkout_id\":1328920031,\"order_id\":417807932,\"payment_method\":\"PIX\",\"shipping_method\":\"economic\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763671876354,\"s\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"d\":{\"n\":\"Cart Order\",\"p\":{\"type\":\"confirmation\",\"cart_id\":1328920031,\"order_id\":417807932}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763671876389,\"s\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"d\":{\"n\":\"Checkout Step Viewed\",\"p\":{\"screen_name\":\"Cart Order\",\"screen_type\":\"confirmation\"}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763671877247,\"s\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"d\":{\"n\":\"Facebook Identification\",\"p\":{}}},{\"u\":\"MDA2Nzg1MjM2MDY=\",\"t\":\"ce\",\"ts\":1763671877256,\"s\":\"d4b7b538-bf0f-2e8f-c426-82174ed6e26b\",\"d\":{\"n\":\"Facebook Identification\",\"p\":{\"properties.fbp\":\"fb.2.1763437358734.29957650419948782\"}}}]}",
+    "ab.storage.sessionId.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":{\"g\":\"f4d6d477-8030-675c-8a75-5ffd98346324\",\"e\":1763673573108,\"c\":1763669756689,\"l\":1763671773108}}",
+    "ab.storage.messagingSessionStart.8160f757-f57f-4d17-9cfb-44c82d5e8f64": "{\"v\":1763667744668}",
     "ajs_user_id": "\"MDA2Nzg1MjM2MDY=\"",
     "ab.storage.messagingSessionStart.36fe242-c969-42d6-8504-62feab34deda": "{\"v\":1763437447384}"
   }
