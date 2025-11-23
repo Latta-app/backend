@@ -27,7 +27,12 @@ router.use('/tags', TagsRoutes);
 router.use('/template', TemplateRoutes);
 router.use('/users', UserRoutes);
 router.use('/vaccine', VaccineRoutes);
-router.use('/n8n', N8NRoutes);
+router.use(
+  '/n8n',
+  express.json({ limit: '50mb' }),
+  express.urlencoded({ extended: true, limit: '50mb' }),
+  N8NRoutes,
+);
 router.use('/web-scrapping', WebScrappingRoutes);
 router.use('/oauth/varejonline', VarejonlineRoutes);
 
