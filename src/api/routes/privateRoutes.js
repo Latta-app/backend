@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import express from 'express';
 import AuthRoutes from './private/auth.routes.js';
 import ChatHistoryRoutes from './private/chat-history.routes.js';
 import PetOwnerRoutes from './private/pet-owners.routes.js';
