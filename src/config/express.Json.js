@@ -1,4 +1,5 @@
 const jsonConfig = {
+  limit: '50mb',
   verify: (req, _res, buf, encoding) => {
     const hasTypeformHeaders =
       req.headers['user-agent'] === 'Typeform Webhooks' && req.headers['typeform-signature'];
