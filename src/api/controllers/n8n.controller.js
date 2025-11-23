@@ -62,8 +62,11 @@ const decryptWhatsAppFlow = async (req, res) => {
 };
 
 const encryptWhatsAppResponse = async (req, res) => {
+  const startTime = Date.now();
+
   try {
-    console.log('[decryptMedia] Body recebido:', JSON.stringify(req.body, null, 2));
+    console.log('[encryptWhatsAppResponse] ⏱️ INÍCIO:', new Date().toISOString());
+    console.log('[encryptWhatsAppResponse] Body recebido');
 
     const { response_object, crypto_params } = req.body;
 
@@ -73,6 +76,14 @@ const encryptWhatsAppResponse = async (req, res) => {
         error: 'response_object e crypto_params são obrigatórios',
       });
     }
+
+    // ✅ LOG: Tamanho do payload
+    const payloadSize = JSON.stringify(response_object).length;
+    console.log(
+      `[encryptWhatsAppResponse] ⏱️ ${Date.now() - startTime}ms - Payload size: ${(
+        payloadSize / 1024
+      ).toFixed(2)} KB`,
+    );
 
     console.log(
       '[encryptWhatsAppResponse] Response object:',
@@ -91,10 +102,11 @@ const encryptWhatsAppResponse = async (req, res) => {
 
     const { encryptFlowResponse } = n8nService;
 
+    console.log(`[encryptWhatsAppResponse] ⏱️ ${Date.now() - startTime}ms - Convertendo buffers`);
     const aesKeyBuffer = Buffer.from(aes_key, 'base64');
     const ivBuffer = Buffer.from(iv, 'base64');
 
-    console.log('[encryptWhatsAppResponse] Criptografando resposta');
+    console.log(`[encryptWhatsAppResponse] ⏱️ ${Date.now() - startTime}ms - ANTES de criptografar`);
 
     const encrypted = encryptFlowResponse({
       responseObject: response_object,
@@ -103,13 +115,24 @@ const encryptWhatsAppResponse = async (req, res) => {
       aesAlg: algorithm,
     });
 
-    console.log('[encryptWhatsAppResponse] Criptografia concluída');
-    console.log('[encryptWhatsAppResponse] Tamanho:', encrypted.length, 'caracteres');
+    console.log(
+      `[encryptWhatsAppResponse] ⏱️ ${Date.now() - startTime}ms - DEPOIS de criptografar`,
+    );
+    console.log('[encryptWhatsAppResponse] Tamanho encrypted:', encrypted.length, 'caracteres');
 
+    console.log(`[encryptWhatsAppResponse] ⏱️ ${Date.now() - startTime}ms - Enviando resposta`);
     res.setHeader('Content-Type', 'text/plain');
-    return res.send(encrypted);
+
+    const result = res.send(encrypted);
+
+    console.log(`[encryptWhatsAppResponse] ⏱️ TOTAL: ${Date.now() - startTime}ms`);
+
+    return result;
   } catch (err) {
-    console.error('[encryptWhatsAppResponse] Erro:', err.message);
+    console.error(
+      `[encryptWhatsAppResponse] ⏱️ Erro após ${Date.now() - startTime}ms:`,
+      err.message,
+    );
     console.error('[encryptWhatsAppResponse] Stack:', err.stack);
     return res.status(500).json({ error: err.message });
   }
@@ -164,7 +187,6 @@ const decryptMedia = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
-
 
 export default {
   decryptWhatsAppFlow,
