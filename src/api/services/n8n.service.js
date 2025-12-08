@@ -78,73 +78,100 @@ function decryptFlowPayload({ encrypted_flow_data, encrypted_aes_key, initial_ve
  * ============================================================ */
 function encryptFlowResponse({ responseObject, aesKey, iv, aesAlg }) {
   const startTime = Date.now();
+  let stepTime = Date.now();
 
   console.log('\n🔐 [encryptFlowResponse] ⏱️ INÍCIO');
   console.log('📋 Algoritmo:', aesAlg);
-  console.log('🔑 AES Key (hex):', aesKey.toString('hex'));
-  console.log('🎲 IV original (hex):', iv.toString('hex'));
 
-  console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Stringificando JSON`);
+  // ETAPA 1: JSON.stringify
+  stepTime = Date.now();
   const jsonString = JSON.stringify(responseObject);
-  console.log(
-    `[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - JSON size: ${(
-      jsonString.length / 1024
-    ).toFixed(2)} KB`,
-  );
+  const stringifyTime = Date.now() - stepTime;
+  console.log(`⏱️  [1] JSON.stringify: ${stringifyTime}ms | Tamanho: ${(jsonString.length / 1024).toFixed(2)} KB | ${(jsonString.length / 1024 / 1024).toFixed(2)} MB`);
 
   if (aesAlg.endsWith('-gcm')) {
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Invertendo IV (GCM)`);
+    // ETAPA 2: Inverter IV
+    stepTime = Date.now();
     const flippedIV = Buffer.alloc(iv.length);
     for (let i = 0; i < iv.length; i++) {
       flippedIV[i] = ~iv[i];
     }
+    const flipTime = Date.now() - stepTime;
+    console.log(`⏱️  [2] Inversão IV: ${flipTime}ms`);
 
-    console.log('🔄 IV invertido (hex):', flippedIV.toString('hex'));
-    console.log('   ⚙️ Usando modo GCM com IV invertido');
-
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Criando cipher GCM`);
+    // ETAPA 3: Criar cipher
+    stepTime = Date.now();
     const cipher = crypto.createCipheriv(aesAlg, aesKey, flippedIV);
+    const createCipherTime = Date.now() - stepTime;
+    console.log(`⏱️  [3] Criar cipher GCM: ${createCipherTime}ms`);
 
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Criptografando dados`);
+    // ETAPA 4: cipher.update (O GARGALO ESPERADO!)
+    stepTime = Date.now();
     const encrypted = cipher.update(jsonString, 'utf8');
+    const updateTime = Date.now() - stepTime;
+    console.log(`⏱️  [4] cipher.update() [CRIPTOGRAFIA]: ${updateTime}ms | Processou: ${(jsonString.length / 1024).toFixed(2)} KB | Taxa: ${(jsonString.length / 1024 / (updateTime / 1000)).toFixed(2)} KB/s`);
 
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Finalizando cipher`);
+    // ETAPA 5: cipher.final
+    stepTime = Date.now();
     const final = cipher.final();
+    const finalTime = Date.now() - stepTime;
+    console.log(`⏱️  [5] cipher.final(): ${finalTime}ms`);
 
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Obtendo authTag`);
+    // ETAPA 6: getAuthTag
+    stepTime = Date.now();
     const authTag = cipher.getAuthTag();
+    const authTagTime = Date.now() - stepTime;
+    console.log(`⏱️  [6] getAuthTag(): ${authTagTime}ms`);
 
-    console.log('   📊 Encrypted length:', encrypted.length, 'bytes');
-    console.log('   📊 Final length:', final.length, 'bytes');
-    console.log('   🔑 AuthTag length:', authTag.length, 'bytes');
-
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Concatenando buffers`);
+    // ETAPA 7: Buffer.concat
+    stepTime = Date.now();
     const resultBuf = Buffer.concat([encrypted, final, authTag]);
-    console.log('   📦 Buffer total length:', resultBuf.length, 'bytes');
+    const concatTime = Date.now() - stepTime;
+    console.log(`⏱️  [7] Buffer.concat(): ${concatTime}ms | Tamanho total: ${(resultBuf.length / 1024).toFixed(2)} KB`);
 
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Convertendo para base64`);
+    // ETAPA 8: toString('base64')
+    stepTime = Date.now();
     const base64Result = resultBuf.toString('base64');
-    console.log('   ✅ Base64 length:', base64Result.length, 'caracteres');
+    const base64Time = Date.now() - stepTime;
+    console.log(`⏱️  [8] toString('base64'): ${base64Time}ms | Resultado: ${base64Result.length} caracteres`);
 
-    console.log(`[encryptFlowResponse] ⏱️ TOTAL: ${Date.now() - startTime}ms`);
+    const totalTime = Date.now() - startTime;
+    console.log(`\n✅ TOTAL: ${totalTime}ms`);
+    console.log(`📊 BREAKDOWN: stringify=${stringifyTime}ms + update=${updateTime}ms + final=${finalTime}ms + base64=${base64Time}ms + outros=${totalTime - stringifyTime - updateTime - finalTime - base64Time}ms`);
+
     return base64Result;
   } else {
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Invertendo IV (CBC)`);
+    // CBC Mode
+    // ETAPA 2: Inverter IV
+    stepTime = Date.now();
     const flippedIV = Buffer.alloc(iv.length);
     for (let i = 0; i < iv.length; i++) {
       flippedIV[i] = ~iv[i];
     }
+    const flipTime = Date.now() - stepTime;
+    console.log(`⏱️  [2] Inversão IV: ${flipTime}ms`);
 
-    console.log('🔄 IV invertido (hex):', flippedIV.toString('hex'));
-    console.log('   ⚙️ Usando modo CBC com IV invertido');
-
-    console.log(`[encryptFlowResponse] ⏱️ ${Date.now() - startTime}ms - Criptografando CBC`);
+    // ETAPA 3: Criar cipher
+    stepTime = Date.now();
     const cipher = crypto.createCipheriv(aesAlg, aesKey, flippedIV);
-    let encrypted = cipher.update(jsonString, 'utf8', 'base64');
-    encrypted += cipher.final('base64');
+    const createCipherTime = Date.now() - stepTime;
+    console.log(`⏱️  [3] Criar cipher CBC: ${createCipherTime}ms`);
 
-    console.log('   ✅ Base64 CBC length:', encrypted.length);
-    console.log(`[encryptFlowResponse] ⏱️ TOTAL: ${Date.now() - startTime}ms`);
+    // ETAPA 4+5: cipher.update + final (juntos no CBC)
+    stepTime = Date.now();
+    let encrypted = cipher.update(jsonString, 'utf8', 'base64');
+    const updateTime = Date.now() - stepTime;
+    console.log(`⏱️  [4] cipher.update() [CRIPTOGRAFIA]: ${updateTime}ms | Processou: ${(jsonString.length / 1024).toFixed(2)} KB`);
+
+    stepTime = Date.now();
+    encrypted += cipher.final('base64');
+    const finalTime = Date.now() - stepTime;
+    console.log(`⏱️  [5] cipher.final(): ${finalTime}ms`);
+
+    const totalTime = Date.now() - startTime;
+    console.log(`\n✅ TOTAL: ${totalTime}ms`);
+    console.log(`📊 BREAKDOWN: stringify=${stringifyTime}ms + update=${updateTime}ms + final=${finalTime}ms + outros=${totalTime - stringifyTime - updateTime - finalTime}ms`);
+
     return encrypted;
   }
 }
