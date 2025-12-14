@@ -62,15 +62,10 @@ const decryptWhatsAppFlow = async (req, res) => {
 };
 
 const encryptWhatsAppResponse = async (req, res) => {
-  const requestReceivedTime = Date.now();
-  console.log(`\n🔵 [CONTROLLER] Requisição RECEBIDA em: ${new Date().toISOString()}`);
-
-  let stepTime = Date.now();
+  const startTime = Date.now();
 
   try {
     const { response_object, crypto_params } = req.body;
-    const bodyParseTime = Date.now() - stepTime;
-    console.log(`⏱️  [CONTROLLER] Parse do body: ${bodyParseTime}ms`);
 
     if (!response_object || !crypto_params) {
       return res.status(400).json({
@@ -86,50 +81,28 @@ const encryptWhatsAppResponse = async (req, res) => {
       });
     }
 
-    // Medir tamanho do response_object
-    stepTime = Date.now();
-    const responseObjectSize = JSON.stringify(response_object).length;
-    const measureTime = Date.now() - stepTime;
-    console.log(`⏱️  [CONTROLLER] Medição do response_object: ${measureTime}ms | Tamanho: ${(responseObjectSize / 1024).toFixed(2)} KB`);
-
     const { encryptFlowResponse } = n8nService;
 
-    stepTime = Date.now();
     const aesKeyBuffer = Buffer.from(aes_key, 'base64');
     const ivBuffer = Buffer.from(iv, 'base64');
-    const bufferConversionTime = Date.now() - stepTime;
-    console.log(`⏱️  [CONTROLLER] Conversão de buffers: ${bufferConversionTime}ms`);
 
-    console.log(`\n⏱️  [CONTROLLER] Chamando encryptFlowResponse...`);
-    stepTime = Date.now();
     const encrypted = encryptFlowResponse({
       responseObject: response_object,
       aesKey: aesKeyBuffer,
       iv: ivBuffer,
       aesAlg: algorithm,
     });
-    const encryptTime = Date.now() - stepTime;
-    console.log(`⏱️  [CONTROLLER] encryptFlowResponse retornou em: ${encryptTime}ms`);
 
     res.setHeader('Content-Type', 'text/plain');
 
-    stepTime = Date.now();
-    const sendResult = res.send(encrypted);
-    const sendTime = Date.now() - stepTime;
-    console.log(`⏱️  [CONTROLLER] res.send() executado em: ${sendTime}ms`);
-    console.log(`🟢 [CONTROLLER] Resposta ENVIADA | Tamanho: ${encrypted.length} caracteres | ${(encrypted.length / 1024).toFixed(2)} KB`);
-
-    // Log DEPOIS de enviar a resposta
+    // ✅ Log DEPOIS de enviar a resposta
     res.on('finish', () => {
-      const totalTime = Date.now() - requestReceivedTime;
-      console.log(`✅ [CONTROLLER] ⏱️ TOTAL (requisição recebida → resposta enviada): ${totalTime}ms`);
-      console.log(`📊 [CONTROLLER] BREAKDOWN: parse=${bodyParseTime}ms + encrypt=${encryptTime}ms + send=${sendTime}ms + outros=${totalTime - bodyParseTime - encryptTime - sendTime}ms\n`);
+      console.log(`[encryptWhatsAppResponse] ⏱️ TOTAL (com envio): ${Date.now() - startTime}ms`);
     });
 
-    return sendResult;
+    return res.send(encrypted);
   } catch (err) {
-    const errorTime = Date.now() - requestReceivedTime;
-    console.error(`❌ [CONTROLLER] Erro após ${errorTime}ms:`, err.message);
+    console.error(`[encryptWhatsAppResponse] Erro:`, err.message);
     return res.status(500).json({ error: err.message });
   }
 };

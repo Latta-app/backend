@@ -41,6 +41,19 @@ const httpServer = createServer(app);
 const { io, clinicConnections } = initializeSocket(httpServer);
 
 app.use(cors(corsConfig));
+
+// Middleware para capturar raw body da rota SMS (aceita texto puro)
+app.use('/api/web-scrapping/petz/sms', express.text({ type: '*/*' }), (req, res, next) => {
+  if (typeof req.body === 'string') {
+    try {
+      req.body = JSON.parse(req.body);
+    } catch (err) {
+      req.body = { message: req.body };
+    }
+  }
+  next();
+});
+
 app.use(express.json(jsonConfig));
 app.use(helmet());
 app.use(limiter);
@@ -49,6 +62,25 @@ app.use('/api', createSocketRoutes(io, clinicConnections));
 
 app.get('/', (_req, res) => {
   res.status(200).json({ message: '🚀 Server is running with WebSocket!' });
+});
+
+// Middleware para capturar erros de parsing JSON (DEVE vir DEPOIS das rotas)
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error('❌ [JSON Parse Error] Body malformado recebido:');
+    console.error('📦 URL:', req.url);
+    console.error('📦 Method:', req.method);
+    console.error('📦 Headers:', JSON.stringify(req.headers, null, 2));
+    console.error('📦 Erro:', err.message);
+
+    return res.status(400).json({
+      code: 'INVALID_JSON',
+      message: 'JSON malformado. Verifique a sintaxe do body enviado.',
+      error: err.message,
+      hint: 'Certifique-se de que as chaves estão entre aspas duplas: {"message": "texto"}',
+    });
+  }
+  next(err);
 });
 
 const port = process.env.PORT || 8000;

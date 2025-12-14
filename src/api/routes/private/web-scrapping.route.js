@@ -3,6 +3,7 @@ import WebScrappingController from '../../controllers/web-scarpping.controller.j
 
 const router = Router();
 
-router.post('/petz', WebScrappingController.startScrapping);
+router.post('/login-petz', WebScrappingController.loginPetz);
+router.post('/petz/sms', WebScrappingController.submitSmsCode);
 
 export default router;

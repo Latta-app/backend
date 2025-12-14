@@ -1,124 +1,238 @@
-import fs from 'fs';
 import path from 'path';
 import { fork } from 'child_process';
+import crypto from 'crypto';
 
-const PIX_FILE = path.join(process.cwd(), 'tmp/pix-session.json');
+const activeSessions = new Map();
 
-const startScrapping = async (req, res) => {
-  console.log('==============================');
-  console.log('🧩 [controller] Iniciando scraping via worker');
-  console.log('==============================');
+let pendingSmsCode = null;
+let pendingSmsTs = 0;
+const PENDING_SMS_TTL_MS = 2 * 60 * 1000;
 
-  const checkoutData = req.body;
-  if (!checkoutData?.products?.length) {
+const clearPendingIfExpired = () => {
+  if (!pendingSmsCode) return;
+  if (Date.now() - pendingSmsTs > PENDING_SMS_TTL_MS) {
+    pendingSmsCode = null;
+    pendingSmsTs = 0;
+  }
+};
+
+const formatDuration = (ms) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+};
+
+const loginPetz = async (req, res) => {
+  const t0 = Date.now(); // ⏱️ início da requisição
+  const getDurationMs = () => Date.now() - t0;
+  console.log('🔐 [LOGIN] Iniciando login Petz');
+
+  const loginData = req.body;
+
+  if (!loginData?.email || !loginData?.password) {
     return res.status(400).json({
       code: 'INVALID_DATA',
-      message: 'Envie pelo menos um produto no corpo da requisição',
-    });
-  }
-
-  // Validação da nova estrutura de produtos
-  const invalidProducts = checkoutData.products.filter(
-    (product) => !product.url || typeof product.url !== 'string',
-  );
-  if (invalidProducts.length > 0) {
-    return res.status(400).json({
-      code: 'INVALID_PRODUCT_STRUCTURE',
-      message: 'Cada produto deve ter uma propriedade "url" válida',
-    });
-  }
-
-  // Validação do endereço
-  if (!checkoutData?.address?.cep) {
-    return res.status(400).json({
-      code: 'INVALID_ADDRESS',
-      message: 'O campo "address.cep" é obrigatório',
+      message: 'Email e senha são obrigatórios',
+      duration: formatDuration(getDurationMs()),
+      duration_ms: getDurationMs(),
     });
   }
 
   try {
-    if (fs.existsSync(PIX_FILE)) fs.unlinkSync(PIX_FILE);
+    const sessionId = crypto
+      .createHash('md5')
+      .update(loginData.email)
+      .digest('hex');
 
-    const workerPath = path.resolve('src/api/workers/scrapper-runner.js');
-    console.log('👷 [controller] Iniciando processo filho:', workerPath);
+    const workerPath = path.resolve('src/api/workers/login-petz-runner.js');
 
-    const child = fork(workerPath, [JSON.stringify(checkoutData)], {
+    const child = fork(workerPath, [JSON.stringify({ ...loginData, sessionId })], {
       silent: true,
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      execArgv: [],
     });
 
     child.stdout.on('data', (d) => process.stdout.write(`[worker] ${d}`));
     child.stderr.on('data', (d) => process.stderr.write(`[worker-err] ${d}`));
 
-    // Promise que aguarda a mensagem IPC do worker
-    const pixCodePromise = new Promise((resolve, reject) => {
+    const loginPromise = new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        // ✅ armazena a referência
+        activeSessions.delete(sessionId);
+        clearPendingIfExpired();
+        try {
+          child.kill('SIGKILL');
+        } catch {}
         reject(new Error('TIMEOUT'));
-      }, 360000);
+      }, 5 * 60 * 1000);
 
       child.on('message', (msg) => {
-        console.log('📨 [controller] Recebeu mensagem do worker:', msg);
-        clearTimeout(timeout);
+        if (msg?.status === 'awaiting_sms') {
+          console.log(`📱 [LOGIN] Aguardando SMS - Sessão ${sessionId}`);
 
-        if (msg.status === 'success') {
-          resolve({
-            pixCode: msg.pixCode,
-            address: msg.address,
-            products: msg.products,
+          activeSessions.set(sessionId, {
+            worker: child,
+            timestamp: Date.now(),
+            resolver: resolve,
+            timeout,
           });
-        } else {
-          reject(new Error(msg.message || 'Worker error'));
+
+          clearPendingIfExpired();
+          if (pendingSmsCode) {
+            const code = pendingSmsCode;
+            pendingSmsCode = null;
+            pendingSmsTs = 0;
+
+            console.log(
+              `📱 [LOGIN] Consumindo SMS pendente e enviando para sessão ${sessionId}: ${code}`,
+            );
+            child.send({ action: 'submit_sms', code });
+          }
+          return;
+        }
+
+        if (msg?.status === 'success') {
+          console.log('✅ [LOGIN] Concluído - Cookies recebidos');
+          clearTimeout(timeout);
+          activeSessions.delete(sessionId);
+          pendingSmsCode = null;
+          pendingSmsTs = 0;
+          resolve({ cookies: msg.cookies });
+          return;
+        }
+
+        if (msg?.status === 'error') {
+          console.error('❌ [LOGIN] Erro:', msg.message);
+          clearTimeout(timeout);
+          activeSessions.delete(sessionId);
+          pendingSmsCode = null;
+          pendingSmsTs = 0;
+          reject(new Error(msg.message));
         }
       });
 
       child.on('exit', (code) => {
         if (code !== 0) {
           clearTimeout(timeout);
+          activeSessions.delete(sessionId);
           reject(new Error(`Worker encerrou com código ${code}`));
         }
       });
     });
 
-    const result = await pixCodePromise;
+    const result = await loginPromise;
 
-    if (!result.pixCode) {
-      console.log('⚠️ [controller] PIX não encontrado.');
+    if (!result.cookies) {
       return res.status(500).json({
-        code: 'NO_PIX',
-        message: 'O PIX não foi gerado',
+        code: 'NO_COOKIES',
+        message: 'Cookies não foram obtidos',
+        duration: formatDuration(getDurationMs()),
+        duration_ms: getDurationMs(), // ⏱️ fim (sucesso)
       });
     }
 
-    console.log('✅ [controller] PIX obtido:', result.pixCode);
-
-    // Responde ao cliente ANTES de fechar o browser
     res.status(200).json({
       success: true,
-      pix: result.pixCode,
-      address: result.address,
-      products: result.products,
+      cookies: result.cookies,
+      duration: formatDuration(getDurationMs()),
+      duration_ms: getDurationMs(), // ⏱️ fim (sucesso)
     });
 
-    // Agora sim, sinaliza o worker para fechar o browser
-    console.log('📤 [controller] Enviando sinal de fechamento para o worker...');
-    child.send('close');
+    // fecha worker após resposta
+    try {
+      child.send('close');
+    } catch {}
   } catch (err) {
-    console.error('❌ [controller] Erro geral:', err);
+    console.error('❌ [LOGIN] Erro:', err.message);
 
     if (err.message === 'TIMEOUT') {
       return res.status(504).json({
         code: 'TIMEOUT',
-        message: 'O PIX não foi gerado dentro do tempo limite',
+        message: 'Login não foi completado dentro do tempo limite (5 minutos)',
+        duration: formatDuration(getDurationMs()),
+        duration_ms: getDurationMs(), // ⏱️ fim (sucesso)
       });
     }
 
     return res.status(500).json({
-      code: 'SCRAPPING_ERROR',
-      message: 'Erro ao executar automação',
+      code: 'LOGIN_ERROR',
+      message: 'Erro ao executar login',
+      error: err.message,
+
+      duration: formatDuration(getDurationMs()),
+      duration_ms: getDurationMs(),
+    });
+  }
+};
+
+const submitSmsCode = async (req, res) => {
+  const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({
+      code: 'INVALID_DATA',
+      message: 'message é obrigatório (mensagem completa do SMS)',
+    });
+  }
+
+  const codeMatch = message.match(/\b(\d{6})\b/);
+  if (!codeMatch) {
+    return res.status(400).json({
+      code: 'INVALID_SMS_FORMAT',
+      message: 'Não foi possível extrair código de 6 dígitos da mensagem SMS',
+    });
+  }
+
+  const code = codeMatch[1];
+  console.log(`📱 [SMS] Código recebido: ${code}`);
+
+  clearPendingIfExpired();
+
+  let sessions = Array.from(activeSessions.entries());
+  let attempts = 0;
+  const maxAttempts = 20; // 10s
+
+  while (sessions.length === 0 && attempts < maxAttempts) {
+    attempts += 1;
+    await new Promise((r) => setTimeout(r, 500));
+    sessions = Array.from(activeSessions.entries());
+  }
+
+  if (sessions.length === 0) {
+    pendingSmsCode = code;
+    pendingSmsTs = Date.now();
+
+    console.warn('⚠️ [SMS] Sessão ainda não registrada. Código guardado (pendente).');
+    return res.status(202).json({
+      success: true,
+      status: 'queued',
+      message: 'SMS chegou antes da sessão ficar pronta; código armazenado temporariamente',
+    });
+  }
+
+  const [sessionId, session] = sessions[0];
+
+  try {
+    session.worker.send({ action: 'submit_sms', code });
+    console.log(`✅ [SMS] Código enviado para sessão ${sessionId}`);
+
+    return res.status(200).json({
+      success: true,
+      status: 'sent',
+      sessionId,
+    });
+  } catch (err) {
+    console.error('❌ [SMS] Erro:', err.message);
+    return res.status(500).json({
+      code: 'SMS_SEND_ERROR',
+      message: 'Erro ao enviar código SMS',
       error: err.message,
     });
   }
 };
 
-export default { startScrapping };
+export default { loginPetz, submitSmsCode };
