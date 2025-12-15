@@ -235,4 +235,112 @@ const submitSmsCode = async (req, res) => {
   }
 };
 
-export default { loginPetz, submitSmsCode };
+const loginCobasi = async (req, res) => {
+  const t0 = Date.now();
+  const getDurationMs = () => Date.now() - t0;
+  console.log('🔐 [LOGIN:COBASI] Iniciando login Cobasi');
+
+  const loginData = req.body;
+
+  if (!loginData?.email || !loginData?.password) {
+    return res.status(400).json({
+      code: 'INVALID_DATA',
+      message: 'Email e senha são obrigatórios',
+      duration: formatDuration(getDurationMs()),
+      duration_ms: getDurationMs(),
+    });
+  }
+
+  try {
+    const sessionId = crypto
+      .createHash('md5')
+      .update(loginData.email)
+      .digest('hex');
+
+    const workerPath = path.resolve('src/api/workers/login-cobasi-runner.js');
+
+    const child = fork(workerPath, [JSON.stringify({ ...loginData, sessionId })], {
+      silent: true,
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      execArgv: [],
+    });
+
+    child.stdout.on('data', (d) => process.stdout.write(`[worker:cobasi] ${d}`));
+    child.stderr.on('data', (d) => process.stderr.write(`[worker:cobasi-err] ${d}`));
+
+    const loginPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch {}
+        reject(new Error('TIMEOUT'));
+      }, 2 * 60 * 1000); // 2 minutos
+
+      child.on('message', (msg) => {
+        if (msg?.status === 'success') {
+          console.log('✅ [LOGIN:COBASI] Concluído - Cookies recebidos');
+          clearTimeout(timeout);
+          resolve({ cookies: msg.cookies });
+          return;
+        }
+
+        if (msg?.status === 'error') {
+          console.error('❌ [LOGIN:COBASI] Erro:', msg.message);
+          clearTimeout(timeout);
+          reject(new Error(msg.message));
+        }
+      });
+
+      child.on('exit', (code) => {
+        if (code !== 0) {
+          clearTimeout(timeout);
+          reject(new Error(`Worker encerrou com código ${code}`));
+        }
+      });
+    });
+
+    const result = await loginPromise;
+
+    if (!result.cookies) {
+      return res.status(500).json({
+        code: 'NO_COOKIES',
+        message: 'Cookies não foram obtidos',
+        duration: formatDuration(getDurationMs()),
+        duration_ms: getDurationMs(),
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      cookies: result.cookies,
+      duration: formatDuration(getDurationMs()),
+      duration_ms: getDurationMs(),
+    });
+
+    // fecha worker após resposta
+    try {
+      child.send('close');
+    } catch {}
+  } catch (err) {
+    console.error('❌ [LOGIN:COBASI] Erro:', err.message);
+
+    if (err.message === 'TIMEOUT') {
+      return res.status(504).json({
+        code: 'TIMEOUT',
+        message: 'Login não foi completado dentro do tempo limite (2 minutos)',
+        duration: formatDuration(getDurationMs()),
+        duration_ms: getDurationMs(),
+      });
+    }
+
+    return res.status(500).json({
+      code: 'LOGIN_ERROR',
+      message: 'Erro ao executar login',
+      error: err.message,
+      duration: formatDuration(getDurationMs()),
+      duration_ms: getDurationMs(),
+    });
+  }
+};
+
+export default { loginPetz, submitSmsCode, loginCobasi };

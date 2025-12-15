@@ -3,6 +3,73 @@ import { Stagehand } from '@browserbasehq/stagehand';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const solveReCaptchaV2 = async (sitekey, url, apiKey) => {
+  console.log(`🔓 [CAPSOLVER] Resolvendo reCAPTCHA v2 (sitekey: ${sitekey.substring(0, 20)}...)`);
+
+  const baseUrl = 'https://api-stable.capsolver.com';
+
+  try {
+    // Criar tarefa
+    const createResponse = await fetch(`${baseUrl}/createTask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientKey: apiKey,
+        task: {
+          type: 'ReCaptchaV2TaskProxyLess',
+          websiteURL: url,
+          websiteKey: sitekey,
+        },
+      }),
+    });
+
+    const createData = await createResponse.json().catch(() => {
+      throw new Error(`CapSolver API retornou erro HTTP ${createResponse.status}`);
+    });
+
+    if (createData.errorId !== 0) {
+      throw new Error(`CapSolver: ${createData.errorDescription || createData.errorCode}`);
+    }
+
+    const taskId = createData.taskId;
+
+    // Polling (máx 3 minutos)
+    let attempts = 0;
+    while (attempts < 60) {
+      await sleep(3000);
+
+      const resultResponse = await fetch(`${baseUrl}/getTaskResult`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientKey: apiKey,
+          taskId: taskId,
+        }),
+      });
+
+      const resultData = await resultResponse.json().catch(() => {
+        throw new Error(`CapSolver API bloqueada por Cloudflare (Status ${resultResponse.status})`);
+      });
+
+      if (resultData.errorId !== 0) {
+        throw new Error(`CapSolver: ${resultData.errorDescription || resultData.errorCode}`);
+      }
+
+      if (resultData.status === 'ready') {
+        console.log(`✅ [CAPSOLVER] Resolvido em ${attempts * 3}s`);
+        return resultData.solution.gRecaptchaResponse;
+      }
+
+      attempts++;
+    }
+
+    throw new Error('CAPSOLVER_TIMEOUT');
+  } catch (err) {
+    console.error('❌ [CAPSOLVER]', err.message);
+    throw err;
+  }
+};
+
 const setValueUnsafe = async (page, selector, value) => {
   const ok = await page.evaluate(
     ({ selector, value }) => {
@@ -523,4 +590,291 @@ export const processSmsCode = async ({ page, code }) => {
   return { cookies };
 };
 
-export default { runLoginFlow };
+export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
+  let stagehand;
+  let page;
+
+  try {
+    const useCloud = process.env.USE_BROWSERBASE === 'true';
+    console.log(`🔐 [COBASI] Iniciando login (${useCloud ? 'CLOUD' : 'LOCAL'})`);
+
+    stagehand = new Stagehand({
+      env: useCloud ? 'BROWSERBASE' : 'LOCAL',
+      apiKey: process.env.BROWSERBASE_API_KEY,
+      projectId: process.env.BROWSERBASE_PROJECT_ID,
+      enableCaching: false,
+      ...(useCloud
+        ? {
+            browserbaseSessionCreateParams: {
+              keepAlive: true,
+              timeout: 300,
+            },
+          }
+        : {
+            headless: false,
+            domSettleTimeoutMs: 2000,
+          }),
+    });
+
+    await stagehand.init({ modelName: 'claude-3-5-sonnet-20241022' });
+    page = stagehand.page;
+
+    // Navegação
+    await page.goto('https://www.cobasi.com.br/login', { waitUntil: 'domcontentloaded' });
+    await sleep(3000);
+
+    // Aceitar cookies
+    await page.evaluate(() => {
+      const btn = document.querySelector('.cky-btn-accept');
+      if (btn) btn.click();
+    });
+    await sleep(800);
+
+    // Preencher formulário
+    await page.locator('#email').click();
+    await sleep(300);
+    await page.locator('#email').pressSequentially(email, { delay: 100 });
+    await sleep(600);
+
+    await page.locator('#password').click();
+    await sleep(300);
+    await page.locator('#password').pressSequentially(password, { delay: 100 });
+    await sleep(800);
+
+    // Aguardar botão habilitar
+    const waitForButtonEnabled = async (timeoutMs = 20000) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const state = await page.evaluate(() => {
+          const selectors = [
+            '.btn.btn-lg.btn-turquoise.fullwidth',
+            'button.btn-turquoise',
+            'form button[type="submit"]',
+          ];
+          for (const selector of selectors) {
+            const btn = document.querySelector(selector);
+            if (btn) {
+              const disabled =
+                btn.classList.contains('disabled') || btn.hasAttribute('disabled') || btn.disabled;
+              return { exists: true, disabled, selector };
+            }
+          }
+          return { exists: false };
+        });
+
+        if (state.exists && !state.disabled) {
+          return { enabled: true, selector: state.selector };
+        }
+        await sleep(250);
+      }
+      return { enabled: false };
+    };
+
+    const result = await waitForButtonEnabled(20000);
+    if (!result.enabled) {
+      throw new Error('COBASI_BUTTON_NOT_ENABLED');
+    }
+
+    // Snapshot cookies antes
+    const beforeCookies = await page
+      .context()
+      .cookies()
+      .catch(() => []);
+
+    // Clicar em ENTRAR
+    await clickUnsafe(page, result.selector);
+
+    // DAR TEMPO PRO GOOGLE DECIDIR QUAL CAPTCHA MOSTRAR
+    await sleep(4000);
+
+    // Detectar captcha
+    const captchaInfo = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[src*="recaptcha"]');
+      if (iframe) {
+        const match = iframe.src.match(/k=([^&]+)/);
+        return { detected: true, sitekey: match ? match[1] : null };
+      }
+      return { detected: false };
+    });
+
+    // Resolver captcha se necessário
+    if (captchaInfo.detected) {
+      console.log('🤖 [COBASI] reCAPTCHA detectado - resolvendo...');
+
+      const apiKey = process.env.CAPSOLVER_API_KEY;
+      if (!apiKey) {
+        throw new Error('CAPSOLVER_API_KEY não configurada');
+      }
+
+      // TENTATIVA 1
+      let captchaToken = await solveReCaptchaV2(
+        captchaInfo.sitekey,
+        'https://www.cobasi.com.br/login',
+        apiKey,
+      );
+
+      // Injetar token
+      await page.evaluate((token) => {
+        if (window.___grecaptcha_cfg?.clients) {
+          const clients = window.___grecaptcha_cfg.clients;
+          for (const clientId in clients) {
+            const client = clients[clientId];
+            if (client?.callback) client.callback(token);
+          }
+        }
+        const textarea = document.querySelector('#g-recaptcha-response');
+        if (textarea) {
+          textarea.value = token;
+          textarea.innerHTML = token;
+        }
+      }, captchaToken);
+
+      await sleep(3000);
+
+      // VERIFICAR SE VIROU IMAGE CHALLENGE
+      const challengeInfo = await page.evaluate(() => {
+        const imageChallenge = document.querySelector('.rc-imageselect-payload');
+        const skipBtn = document.querySelector('#recaptcha-verify-button');
+
+        return {
+          hasImageChallenge: !!imageChallenge,
+          hasSkipButton: !!skipBtn,
+          skipButtonText: skipBtn?.textContent?.trim() || '',
+        };
+      });
+
+      if (challengeInfo.hasImageChallenge) {
+        console.log('⚠️ [COBASI] Google escalou para image challenge - tentando novamente...');
+
+        // TENTATIVA 2 - Resolver novamente
+        captchaToken = await solveReCaptchaV2(
+          captchaInfo.sitekey,
+          'https://www.cobasi.com.br/login',
+          apiKey,
+        );
+
+        // Injetar novo token
+        await page.evaluate((token) => {
+          if (window.___grecaptcha_cfg?.clients) {
+            const clients = window.___grecaptcha_cfg.clients;
+            for (const clientId in clients) {
+              const client = clients[clientId];
+              if (client?.callback) client.callback(token);
+            }
+          }
+          const textarea = document.querySelector('#g-recaptcha-response');
+          if (textarea) {
+            textarea.value = token;
+            textarea.innerHTML = token;
+          }
+        }, captchaToken);
+
+        await sleep(3000);
+      }
+
+      // CLICAR NO BOTÃO SKIP/VERIFY SE EXISTIR
+      const buttonClicked = await page.evaluate(() => {
+        // Tentar acessar iframe do captcha
+        const iframes = document.querySelectorAll('iframe[src*="recaptcha"]');
+
+        for (const iframe of iframes) {
+          try {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (!iframeDoc) continue;
+
+            // Procurar Skip ou Verify
+            const skipBtn = iframeDoc.querySelector('#recaptcha-verify-button');
+            if (skipBtn) {
+              skipBtn.click();
+              return { clicked: true, button: skipBtn.textContent.trim() };
+            }
+          } catch (e) {
+            // CORS error - normal
+          }
+        }
+
+        return { clicked: false };
+      });
+
+      if (buttonClicked.clicked) {
+        console.log(`✅ [COBASI] Botão "${buttonClicked.button}" clicado`);
+      }
+
+      await sleep(2000);
+    }
+
+    // Aguardar sucesso (redirect ou cookies)
+    const start = Date.now();
+    let loginSuccess = false;
+
+    const cookiesChanged = async () => {
+      try {
+        const after = await page.context().cookies();
+        if (!beforeCookies.length && after.length) return true;
+
+        const toKey = (c) => `${c.name}=${c.value}`;
+        const before = new Set(beforeCookies.map(toKey));
+        const afterSet = new Set(after.map(toKey));
+
+        for (const k of afterSet) if (!before.has(k)) return true;
+        return false;
+      } catch {
+        return false;
+      }
+    };
+
+    while (Date.now() - start < 60000) {
+      const url = page.url();
+
+      if (url === 'https://www.cobasi.com.br/' || url.startsWith('https://www.cobasi.com.br/?')) {
+        console.log('✅ [COBASI] Login bem-sucedido (redirect)');
+        loginSuccess = true;
+        break;
+      }
+
+      if (await cookiesChanged()) {
+        console.log('✅ [COBASI] Login bem-sucedido (cookies)');
+        loginSuccess = true;
+        break;
+      }
+
+      const hasError = await page.evaluate(() => {
+        const text = document.body.innerText.toLowerCase();
+        return (
+          text.includes('incorreto') ||
+          text.includes('inválid') ||
+          text.includes('erro ao fazer login')
+        );
+      });
+
+      if (hasError) {
+        throw new Error('COBASI_INVALID_CREDENTIALS');
+      }
+
+      await sleep(500);
+    }
+
+    if (!loginSuccess) {
+      throw new Error('COBASI_LOGIN_TIMEOUT');
+    }
+
+    // Extrair cookies
+    const cookies = JSON.stringify(await page.context().cookies());
+    if (!cookies || cookies === '[]') {
+      throw new Error('COBASI_COOKIES_NOT_FOUND');
+    }
+
+    console.log('✅ [COBASI] Cookies obtidos');
+    return {
+      status: 'success',
+      cookies,
+      close: async () => stagehand.close(),
+    };
+  } catch (err) {
+    console.error('❌ [COBASI]', err.message);
+    if (stagehand) await stagehand.close();
+    throw err;
+  }
+};
+
+export default { runLoginFlow, runLoginFlowCobasi };
