@@ -87,13 +87,6 @@ const setValueUnsafe = async (page, selector, value) => {
   if (!ok) throw new Error(`SET_VALUE_FAILED ${selector}`);
 };
 
-const clickUnsafe = async (page, selector) => {
-  await page.evaluate((selector) => {
-    const el = document.querySelector(selector);
-    el?.click();
-  }, selector);
-};
-
 export const runLoginFlow = async ({ email, password, sessionId, force = false }) => {
   let stagehand;
   let page;
@@ -590,13 +583,91 @@ export const processSmsCode = async ({ page, code }) => {
   return { cookies };
 };
 
+// Helper para logs
+const log = (msg) => {
+  console.log(msg);
+  if (process.stderr?.write) {
+    process.stderr.write(msg + '\n');
+  }
+};
+
+const fillInputTyping = async (page, selector, value) => {
+  log(`📝 [FILL] Preenchendo ${selector} (digitação progressiva)...`);
+  log(`📝 [FILL] Aguardando ${selector} aparecer...`);
+  await page.waitForSelector(selector, { timeout: 30000 });
+  log(`✅ [FILL] ${selector} encontrado`);
+
+  log(`📝 [FILL] Clicando em ${selector}...`);
+  await page.locator(selector).click();
+  log(`✅ [FILL] ${selector} clicado`);
+  await sleep(300);
+
+  log(`📝 [FILL] Limpando ${selector}...`);
+  await page.locator(selector).fill('');
+  await sleep(200);
+
+  log(`📝 [FILL] Digitando em ${selector}...`);
+  await page.locator(selector).type(value, { delay: 50 });
+  log(`✅ [FILL] #email digitado com sucesso`);
+
+  const finalValue = await page.locator(selector).inputValue();
+  if (finalValue !== value) {
+    throw new Error(`FILL_VALIDATION_FAILED: esperado="${value}" obtido="${finalValue}"`);
+  }
+
+  log(`✅ [FILL] ${selector} validado com sucesso`);
+  await page.locator(selector).blur();
+  await sleep(300);
+
+  return true;
+};
+
+const clickUnsafe = async (page, selector) => {
+  await page.evaluate((selector) => {
+    const el = document.querySelector(selector);
+    el?.click();
+  }, selector);
+};
+
+const extractCookiesWithRetry = async (page, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      log(`🍪 [COBASI] Tentativa ${attempt}/${maxRetries} de extrair cookies...`);
+
+      const cookies = await page.context().cookies();
+      log(`🍪 [COBASI] Cookies encontrados: ${cookies.length}`);
+
+      if (!cookies || cookies.length === 0) {
+        log(`⚠️ [COBASI] Nenhum cookie encontrado (tentativa ${attempt})`);
+        if (attempt < maxRetries) {
+          await sleep(1000);
+          continue;
+        }
+        throw new Error('COBASI_COOKIES_NOT_FOUND');
+      }
+
+      const cookiesJson = JSON.stringify(cookies);
+      log(`✅ [COBASI] Cookies serializados: ${cookiesJson.length} caracteres`);
+
+      return cookiesJson;
+    } catch (err) {
+      log(`❌ [COBASI] Erro ao extrair cookies (tentativa ${attempt}): ${err.message}`);
+      if (attempt < maxRetries) {
+        await sleep(1000);
+        continue;
+      }
+      throw err;
+    }
+  }
+};
+
 export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
   let stagehand;
   let page;
 
   try {
     const useCloud = process.env.USE_BROWSERBASE === 'true';
-    console.log(`🔐 [COBASI] Iniciando login (${useCloud ? 'CLOUD' : 'LOCAL'})`);
+    log(`🔐 [COBASI] Iniciando login (${useCloud ? 'CLOUD' : 'LOCAL'})`);
 
     stagehand = new Stagehand({
       env: useCloud ? 'BROWSERBASE' : 'LOCAL',
@@ -616,32 +687,33 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
           }),
     });
 
+    log('🔧 [COBASI] Inicializando Stagehand...');
     await stagehand.init({ modelName: 'claude-3-5-sonnet-20241022' });
     page = stagehand.page;
+    log('✅ [COBASI] Stagehand inicializado');
 
-    // Navegação
+    log('🌐 [COBASI] Navegando para login...');
     await page.goto('https://www.cobasi.com.br/login', { waitUntil: 'domcontentloaded' });
+    log('✅ [COBASI] Página carregada');
     await sleep(3000);
 
-    // Aceitar cookies
+    log('🍪 [COBASI] Aceitando cookies...');
     await page.evaluate(() => {
       const btn = document.querySelector('.cky-btn-accept');
       if (btn) btn.click();
     });
+    log('✅ [COBASI] Cookies aceitos');
     await sleep(800);
 
-    // Preencher formulário
-    await page.locator('#email').click();
-    await sleep(300);
-    await page.locator('#email').pressSequentially(email, { delay: 100 });
+    log('📝 [COBASI] Preenchendo email...');
+    await fillInputTyping(page, '#email', email);
     await sleep(600);
 
-    await page.locator('#password').click();
-    await sleep(300);
-    await page.locator('#password').pressSequentially(password, { delay: 100 });
+    log('📝 [COBASI] Preenchendo senha...');
+    await fillInputTyping(page, '#password', password);
     await sleep(800);
 
-    // Aguardar botão habilitar
+    log('⏳ [COBASI] Aguardando botão de login habilitar...');
     const waitForButtonEnabled = async (timeoutMs = 20000) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
@@ -674,21 +746,65 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
     if (!result.enabled) {
       throw new Error('COBASI_BUTTON_NOT_ENABLED');
     }
+    log(`✅ [COBASI] Botão habilitado: ${result.selector}`);
 
-    // Snapshot cookies antes
     const beforeCookies = await page
       .context()
       .cookies()
       .catch(() => []);
 
-    // Clicar em ENTRAR
+    log('🔵 [COBASI] Clicando em ENTRAR...');
     await clickUnsafe(page, result.selector);
+    log('✅ [COBASI] Clique executado');
 
-    // DAR TEMPO PRO GOOGLE DECIDIR QUAL CAPTCHA MOSTRAR
+    log('⏳ [COBASI] Aguardando possível captcha ou redirect (4s)...');
     await sleep(4000);
 
-    // Detectar captcha
-    const captchaInfo = await page.evaluate(() => {
+    const safeGetUrl = async () => {
+      try {
+        return page.url();
+      } catch (err) {
+        if (err.message.includes('Target closed') || err.message.includes('destroyed')) {
+          return null;
+        }
+        throw err;
+      }
+    };
+
+    const safeEvaluate = async (fn, ...args) => {
+      try {
+        return await page.evaluate(fn, ...args);
+      } catch (err) {
+        if (
+          err.message.includes('Execution context was destroyed') ||
+          err.message.includes('Target closed')
+        ) {
+          return { navigationDetected: true };
+        }
+        throw err;
+      }
+    };
+
+    let currentUrl = await safeGetUrl();
+    if (
+      currentUrl &&
+      (currentUrl === 'https://www.cobasi.com.br/' ||
+        currentUrl.startsWith('https://www.cobasi.com.br/?'))
+    ) {
+      log('✅ [COBASI] Redirecionou direto (sem captcha) - login bem-sucedido');
+
+      const cookies = await extractCookiesWithRetry(page);
+      log('✅ [COBASI] Cookies obtidos com sucesso');
+
+      return {
+        status: 'success',
+        cookies,
+        close: async () => stagehand.close(),
+      };
+    }
+
+    log('🔍 [COBASI] Detectando captcha...');
+    const captchaInfo = await safeEvaluate(() => {
       const iframe = document.querySelector('iframe[src*="recaptcha"]');
       if (iframe) {
         const match = iframe.src.match(/k=([^&]+)/);
@@ -697,24 +813,101 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
       return { detected: false };
     });
 
-    // Resolver captcha se necessário
-    if (captchaInfo.detected) {
-      console.log('🤖 [COBASI] reCAPTCHA detectado - resolvendo...');
+    if (captchaInfo?.navigationDetected) {
+      log('✅ [COBASI] Navegação detectada durante evaluate - login bem-sucedido');
+      await sleep(1000);
+
+      const cookies = await extractCookiesWithRetry(page);
+      log('✅ [COBASI] Cookies obtidos com sucesso');
+
+      return {
+        status: 'success',
+        cookies,
+        close: async () => stagehand.close(),
+      };
+    }
+
+    if (captchaInfo?.detected) {
+      log('🤖 [COBASI] reCAPTCHA detectado - resolvendo...');
+
+      // VERIFICAR SE JÁ REDIRECIONOU (captcha pode ter sumido)
+      currentUrl = await safeGetUrl();
+      if (
+        currentUrl &&
+        (currentUrl === 'https://www.cobasi.com.br/' ||
+          currentUrl.startsWith('https://www.cobasi.com.br/?'))
+      ) {
+        log('✅ [COBASI] Já redirecionou (captcha sumiu) - login bem-sucedido');
+
+        const cookies = await extractCookiesWithRetry(page);
+        log('✅ [COBASI] Cookies obtidos com sucesso');
+
+        return {
+          status: 'success',
+          cookies,
+          close: async () => stagehand.close(),
+        };
+      }
 
       const apiKey = process.env.CAPSOLVER_API_KEY;
       if (!apiKey) {
         throw new Error('CAPSOLVER_API_KEY não configurada');
       }
 
-      // TENTATIVA 1
-      let captchaToken = await solveReCaptchaV2(
+      log('🔓 [COBASI] Resolvendo captcha (tentativa 1)...');
+
+      // Resolver captcha EM PARALELO com verificação de redirect
+      let captchaToken;
+      let redirectDetected = false;
+
+      const solvePromise = solveReCaptchaV2(
         captchaInfo.sitekey,
         'https://www.cobasi.com.br/login',
         apiKey,
-      );
+      ).then((token) => {
+        captchaToken = token;
+        return token;
+      });
 
-      // Injetar token
-      await page.evaluate((token) => {
+      // Verificar redirect a cada 1s enquanto resolve captcha
+      const checkRedirectInterval = setInterval(async () => {
+        if (redirectDetected) return;
+
+        const url = await safeGetUrl();
+        if (
+          url &&
+          (url === 'https://www.cobasi.com.br/' || url.startsWith('https://www.cobasi.com.br/?'))
+        ) {
+          redirectDetected = true;
+          log('✅ [COBASI] Redirecionou durante resolução de captcha - login bem-sucedido');
+          clearInterval(checkRedirectInterval);
+        }
+      }, 1000);
+
+      // Aguardar até que: (1) captcha resolva OU (2) redirect detectado
+      while (!captchaToken && !redirectDetected) {
+        await sleep(500);
+      }
+
+      clearInterval(checkRedirectInterval);
+
+      // Se redirecionou durante a resolução, retorna cookies
+      if (redirectDetected) {
+        const cookies = await extractCookiesWithRetry(page);
+        log('✅ [COBASI] Cookies obtidos com sucesso');
+
+        return {
+          status: 'success',
+          cookies,
+          close: async () => stagehand.close(),
+        };
+      }
+
+      // Se chegou aqui, o captcha foi resolvido
+      await solvePromise; // garante que terminou
+
+      log('💉 [COBASI] Injetando token do captcha...');
+      const injectResult = await safeEvaluate((token) => {
         if (window.___grecaptcha_cfg?.clients) {
           const clients = window.___grecaptcha_cfg.clients;
           for (const clientId in clients) {
@@ -727,83 +920,71 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
           textarea.value = token;
           textarea.innerHTML = token;
         }
+        return { success: true };
       }, captchaToken);
 
-      await sleep(3000);
+      if (injectResult?.navigationDetected) {
+        log('✅ [COBASI] Navegação detectada durante injeção - login bem-sucedido');
+        await sleep(1000);
 
-      // VERIFICAR SE VIROU IMAGE CHALLENGE
-      const challengeInfo = await page.evaluate(() => {
-        const imageChallenge = document.querySelector('.rc-imageselect-payload');
-        const skipBtn = document.querySelector('#recaptcha-verify-button');
+        const cookies = await extractCookiesWithRetry(page);
+        log('✅ [COBASI] Cookies obtidos com sucesso');
 
         return {
-          hasImageChallenge: !!imageChallenge,
-          hasSkipButton: !!skipBtn,
-          skipButtonText: skipBtn?.textContent?.trim() || '',
+          status: 'success',
+          cookies,
+          close: async () => stagehand.close(),
         };
-      });
-
-      if (challengeInfo.hasImageChallenge) {
-        console.log('⚠️ [COBASI] Google escalou para image challenge - tentando novamente...');
-
-        // TENTATIVA 2 - Resolver novamente
-        captchaToken = await solveReCaptchaV2(
-          captchaInfo.sitekey,
-          'https://www.cobasi.com.br/login',
-          apiKey,
-        );
-
-        // Injetar novo token
-        await page.evaluate((token) => {
-          if (window.___grecaptcha_cfg?.clients) {
-            const clients = window.___grecaptcha_cfg.clients;
-            for (const clientId in clients) {
-              const client = clients[clientId];
-              if (client?.callback) client.callback(token);
-            }
-          }
-          const textarea = document.querySelector('#g-recaptcha-response');
-          if (textarea) {
-            textarea.value = token;
-            textarea.innerHTML = token;
-          }
-        }, captchaToken);
-
-        await sleep(3000);
       }
 
-      // CLICAR NO BOTÃO SKIP/VERIFY SE EXISTIR
-      const buttonClicked = await page.evaluate(() => {
-        // Tentar acessar iframe do captcha
-        const iframes = document.querySelectorAll('iframe[src*="recaptcha"]');
+      log('🔍 [COBASI] Verificando se já redirecionou pós-injeção...');
+      currentUrl = await safeGetUrl();
+      if (
+        currentUrl &&
+        (currentUrl === 'https://www.cobasi.com.br/' ||
+          currentUrl.startsWith('https://www.cobasi.com.br/?'))
+      ) {
+        log('✅ [COBASI] Redirecionou após injeção - login bem-sucedido');
 
-        for (const iframe of iframes) {
-          try {
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-            if (!iframeDoc) continue;
+        const cookies = await extractCookiesWithRetry(page);
+        log('✅ [COBASI] Cookies obtidos com sucesso');
 
-            // Procurar Skip ou Verify
-            const skipBtn = iframeDoc.querySelector('#recaptcha-verify-button');
-            if (skipBtn) {
-              skipBtn.click();
-              return { clicked: true, button: skipBtn.textContent.trim() };
-            }
-          } catch (e) {
-            // CORS error - normal
-          }
+        return {
+          status: 'success',
+          cookies,
+          close: async () => stagehand.close(),
+        };
+      }
+
+      log('⏳ [COBASI] Aguardando processamento do captcha...');
+      const waitStart = Date.now();
+      while (Date.now() - waitStart < 5000) {
+        await sleep(500);
+
+        currentUrl = await safeGetUrl();
+        if (
+          currentUrl &&
+          (currentUrl === 'https://www.cobasi.com.br/' ||
+            currentUrl.startsWith('https://www.cobasi.com.br/?'))
+        ) {
+          log('✅ [COBASI] Redirecionou durante aguardo - login bem-sucedido');
+
+          const cookies = await extractCookiesWithRetry(page);
+          log('✅ [COBASI] Cookies obtidos com sucesso');
+
+          return {
+            status: 'success',
+            cookies,
+            close: async () => stagehand.close(),
+          };
         }
-
-        return { clicked: false };
-      });
-
-      if (buttonClicked.clicked) {
-        console.log(`✅ [COBASI] Botão "${buttonClicked.button}" clicado`);
       }
-
-      await sleep(2000);
+    } else {
+      log('ℹ️ [COBASI] Nenhum captcha detectado');
     }
 
-    // Aguardar sucesso (redirect ou cookies)
+    // Loop de aguardar sucesso
+    log('⏳ [COBASI] Aguardando sucesso do login...');
     const start = Date.now();
     let loginSuccess = false;
 
@@ -824,21 +1005,26 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
     };
 
     while (Date.now() - start < 60000) {
-      const url = page.url();
+      currentUrl = await safeGetUrl();
 
-      if (url === 'https://www.cobasi.com.br/' || url.startsWith('https://www.cobasi.com.br/?')) {
-        console.log('✅ [COBASI] Login bem-sucedido (redirect)');
+      if (!currentUrl) break;
+
+      if (
+        currentUrl === 'https://www.cobasi.com.br/' ||
+        currentUrl.startsWith('https://www.cobasi.com.br/?')
+      ) {
+        log('✅ [COBASI] Login bem-sucedido (redirect)');
         loginSuccess = true;
         break;
       }
 
       if (await cookiesChanged()) {
-        console.log('✅ [COBASI] Login bem-sucedido (cookies)');
+        log('✅ [COBASI] Login bem-sucedido (cookies)');
         loginSuccess = true;
         break;
       }
 
-      const hasError = await page.evaluate(() => {
+      const errorCheck = await safeEvaluate(() => {
         const text = document.body.innerText.toLowerCase();
         return (
           text.includes('incorreto') ||
@@ -847,7 +1033,13 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
         );
       });
 
-      if (hasError) {
+      if (errorCheck?.navigationDetected) {
+        log('✅ [COBASI] Navegação detectada - login bem-sucedido');
+        loginSuccess = true;
+        break;
+      }
+
+      if (errorCheck === true) {
         throw new Error('COBASI_INVALID_CREDENTIALS');
       }
 
@@ -858,20 +1050,16 @@ export const runLoginFlowCobasi = async ({ email, password, sessionId }) => {
       throw new Error('COBASI_LOGIN_TIMEOUT');
     }
 
-    // Extrair cookies
-    const cookies = JSON.stringify(await page.context().cookies());
-    if (!cookies || cookies === '[]') {
-      throw new Error('COBASI_COOKIES_NOT_FOUND');
-    }
+    const cookies = await extractCookiesWithRetry(page);
+    log('✅ [COBASI] Cookies obtidos com sucesso');
 
-    console.log('✅ [COBASI] Cookies obtidos');
     return {
       status: 'success',
       cookies,
       close: async () => stagehand.close(),
     };
   } catch (err) {
-    console.error('❌ [COBASI]', err.message);
+    log(`❌ [COBASI] ${err.message}`);
     if (stagehand) await stagehand.close();
     throw err;
   }
