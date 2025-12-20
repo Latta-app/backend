@@ -141,3 +141,5 @@ tmp*
 
 # mac
 .DS_Store
+
+*.pem
