@@ -9,6 +9,8 @@ import TemplateComponentModel from './Communication/Templates/TemplateComponentM
 import TemplateVariableModel from './Communication/Templates/TemplateVariableModel.js';
 import ClinicModel from './Clinics/ClinicModel.js';
 import ContactModel from './Communication/ContactModel.js';
+import OrderModel from './Orders/OrderModel.js';
+import OrderItemModel from './Orders/OrderItemModel.js';
 import PaymentMethodModel from './Payments/PaymentMethodModel.js';
 import PaymentStatusModel from './Payments/PaymentStatusModel.js';
 import PetSubscriptionModel from './Pets/PetSubscriptionModel.js';
@@ -50,6 +52,8 @@ const models = {
   TemplateVariable: TemplateVariableModel(sequelize),
   Clinic: ClinicModel(sequelize),
   Contact: ContactModel(sequelize),
+  Order: OrderModel(sequelize),
+  OrderItem: OrderItemModel(sequelize),
   PaymentMethod: PaymentMethodModel(sequelize),
   PaymentStatus: PaymentStatusModel(sequelize),
   Pet: PetModel(sequelize),
@@ -61,7 +65,7 @@ const models = {
   PetGender: PetGenderModel(sequelize),
   PetLivingEnvironment: PetLivingEnvironmentModel(sequelize),
   PetOwner: PetOwnerModel(sequelize),
-  PetOwnerClinic:PetOwnerClinicModel(sequelize),
+  PetOwnerClinic: PetOwnerClinicModel(sequelize),
   PetOwnerClinicService: PetOwnerClinicServiceModel(sequelize),
   PetOwnerPet: PetOwnerPetModel(sequelize),
   PetOwnerTag: PetOwnerTagModel(sequelize),
@@ -97,6 +101,8 @@ export const TemplateComponent = models.TemplateComponent;
 export const TemplateVariable = models.TemplateVariable;
 export const Clinic = models.Clinic;
 export const Contact = models.Contact;
+export const Order = models.Order;
+export const OrderItem = models.OrderItem;
 export const PaymentMethod = models.PaymentMethod;
 export const PaymentStatus = models.PaymentStatus;
 export const Pet = models.Pet;

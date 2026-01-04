@@ -167,6 +167,11 @@ const PetOwner = (sequelize) => {
       otherKey: 'clinic_id',
       as: 'clinics',
     });
+
+    model.hasMany(models.Order, {
+      foreignKey: 'pet_owner_id',
+      as: 'orders',
+    });
   };
 
   return model;

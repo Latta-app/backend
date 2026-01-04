@@ -14,6 +14,7 @@
     "@aws-sdk/client-s3": "^3.844.0",
     "@aws-sdk/lib-storage": "^3.844.0",
     "@aws-sdk/s3-request-presigner": "^3.844.0",
+    "@supabase/supabase-js": "^2.89.0",
     "axios": "^0.19.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -32,6 +33,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "@browserbasehq/stagehand": "^2.5.2",
     "@commitlint/cli": "^16.2.3",
     "@commitlint/config-conventional": "^16.2.1",
     "@testing-library/jest-dom": "^6.1.4",
@@ -39,10 +41,6 @@
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.3",
-    "@browserbasehq/stagehand": "^2.5.2",
-    "node-fetch": "^3.3.2",
-    "playwright": "^1.56.0",
-    "zod": "^3.25.67",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.10.0",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -52,12 +50,15 @@
     "husky": "^7.0.4",
     "jsdom": "^22.1.0",
     "lint-staged": "^12.3.7",
+    "node-fetch": "^3.3.2",
     "nodemon": "^3.0.1",
+    "playwright": "^1.56.0",
     "postcss-cli": "^11.0.0",
     "prettier": "^1.18.2",
     "sequelize-cli": "^5.5.1",
     "sucrase": "^3.10.1",
     "vite": "^4.4.4",
-    "vitest": "^0.34.6"
+    "vitest": "^0.34.6",
+    "zod": "^3.25.67"
   }
 }

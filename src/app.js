@@ -11,7 +11,6 @@ import initializeFirebase from './config/firebase.js';
 import { initializeSocket } from './config/socket.js';
 import { sequelize, checkDatabaseConnection } from './config/database.js';
 import createSocketRoutes from './api/routes/socket/socketRoutes.js';
-import { Stagehand } from '@browserbasehq/stagehand';
 
 dotenv.config();
 
@@ -103,86 +102,6 @@ const shutdown = async (signal) => {
     process.exit(0);
   });
 };
-
-// (async () => {
-//   console.log('🧪 Testando com keepAlive...');
-
-//   const stagehand = new Stagehand({
-//     env: 'BROWSERBASE',
-//     apiKey: process.env.BROWSERBASE_API_KEY,
-//     projectId: process.env.BROWSERBASE_PROJECT_ID,
-//     enableCaching: false,
-//     browserbaseSessionCreateParams: {
-//       keepAlive: true, // ← MANTÉM SESSÃO VIVA
-//     },
-//   });
-
-//   try {
-//     console.log('⏳ Inicializando...');
-//     await stagehand.init();
-//     const page = stagehand.page;
-
-//     console.log('✅ Inicializado');
-
-//     // Simula o fluxo do seu código
-//     console.log('⏳ Goto Petz...');
-//     await page.goto('https://www.petz.com.br', {
-//       waitUntil: 'domcontentloaded',
-//       timeout: 60000,
-//     });
-//     console.log('✅ Página carregada');
-
-//     console.log('⏳ Aguardando 3s...');
-//     await page.waitForTimeout(3000);
-
-//     console.log('⏳ Executando evaluate...');
-//     const logged = await page.evaluate(() => {
-//       const hasUser = !!document.querySelector(
-//         '.header-user, .header__user-name, [data-testid="user-name"]',
-//       );
-//       const possibleButtons = Array.from(document.querySelectorAll('a, button'));
-//       const hasLoginButton = possibleButtons.some((el) =>
-//         el.textContent
-//           ?.trim()
-//           .toLowerCase()
-//           .includes('entrar'),
-//       );
-//       return hasUser || !hasLoginButton;
-//     });
-
-//     console.log('✅ Evaluate executado:', logged);
-
-//     console.log('⏳ Navegando para carrinho...');
-//     await page.goto('https://www.petz.com.br/checkout/cart/', {
-//       waitUntil: 'domcontentloaded',
-//       timeout: 60000,
-//     });
-//     console.log('✅ Carrinho carregado');
-
-//     console.log('⏳ Aguardando 3s...');
-//     await page.waitForTimeout(3000);
-
-//     console.log('⏳ Executando evaluate no carrinho...');
-//     const carrinhoLimpo = await page.evaluate(() => {
-//       const limparBtn = Array.from(document.querySelectorAll('button, a')).find((el) =>
-//         el.textContent
-//           ?.trim()
-//           .toLowerCase()
-//           .includes('limpar sacola'),
-//       );
-//       return !limparBtn;
-//     });
-
-//     console.log('✅ Carrinho verificado:', carrinhoLimpo);
-
-//     await stagehand.close();
-//     console.log('✅ Teste completo com sucesso!');
-//     process.exit(0);
-//   } catch (error) {
-//     console.error('❌ Erro:', error);
-//     process.exit(1);
-//   }
-// })();
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
