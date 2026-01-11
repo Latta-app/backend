@@ -163,9 +163,39 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 15 }) => 
   }
 };
 
+const getContactByPetOwnerIdOrPhone = async ({
+  pet_owner_id,
+  contact,
+  role,
+  page = 1,
+  limit = 20,
+}) => {
+  try {
+    const result = await ChatRepository.getContactByPetOwnerIdOrPhone({
+      pet_owner_id,
+      contact,
+      role,
+      page,
+      limit,
+    });
+
+    if (!result.contact) {
+      return null;
+    }
+
+    await attachReplyMessages([result.contact]);
+    await signMessagesMediaUrls([result.contact]);
+
+    return result;
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   searchContacts,
   getContactByPetOwnerId,
   getAllContactsMessagesWithNoFilters,
+  getContactByPetOwnerIdOrPhone,
 };

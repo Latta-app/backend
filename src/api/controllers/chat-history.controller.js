@@ -175,9 +175,71 @@ const getAllContactsMessagesWithNoFilters = async (req, res) => {
   }
 };
 
+const getContactByPetOwnerIdOrPhone = async (req, res) => {
+  try {
+    const { pet_owner_id, contact } = req.query;
+    const { role } = req.user;
+    const { page = 1, limit = 20 } = req.query;
+
+    if (!pet_owner_id && !contact) {
+      return res.status(400).json({
+        code: 'MISSING_PARAMS',
+        message: 'pet_owner_id or contact is required',
+      });
+    }
+
+    if (pet_owner_id && contact) {
+      return res.status(400).json({
+        code: 'INVALID_PARAMS',
+        message: 'Cannot provide both pet_owner_id and contact',
+      });
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        code: 'INVALID_PAGINATION_PARAMS',
+        message: 'Invalid pagination parameters',
+      });
+    }
+
+    console.log('🔍 Controller - Buscando contato:', { pet_owner_id, contact });
+
+    const result = await ChatService.getContactByPetOwnerIdOrPhone({
+      pet_owner_id,
+      contact,
+      role: role.role,
+      page: pageNum,
+      limit: limitNum,
+    });
+
+    if (!result || !result.contact) {
+      return res.status(404).json({
+        code: 'CONTACT_NOT_FOUND',
+        message: 'No contact found',
+      });
+    }
+
+    return res.status(200).json({
+      code: 'CONTACT_RETRIEVED',
+      data: result.contact,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error('Error retrieving contact:', error);
+    return res.status(500).json({
+      code: 'CONTACT_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   searchContacts,
   getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerId,
+  getContactByPetOwnerIdOrPhone,
 };

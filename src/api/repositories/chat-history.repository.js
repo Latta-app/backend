@@ -917,7 +917,13 @@ const getReplyMessageById = async ({ replyId }) => {
   });
 };
 
-const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20 }) => {
+const getContactByPetOwnerIdOrPhone = async ({
+  pet_owner_id,
+  contact,
+  role,
+  page = 1,
+  limit = 20,
+}) => {
   try {
     const { Op } = Sequelize;
     const offset = (page - 1) * limit;
@@ -925,14 +931,20 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
 
-    console.log('🔍 Buscando contato para pet_owner_id:', pet_owner_id);
+    console.log('🔍 Buscando contato para:', { pet_owner_id, contact });
     console.log('🔍 Página:', page, 'Limit:', limit, 'Offset:', offset);
 
-    const whereConditions = {
-      pet_owner_id: pet_owner_id,
-    };
+    // Define condição de busca baseado no que foi passado
+    let whereConditions = {};
+    if (pet_owner_id) {
+      whereConditions.pet_owner_id = pet_owner_id;
+    } else if (contact) {
+      whereConditions.cellphone = contact;
+    } else {
+      throw new Error('É necessário informar pet_owner_id ou contact');
+    }
 
-    const contact = await Contact.findOne({
+    const contactResult = await Contact.findOne({
       where: whereConditions,
       order: [
         [
@@ -1104,12 +1116,11 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
       ],
     });
 
-    // Contar total de mensagens para saber se há mais páginas
     let totalMessages = 0;
-    if (contact) {
+    if (contactResult) {
       const totalResult = await ChatHistory.count({
         where: {
-          contact_id: contact.id,
+          contact_id: contactResult.id,
           ...chatHistoryWhere,
         },
       });
@@ -1117,7 +1128,7 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
     }
 
     const result = {
-      contact,
+      contact: contactResult,
       pagination: {
         currentPage: page,
         limit,
@@ -1127,12 +1138,12 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
       },
     };
 
-    console.log('🔍 Contato encontrado:', contact ? contact.id : 'nenhum');
+    console.log('🔍 Contato encontrado:', contactResult ? contactResult.id : 'nenhum');
     console.log('🔍 Total de mensagens:', totalMessages);
 
     return result;
   } catch (error) {
-    console.error('❌ ERRO NA FUNÇÃO getContactByPetOwnerId:', error.message);
+    console.error('❌ ERRO NA FUNÇÃO getContactByPetOwnerIdOrPhone:', error.message);
     console.error('❌ STACK:', error.stack);
     throw new Error(`Repository error: ${error.message}`);
   }
@@ -1409,6 +1420,6 @@ export default {
   getAllContactsWithMessages,
   searchContacts,
   getReplyMessageById,
-  getContactByPetOwnerId,
+  getContactByPetOwnerIdOrPhone,
   getAllContactsMessagesWithNoFilters,
 };
