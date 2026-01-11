@@ -39,6 +39,11 @@ const Contact = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      is_being_attended: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
     },
     {
       tableName: 'contacts',
