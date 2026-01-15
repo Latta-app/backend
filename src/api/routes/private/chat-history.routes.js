@@ -12,6 +12,13 @@ router.get(
 );
 
 router.get(
+  '/messages/getAllContactsBeingAttended',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getAllContactsBeingAttended,
+);
+
+router.get(
   '/messages/searchContacts',
   verifyToken,
   checkRole(['admin', 'superAdmin', 'attendant']),

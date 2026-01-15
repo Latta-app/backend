@@ -82,6 +82,38 @@ const getAllContactsWithMessages = async ({
   }
 };
 
+const getAllContactsBeingAttended = async ({
+  clinic_id,
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+}) => {
+  try {
+    const result = await ChatRepository.getAllContactsBeingAttended({
+      clinic_id,
+      role,
+      page,
+      limit,
+      user_id,
+      filters,
+    });
+    const contacts = result.contacts;
+
+    await attachReplyMessages(contacts);
+    await signMessagesMediaUrls(contacts);
+
+    return {
+      contacts,
+      totalItems: result.totalItems,
+      totalPages: Math.ceil(result.totalItems / limit),
+    };
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 const searchContacts = async ({ clinic_id, query, page, limit, role, user_id, filters = {} }) => {
   try {
     const cleanedQuery = normalizeQuery(query);
@@ -194,6 +226,7 @@ const getContactByPetOwnerIdOrPhone = async ({
 
 export default {
   getAllContactsWithMessages,
+  getAllContactsBeingAttended,
   searchContacts,
   getContactByPetOwnerId,
   getAllContactsMessagesWithNoFilters,

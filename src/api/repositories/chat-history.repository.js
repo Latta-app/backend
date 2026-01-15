@@ -561,6 +561,557 @@ const getAllContactsWithMessages = async ({
   }
 };
 
+const getAllContactsBeingAttended = async ({
+  clinic_id,
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+}) => {
+  console.log('clinic_id', clinic_id);
+  try {
+    const offset = (page - 1) * limit;
+    const { Op } = Sequelize;
+
+    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+    const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
+
+    // INÍCIO DO DEBUG INTEGRADO
+    console.log('🔍 === INVESTIGAÇÃO DETALHADA DO CHAT HISTORY (BEING ATTENDED) ===');
+    console.log('🔍 clinic_id:', clinic_id);
+    console.log('🔍 shouldFilterLatta:', shouldFilterLatta);
+
+    // Primeiro, vamos pegar os IDs dos contatos que estão sendo atendidos
+    const basicContactsQuery = `
+      SELECT DISTINCT c.id, c.pet_owner_id, po.name 
+      FROM contacts c
+      INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+      INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+      WHERE poc.clinic_id = '${clinic_id}'
+      AND c.is_being_attended = true
+    `;
+
+    const basicContacts = await Contact.sequelize.query(basicContactsQuery, {
+      type: Contact.sequelize.QueryTypes.SELECT,
+    });
+
+    if (basicContacts.length === 0) {
+      console.log('❌ Nenhum contato sendo atendido encontrado para essa clínica');
+      return { contacts: [], totalItems: 0 };
+    }
+
+    const contactIds = basicContacts.map((c) => c.id);
+    console.log('🔍 Contact IDs sendo atendidos encontrados:', contactIds);
+
+    // TESTE: Verificar chat_history para esses contatos
+    const allChatHistory = await Contact.sequelize.query(
+      `
+      SELECT 
+        ch.contact_id,
+        ch.path,
+        ch.message,
+        ch.timestamp,
+        ch.sent_by,
+        ch.role,
+        COUNT(*) OVER (PARTITION BY ch.contact_id) as total_messages
+      FROM chat_history ch 
+      WHERE ch.contact_id IN ('${contactIds.join("','")}')
+      ORDER BY ch.contact_id, ch.timestamp DESC
+      LIMIT 10
+    `,
+      {
+        type: Contact.sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    console.log('🔍 Chat history encontrado:', allChatHistory.length, 'mensagens');
+
+    if (allChatHistory.length > 0) {
+      // Mostrar detalhes das mensagens
+      console.log('🔍 Exemplo de mensagens:');
+      allChatHistory.slice(0, 3).forEach((msg) => {
+        console.log(
+          `- Contact ${msg.contact_id}: path="${msg.path}", message="${msg.message?.substring(
+            0,
+            30,
+          )}..."`,
+        );
+      });
+
+      // Verificar paths únicos
+      const uniquePaths = [...new Set(allChatHistory.map((m) => m.path))];
+      console.log('🔍 Paths únicos encontrados:', uniquePaths);
+
+      // Se shouldFilterLatta = true, ver quantas sobram
+      if (shouldFilterLatta) {
+        const nonLattaMessages = allChatHistory.filter((m) => m.path !== 'latta');
+        console.log('🔍 Mensagens após filtrar "latta":', nonLattaMessages.length);
+
+        if (nonLattaMessages.length === 0) {
+          console.log('❌ PROBLEMA ENCONTRADO: Todas as mensagens têm path = "latta"!');
+          console.log('❌ Como o role não é admin/superAdmin, elas estão sendo filtradas.');
+        }
+      }
+    } else {
+      console.log('❌ NENHUMA mensagem encontrada nos chat_history para esses contatos!');
+    }
+
+    // Teste direto com Sequelize
+    console.log('🔍 Testando include do Sequelize...');
+    try {
+      const sequelizeTest = await Contact.findAll({
+        where: {
+          id: { [Op.in]: contactIds },
+          is_being_attended: true, // FILTRO ADICIONAL
+        },
+        include: [
+          {
+            model: ChatHistory,
+            as: 'chatHistory',
+            where: chatHistoryWhere,
+            required: true,
+            attributes: ['id', 'message', 'path', 'timestamp'],
+          },
+        ],
+        limit: 2,
+      });
+
+      console.log('🔍 Sequelize test result:', sequelizeTest.length, 'contatos encontrados');
+      if (sequelizeTest.length === 0) {
+        console.log('❌ O include do ChatHistory está falhando!');
+      }
+    } catch (error) {
+      console.log('❌ Erro no teste Sequelize:', error.message);
+    }
+    // FIM DO DEBUG INTEGRADO
+
+    let whereConditions = {
+      is_being_attended: true, // FILTRO PRINCIPAL ADICIONADO
+      id: {
+        [Op.in]: Sequelize.literal(`(
+          SELECT DISTINCT c.id 
+          FROM contacts c
+          INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+          INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+          WHERE poc.clinic_id = '${clinic_id}'
+          AND c.is_being_attended = true
+        )`),
+      },
+    };
+
+    console.log('🔍 whereConditions inicial:', JSON.stringify(whereConditions, null, 2));
+
+    // Constrói os filtros condicionalmente
+    const additionalConditions = [];
+
+    // FILTRO DE TAGS - Condição OU entre as tags
+    if (filters.tags && filters.tags.length > 0) {
+      console.log('🔍 Aplicando filtro de tags:', filters.tags);
+      const escapedTags = filters.tags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(',');
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT DISTINCT c.id 
+            FROM contacts c
+            INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+            INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+            INNER JOIN pet_owner_tag_assignments pota ON po.id = pota.pet_owner_id
+            WHERE pota.tag_id IN (${escapedTags})
+            AND poc.clinic_id = '${clinic_id}'
+            AND c.is_being_attended = true
+          )`),
+        },
+      });
+    }
+
+    // FILTRO DE RESPONSABILIDADE - Verifica se a mensagem mais recente é do usuário
+    if (filters.responsibility) {
+      console.log('🔍 Aplicando filtro de responsabilidade para user_id:', user_id);
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT c.id 
+            FROM contacts c
+            INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+            INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+            WHERE poc.clinic_id = '${clinic_id}'
+            AND c.is_being_attended = true
+            AND EXISTS (
+              SELECT 1 FROM chat_history ch1
+              WHERE ch1.contact_id = c.id
+              ${shouldFilterLatta ? `AND ch1.path != 'latta'` : ''}
+              AND ch1.timestamp = (
+                SELECT MAX(ch2.timestamp)
+                FROM chat_history ch2
+                WHERE ch2.contact_id = c.id
+                ${shouldFilterLatta ? `AND ch2.path != 'latta'` : ''}
+              )
+              AND ch1.user_id = '${user_id}'
+            )
+          )`),
+        },
+      });
+    }
+
+    // FILTRO DE NÃO LIDAS - Verifica se a mensagem mais recente não foi respondida
+    if (filters.unread) {
+      console.log('🔍 Aplicando filtro de não lidas');
+      additionalConditions.push({
+        id: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT c.id 
+            FROM contacts c
+            INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+            INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+            WHERE poc.clinic_id = '${clinic_id}'
+            AND c.is_being_attended = true
+            AND EXISTS (
+              SELECT 1 FROM chat_history ch1
+              WHERE ch1.contact_id = c.id
+              ${shouldFilterLatta ? `AND ch1.path != 'latta'` : ''}
+              AND ch1.timestamp = (
+                SELECT MAX(ch2.timestamp)
+                FROM chat_history ch2
+                WHERE ch2.contact_id = c.id
+                ${shouldFilterLatta ? `AND ch2.path != 'latta'` : ''}
+              )
+              AND ch1.is_answered = false
+            )
+          )`),
+        },
+      });
+    }
+
+    // Aplica os filtros adicionais com lógica E
+    if (additionalConditions.length > 0) {
+      console.log('🔍 Aplicando', additionalConditions.length, 'filtros adicionais');
+      whereConditions = {
+        ...whereConditions,
+        [Op.and]: additionalConditions,
+      };
+    }
+
+    console.log('🔍 whereConditions final:', JSON.stringify(whereConditions, null, 2));
+
+    // TESTE 3: Executar uma consulta simplificada primeiro
+    try {
+      const simplifiedQuery = await Contact.findAll({
+        where: {
+          is_being_attended: true,
+          id: {
+            [Op.in]: Sequelize.literal(`(
+              SELECT DISTINCT c.id 
+              FROM contacts c
+              INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+              INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+              WHERE poc.clinic_id = '${clinic_id}'
+              AND c.is_being_attended = true
+            )`),
+          },
+        },
+        attributes: ['id', 'pet_owner_id', 'is_being_attended'],
+        limit: 5,
+      });
+
+      console.log(
+        '🔍 TESTE 3 - Contatos sendo atendidos encontrados na consulta simplificada:',
+        simplifiedQuery.length,
+      );
+      console.log(
+        '🔍 TESTE 3 - IDs:',
+        simplifiedQuery.map((c) => c.id),
+      );
+    } catch (err) {
+      console.error('❌ TESTE 3 - Erro na consulta simplificada:', err.message);
+    }
+
+    const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
+      where: whereConditions,
+      limit,
+      offset,
+      distinct: true,
+      order: [
+        [
+          Sequelize.literal(`(
+            SELECT MAX(chat_history.timestamp)
+            FROM chat_history
+            WHERE chat_history.contact_id = "Contact".id
+            ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
+          )`),
+          'DESC',
+        ],
+        ['updated_at', 'DESC'],
+        [{ model: ChatHistory, as: 'chatHistory' }, 'timestamp', 'DESC'],
+      ],
+      include: [
+        {
+          model: ChatHistory,
+          as: 'chatHistory',
+          where: chatHistoryWhere,
+          attributes: [
+            'id',
+            'message',
+            'sent_by',
+            'sent_to',
+            'role',
+            'timestamp',
+            'window_timestamp',
+            'journey',
+            'message_type',
+            'date',
+            'message_id',
+            'midia_url',
+            'midia_name',
+            'reply',
+            'path',
+            'user_id',
+            'is_answered',
+            'template_id',
+          ],
+          required: true,
+          limit: 20,
+          order: [['timestamp', 'DESC']],
+          include: [
+            {
+              model: ChatHistoryContacts,
+              as: 'chatHistoryContacts',
+              attributes: [
+                'id',
+                'contact_name',
+                'cellphone',
+                'contact_phone',
+                'message_id',
+                'created_at',
+                'updated_at',
+              ],
+            },
+            {
+              model: Template,
+              as: 'template',
+              order: [['template_label', 'ASC']],
+              attributes: [
+                'id',
+                'template_name',
+                'template_label',
+                'template_category',
+                'template_status',
+              ],
+              include: [
+                {
+                  model: TemplateVariable,
+                  as: 'variables',
+                  attributes: [
+                    'id',
+                    'template_id',
+                    'template_component_id',
+                    'template_component_type_id',
+                    'template_varible_type_id',
+                    'variable_position',
+                  ],
+                  include: [
+                    {
+                      model: TemplateVariableType,
+                      as: 'templateVariableType',
+                      attributes: ['id', 'type', 'description', 'n8n_formula'],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: PetOwner,
+          as: 'petOwner',
+          attributes: [
+            'id',
+            'name',
+            'email',
+            'cell_phone',
+            'cpf',
+            'date_of_birth',
+            'is_active',
+            'created_at',
+          ],
+          include: [
+            {
+              model: Pet,
+              as: 'pets',
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
+              through: { attributes: [] },
+              where: { is_active: true },
+              required: false,
+              include: [
+                { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
+                { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
+                { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
+                { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
+                { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
+                { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
+              ],
+            },
+            {
+              model: PetOwnerTag,
+              as: 'tags',
+              attributes: ['id', 'name', 'label', 'color', 'is_active'],
+              through: {
+                attributes: ['assigned_at', 'user_id'],
+              },
+              order: [['name', 'ASC']],
+              where: { is_active: true },
+              required: false,
+            },
+            {
+              model: Order,
+              as: 'orders',
+              attributes: [
+                'id',
+                'marketplace_order_id',
+                'created_at',
+                'total',
+                'current_status_name',
+                'payment_method',
+                'delivery_estimate',
+              ],
+              required: false,
+              order: [['created_at', 'DESC']],
+              include: [
+                {
+                  model: OrderItem,
+                  as: 'items',
+                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
+                  required: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    console.log('🔍 RESULTADO FINAL (BEING ATTENDED):', contacts.length, 'contatos retornados');
+
+    // DEBUG ADICIONAL: Vamos testar step by step o que está quebrando
+    if (contacts.length === 0 && totalItems > 0) {
+      console.log('🔍 === INVESTIGAÇÃO DA CONSULTA COMPLEXA (BEING ATTENDED) ===');
+
+      // Teste 1: Apenas o where básico + ChatHistory simples
+      try {
+        const test1 = await Contact.findAll({
+          where: whereConditions,
+          include: [
+            {
+              model: ChatHistory,
+              as: 'chatHistory',
+              where: chatHistoryWhere,
+              required: true,
+              attributes: ['id', 'message', 'path'],
+            },
+          ],
+          limit: 2,
+        });
+        console.log('🔍 TESTE 1 - ChatHistory simples:', test1.length, 'contatos');
+      } catch (err) {
+        console.log('❌ TESTE 1 - Erro:', err.message);
+      }
+
+      // Teste 2: Adicionar o PetOwner
+      try {
+        const test2 = await Contact.findAll({
+          where: whereConditions,
+          include: [
+            {
+              model: ChatHistory,
+              as: 'chatHistory',
+              where: chatHistoryWhere,
+              required: true,
+              attributes: ['id', 'message', 'path'],
+            },
+            {
+              model: PetOwner,
+              as: 'petOwner',
+              attributes: ['id', 'name'],
+            },
+          ],
+          limit: 2,
+        });
+        console.log('🔍 TESTE 2 - Com PetOwner:', test2.length, 'contatos');
+      } catch (err) {
+        console.log('❌ TESTE 2 - Erro:', err.message);
+      }
+
+      // Teste 3: Verificar se é o order que está quebrando
+      try {
+        const test3 = await Contact.findAll({
+          where: whereConditions,
+          include: [
+            {
+              model: ChatHistory,
+              as: 'chatHistory',
+              where: chatHistoryWhere,
+              required: true,
+              attributes: ['id', 'message', 'path', 'timestamp'],
+            },
+          ],
+          order: [
+            [
+              Sequelize.literal(`(
+                SELECT MAX(chat_history.timestamp)
+                FROM chat_history
+                WHERE chat_history.contact_id = "Contact".id
+                ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
+              )`),
+              'DESC',
+            ],
+          ],
+          limit: 2,
+        });
+        console.log('🔍 TESTE 3 - Com ORDER BY:', test3.length, 'contatos');
+      } catch (err) {
+        console.log('❌ TESTE 3 - Erro ORDER BY:', err.message);
+      }
+
+      // Teste 4: Verificar se são os includes aninhados do ChatHistory
+      try {
+        const test4 = await Contact.findAll({
+          where: whereConditions,
+          include: [
+            {
+              model: ChatHistory,
+              as: 'chatHistory',
+              where: chatHistoryWhere,
+              required: true,
+              attributes: ['id', 'message', 'path', 'template_id'],
+              include: [
+                {
+                  model: Template,
+                  as: 'template',
+                  attributes: ['id', 'template_name'],
+                  required: false,
+                },
+              ],
+            },
+          ],
+          limit: 2,
+        });
+        console.log('🔍 TESTE 4 - Com Template include:', test4.length, 'contatos');
+      } catch (err) {
+        console.log('❌ TESTE 4 - Erro Template:', err.message);
+      }
+    }
+
+    return {
+      contacts,
+      totalItems,
+    };
+  } catch (error) {
+    console.error('❌ ERRO NA FUNÇÃO (BEING ATTENDED):', error.message);
+    console.error('❌ STACK:', error.stack);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 const searchContacts = async ({
   clinic_id,
   name,
@@ -1617,6 +2168,7 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
 
 export default {
   getAllContactsWithMessages,
+  getAllContactsBeingAttended,
   searchContacts,
   getReplyMessageById,
   getContactByPetOwnerId,
