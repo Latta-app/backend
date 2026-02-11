@@ -14,24 +14,24 @@ import createSocketRoutes from './api/routes/socket/socketRoutes.js';
 
 dotenv.config();
 
-const requiredEnvs = [
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
-  'DATABASE_URL',
-  'ACCESS_LIST',
-  'VAREJO_API_TOKEN',
-  'JWT_SECRET',
-];
+// const requiredEnvs = [
+//   'FIREBASE_PROJECT_ID',
+//   'FIREBASE_CLIENT_EMAIL',
+//   'FIREBASE_PRIVATE_KEY',
+//   'DATABASE_URL',
+//   'ACCESS_LIST',
+//   // 'VAREJO_API_TOKEN',
+//   'JWT_SECRET',
+// ];
 
-requiredEnvs.forEach((env) => {
-  if (!process.env[env]) {
-    console.error(`❌ Variável de ambiente ausente: ${env}`);
-    process.exit(1);
-  }
-});
+// requiredEnvs.forEach((env) => {
+//   if (!process.env[env]) {
+//     console.error(`❌ Variável de ambiente ausente: ${env}`);
+//     process.exit(1);
+//   }
+// });
 
-initializeFirebase();
+// initializeFirebase();
 checkDatabaseConnection();
 
 const app = express();
@@ -107,3 +107,4 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 export { io };
+// teste
