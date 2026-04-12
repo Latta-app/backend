@@ -307,7 +307,22 @@ const getAllContactsWithMessages = async ({
         {
           model: ChatHistory,
           as: 'chatHistory',
-          where: chatHistoryWhere,
+          // Limit per-parent via correlated subquery em vez de Sequelize limit:
+          // mais rápido (1 query única) que separate:true (N+1 queries),
+          // e funciona corretamente com o parent limit (sem o bug do JOIN).
+          where: {
+            ...chatHistoryWhere,
+            id: {
+              [Op.in]: Sequelize.literal(`(
+                SELECT ch.id
+                FROM chat_history ch
+                WHERE ch.contact_id = "Contact".id
+                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ORDER BY ch.timestamp DESC
+                LIMIT 20
+              )`),
+            },
+          },
           attributes: [
             'id',
             'message',
@@ -328,12 +343,7 @@ const getAllContactsWithMessages = async ({
             'is_answered',
             'template_id',
           ],
-          // separate:true faz Sequelize executar uma query separada por contato
-          // para o chat_history, aplicando o limit corretamente por parent.
-          // Sem isso, parent limit (15) trunca o resultado JOIN inteiro e o
-          // limit do include (20) é silenciosamente ignorado.
-          separate: true,
-          limit: 20,
+          required: false,
           order: [['timestamp', 'DESC']],
           include: [
             {
@@ -869,7 +879,20 @@ const getAllContactsBeingAttended = async ({
         {
           model: ChatHistory,
           as: 'chatHistory',
-          where: chatHistoryWhere,
+          // Limit per-parent via correlated subquery — single query, sem N+1
+          where: {
+            ...chatHistoryWhere,
+            id: {
+              [Op.in]: Sequelize.literal(`(
+                SELECT ch.id
+                FROM chat_history ch
+                WHERE ch.contact_id = "Contact".id
+                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ORDER BY ch.timestamp DESC
+                LIMIT 20
+              )`),
+            },
+          },
           attributes: [
             'id',
             'message',
@@ -890,8 +913,7 @@ const getAllContactsBeingAttended = async ({
             'is_answered',
             'template_id',
           ],
-          separate: true,
-          limit: 20,
+          required: false,
           order: [['timestamp', 'DESC']],
           include: [
             {
@@ -2180,8 +2202,9 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
     console.error('❌ ERRO NA FUNÇÃO getAllContactsMessagesWithNoFilters:', error.message);
     console.error('❌ STACK TRACE:', error.stack);
 
-    // Log adicional para debug
-    console.error('❌ PARÂMETROS:', { page, limit, offset });
+    // Log adicional para debug — offset pode não estar em escopo se o erro
+    // ocorreu antes da declaração `const offset = ...` dentro do try.
+    console.error('❌ PARÂMETROS:', { page, limit });
 
     throw new Error(`Repository error: ${error.message}`);
   }
