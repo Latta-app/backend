@@ -142,14 +142,23 @@ const getAllContactsWithMessages = async ({
     }
     // FIM DO DEBUG INTEGRADO
 
+    // Filtro base: contatos da clínica QUE TÊM pelo menos uma chat_history.
+    // O EXISTS substitui o antigo `required: true` no include de chatHistory,
+    // que não funciona junto com `separate: true` (necessário para o limit
+    // por contato funcionar corretamente).
     let whereConditions = {
       id: {
         [Op.in]: Sequelize.literal(`(
-          SELECT DISTINCT c.id 
+          SELECT DISTINCT c.id
           FROM contacts c
           INNER JOIN pet_owners po ON c.pet_owner_id = po.id
           INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
           WHERE poc.clinic_id = '${clinic_id}'
+          AND EXISTS (
+            SELECT 1 FROM chat_history ch
+            WHERE ch.contact_id = c.id
+            ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+          )
         )`),
       },
     };
@@ -280,6 +289,8 @@ const getAllContactsWithMessages = async ({
       limit,
       offset,
       distinct: true,
+      // Ordem do parent (contatos) por última timestamp via subquery raw.
+      // Não usar ordem por coluna do include — quebra o `separate: true` abaixo.
       order: [
         [
           Sequelize.literal(`(
@@ -291,7 +302,6 @@ const getAllContactsWithMessages = async ({
           'DESC',
         ],
         ['updated_at', 'DESC'],
-        [{ model: ChatHistory, as: 'chatHistory' }, 'timestamp', 'DESC'], // Alterado para DESC para pegar as mais recentes
       ],
       include: [
         {
@@ -318,9 +328,13 @@ const getAllContactsWithMessages = async ({
             'is_answered',
             'template_id',
           ],
-          required: true,
-          limit: 20, // LIMITANDO A 20 MENSAGENS
-          order: [['timestamp', 'DESC']], // Ordenação DESC para pegar as mais recentes
+          // separate:true faz Sequelize executar uma query separada por contato
+          // para o chat_history, aplicando o limit corretamente por parent.
+          // Sem isso, parent limit (15) trunca o resultado JOIN inteiro e o
+          // limit do include (20) é silenciosamente ignorado.
+          separate: true,
+          limit: 20,
+          order: [['timestamp', 'DESC']],
           include: [
             {
               model: ChatHistoryContacts,
@@ -387,7 +401,7 @@ const getAllContactsWithMessages = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
               through: { attributes: [] },
               where: { is_active: true }, // ← MANTÉM O FILTRO
               required: false, // ← ADICIONA ESTA LINHA!
@@ -686,16 +700,24 @@ const getAllContactsBeingAttended = async ({
     }
     // FIM DO DEBUG INTEGRADO
 
+    // Filtro base: contatos em atendimento na clínica QUE TÊM chat_history.
+    // O EXISTS substitui o antigo `required: true` no include de chatHistory,
+    // que não funciona com `separate: true` (necessário para o limit por contato).
     let whereConditions = {
-      is_being_attended: true, // FILTRO PRINCIPAL ADICIONADO
+      is_being_attended: true,
       id: {
         [Op.in]: Sequelize.literal(`(
-          SELECT DISTINCT c.id 
+          SELECT DISTINCT c.id
           FROM contacts c
           INNER JOIN pet_owners po ON c.pet_owner_id = po.id
           INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
           WHERE poc.clinic_id = '${clinic_id}'
           AND c.is_being_attended = true
+          AND EXISTS (
+            SELECT 1 FROM chat_history ch
+            WHERE ch.contact_id = c.id
+            ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+          )
         )`),
       },
     };
@@ -842,7 +864,6 @@ const getAllContactsBeingAttended = async ({
           'DESC',
         ],
         ['updated_at', 'DESC'],
-        [{ model: ChatHistory, as: 'chatHistory' }, 'timestamp', 'DESC'],
       ],
       include: [
         {
@@ -869,7 +890,7 @@ const getAllContactsBeingAttended = async ({
             'is_answered',
             'template_id',
           ],
-          required: true,
+          separate: true,
           limit: 20,
           order: [['timestamp', 'DESC']],
           include: [
@@ -938,7 +959,7 @@ const getAllContactsBeingAttended = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
@@ -1615,7 +1636,7 @@ const getContactByPetOwnerIdOrPhone = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
@@ -1835,7 +1856,7 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
@@ -2029,7 +2050,7 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
