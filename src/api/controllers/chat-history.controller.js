@@ -274,6 +274,62 @@ const getContactByPetOwnerIdOrPhone = async (req, res) => {
   }
 };
 
+const getAllTestContacts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const { id, role, clinic_id } = req.user;
+
+    const responsibility = req.query.responsibility === 'true';
+    const unread = req.query.unread === 'true';
+    const tags = req?.query?.tags ? req.query.tags.split(',').filter((tag) => tag.trim()) : [];
+
+    const filters = { responsibility, unread, tags };
+
+    const result = await ChatService.getAllTestContacts({
+      user_id: id,
+      clinic_id,
+      role: role.role,
+      page,
+      limit,
+      filters,
+    });
+
+    return res.status(200).json({
+      code: 'TEST_CONTACTS_RETRIEVED',
+      data: result.contacts,
+    });
+  } catch (error) {
+    console.error('Error retrieving test contacts:', error);
+    return res.status(500).json({
+      code: 'TEST_CONTACTS_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+const getTestContactsCount = async (req, res) => {
+  try {
+    const { role, clinic_id } = req.user;
+
+    const result = await ChatService.getTestContactsCount({
+      clinic_id,
+      role: role.role,
+    });
+
+    return res.status(200).json({
+      code: 'TEST_CONTACTS_COUNT_RETRIEVED',
+      data: { count: result.count },
+    });
+  } catch (error) {
+    console.error('Error retrieving test contacts count:', error);
+    return res.status(500).json({
+      code: 'TEST_CONTACTS_COUNT_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
@@ -281,4 +337,6 @@ export default {
   getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerId,
   getContactByPetOwnerIdOrPhone,
+  getAllTestContacts,
+  getTestContactsCount,
 };

@@ -57,6 +57,7 @@ const getAllContactsWithMessages = async ({
   limit = 15,
   user_id,
   filters = {},
+  testFilter = 'exclude',
 }) => {
   try {
     const result = await ChatRepository.getAllContactsWithMessages({
@@ -66,6 +67,7 @@ const getAllContactsWithMessages = async ({
       limit,
       user_id,
       filters, // Repassa os filtros para o repository
+      testFilter,
     });
     const contacts = result.contacts;
 
@@ -77,6 +79,33 @@ const getAllContactsWithMessages = async ({
       totalItems: result.totalItems,
       totalPages: Math.ceil(result.totalItems / limit),
     };
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
+const getAllTestContacts = async ({
+  clinic_id,
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+}) => {
+  return getAllContactsWithMessages({
+    clinic_id,
+    role,
+    page,
+    limit,
+    user_id,
+    filters,
+    testFilter: 'only',
+  });
+};
+
+const getTestContactsCount = async ({ clinic_id, role }) => {
+  try {
+    return await ChatRepository.getTestContactsCount({ clinic_id, role });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -231,4 +260,6 @@ export default {
   getContactByPetOwnerId,
   getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerIdOrPhone,
+  getAllTestContacts,
+  getTestContactsCount,
 };

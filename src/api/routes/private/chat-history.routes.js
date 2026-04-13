@@ -19,6 +19,20 @@ router.get(
 );
 
 router.get(
+  '/messages/getAllTestContacts',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getAllTestContacts,
+);
+
+router.get(
+  '/messages/getTestContactsCount',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getTestContactsCount,
+);
+
+router.get(
   '/messages/searchContacts',
   verifyToken,
   checkRole(['admin', 'superAdmin', 'attendant']),
