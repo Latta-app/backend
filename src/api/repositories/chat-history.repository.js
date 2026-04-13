@@ -19,12 +19,22 @@ import {
   TemplateVariableType,
 } from '../models/index.js';
 
-// Telefones de test personas (scripts/test-onboarding-personas.ts): 55000000000XX
-const TEST_PHONE_REGEX = '^5500000000[0-9]{3}$';
-const buildTestPhoneFilter = (testFilter = 'exclude') => {
-  if (testFilter === 'only') return `AND po.cell_phone ~ '${TEST_PHONE_REGEX}'`;
-  if (testFilter === 'none') return '';
-  return `AND (po.cell_phone IS NULL OR po.cell_phone !~ '${TEST_PHONE_REGEX}')`;
+// Test personas (scripts/test-onboarding-personas.ts): phones 5500000000XXX.
+// Source of truth no banco: chat_history.path LIKE 'test-persona|%'.
+// A EF chat-history-logger prefixa o path automaticamente ao gravar chats
+// desses phones (ver supabase/functions/chat-history-logger/index.ts:73).
+// Usamos ESSA fonte de verdade pra filtrar ao invés de regex no phone —
+// mesmo marcador usado pelo skill /delete-test-personas.
+// Detalhes: docs/knowledge/test-personas.md
+const TEST_CONTACT_IDS_SUBQUERY = `(
+  SELECT DISTINCT ch.contact_id FROM chat_history ch
+  WHERE ch.path LIKE 'test-persona|%' AND ch.contact_id IS NOT NULL
+)`;
+
+const buildTestChatFilter = (testFilter = 'exclude') => {
+  if (testFilter === 'only') return { op: 'in' };
+  if (testFilter === 'none') return null;
+  return { op: 'notIn' };
 };
 
 const getAllContactsWithMessages = async ({
@@ -42,8 +52,7 @@ const getAllContactsWithMessages = async ({
 
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
-
-    const testPhoneFilter = buildTestPhoneFilter(testFilter);
+    const testChatFilter = buildTestChatFilter(testFilter);
 
     // Filtro base: contatos da clínica QUE TÊM pelo menos uma chat_history.
     // O EXISTS substitui o antigo `required: true` no include de chatHistory,
@@ -57,7 +66,6 @@ const getAllContactsWithMessages = async ({
           INNER JOIN pet_owners po ON c.pet_owner_id = po.id
           INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
           WHERE poc.clinic_id = '${clinic_id}'
-          ${testPhoneFilter}
           AND EXISTS (
             SELECT 1 FROM chat_history ch
             WHERE ch.contact_id = c.id
@@ -70,6 +78,20 @@ const getAllContactsWithMessages = async ({
 
     // Constrói os filtros condicionalmente
     const additionalConditions = [];
+
+    // FILTRO DE TEST PERSONAS — exclui/inclui contatos que têm chats marcados
+    // como test-persona pela EF chat-history-logger. Aplicado como condição
+    // AND separada (Op.in/notIn com Sequelize.literal de subquery) porque
+    // esse é o pattern que funciona confiavelmente com findAndCountAll+distinct.
+    if (testChatFilter) {
+      additionalConditions.push({
+        id: {
+          [testChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
+            TEST_CONTACT_IDS_SUBQUERY,
+          ),
+        },
+      });
+    }
 
     // FILTRO DE TAGS - Condição OU entre as tags
     if (filters.tags && filters.tags.length > 0) {
@@ -84,7 +106,6 @@ const getAllContactsWithMessages = async ({
             INNER JOIN pet_owner_tag_assignments pota ON po.id = pota.pet_owner_id
             WHERE pota.tag_id IN (${escapedTags})
             AND poc.clinic_id = '${clinic_id}'
-            ${testPhoneFilter}
           )`),
         },
       });
@@ -100,7 +121,6 @@ const getAllContactsWithMessages = async ({
             INNER JOIN pet_owners po ON c.pet_owner_id = po.id
             INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
             WHERE poc.clinic_id = '${clinic_id}'
-            ${testPhoneFilter}
             AND EXISTS (
               SELECT 1 FROM chat_history ch1
               WHERE ch1.contact_id = c.id
@@ -128,7 +148,6 @@ const getAllContactsWithMessages = async ({
             INNER JOIN pet_owners po ON c.pet_owner_id = po.id
             INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
             WHERE poc.clinic_id = '${clinic_id}'
-            ${testPhoneFilter}
             AND EXISTS (
               SELECT 1 FROM chat_history ch1
               WHERE ch1.contact_id = c.id
@@ -365,7 +384,7 @@ const getAllContactsBeingAttended = async ({
 
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
-    const testPhoneFilter = buildTestPhoneFilter(testFilter);
+    const testChatFilter = buildTestChatFilter(testFilter);
 
     // Filtro base: contatos em atendimento na clínica QUE TÊM chat_history.
     // O EXISTS substitui o antigo `required: true` no include de chatHistory,
@@ -380,7 +399,6 @@ const getAllContactsBeingAttended = async ({
           INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
           WHERE poc.clinic_id = '${clinic_id}'
           AND c.is_being_attended = true
-          ${testPhoneFilter}
           AND EXISTS (
             SELECT 1 FROM chat_history ch
             WHERE ch.contact_id = c.id
@@ -393,6 +411,17 @@ const getAllContactsBeingAttended = async ({
 
     // Constrói os filtros condicionalmente
     const additionalConditions = [];
+
+    // FILTRO DE TEST PERSONAS — mesma abordagem de getAllContactsWithMessages
+    if (testChatFilter) {
+      additionalConditions.push({
+        id: {
+          [testChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
+            TEST_CONTACT_IDS_SUBQUERY,
+          ),
+        },
+      });
+    }
 
     // FILTRO DE TAGS - Condição OU entre as tags
     if (filters.tags && filters.tags.length > 0) {
@@ -408,7 +437,6 @@ const getAllContactsBeingAttended = async ({
             WHERE pota.tag_id IN (${escapedTags})
             AND poc.clinic_id = '${clinic_id}'
             AND c.is_being_attended = true
-            ${testPhoneFilter}
           )`),
         },
       });
@@ -425,7 +453,6 @@ const getAllContactsBeingAttended = async ({
             INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
             WHERE poc.clinic_id = '${clinic_id}'
             AND c.is_being_attended = true
-            ${testPhoneFilter}
             AND EXISTS (
               SELECT 1 FROM chat_history ch1
               WHERE ch1.contact_id = c.id
@@ -454,7 +481,6 @@ const getAllContactsBeingAttended = async ({
             INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
             WHERE poc.clinic_id = '${clinic_id}'
             AND c.is_being_attended = true
-            ${testPhoneFilter}
             AND EXISTS (
               SELECT 1 FROM chat_history ch1
               WHERE ch1.contact_id = c.id
@@ -1461,16 +1487,13 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
     const offset = (page - 1) * limit;
     const { Op } = Sequelize;
 
-    // Exclui test personas (55000000000XX) mesmo no modo "sem filtros" —
-    // elas têm sua própria aba "Testes" no frontend e poluem a visualização
-    // quando misturadas aos contatos reais.
+    // Exclui test personas mesmo no modo "sem filtros" — elas têm sua própria
+    // aba "Testes" no frontend e poluem a visualização quando misturadas aos
+    // contatos reais. Usa o marcador chat_history.path LIKE 'test-persona|%'
+    // (source of truth, gravado pela EF chat-history-logger).
     const testPersonaExcludeWhere = {
       id: {
-        [Op.notIn]: Sequelize.literal(`(
-          SELECT c.id FROM contacts c
-          INNER JOIN pet_owners po ON c.pet_owner_id = po.id
-          WHERE po.cell_phone ~ '${TEST_PHONE_REGEX}'
-        )`),
+        [Op.notIn]: Sequelize.literal(TEST_CONTACT_IDS_SUBQUERY),
       },
     };
 
@@ -1740,22 +1763,26 @@ const getTestContactsCount = async ({ clinic_id, role }) => {
   try {
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
 
+    // Conta contatos com ao menos 1 chat marcado como test-persona pela EF
+    // chat-history-logger. LEFT JOIN em pet_owner_clinics pra também pegar
+    // test personas que não foram associadas a clinic (criadas direto pelo
+    // script sem passar pela seed de clinic).
     const [result] = await Contact.sequelize.query(
       `
       SELECT COUNT(DISTINCT c.id)::int AS count
       FROM contacts c
-      INNER JOIN pet_owners po ON c.pet_owner_id = po.id
-      INNER JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
-      WHERE poc.clinic_id = :clinic_id
-      AND po.cell_phone ~ :test_phone_regex
+      LEFT JOIN pet_owners po ON c.pet_owner_id = po.id
+      LEFT JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+      WHERE (poc.clinic_id = :clinic_id OR poc.clinic_id IS NULL)
       AND EXISTS (
         SELECT 1 FROM chat_history ch
         WHERE ch.contact_id = c.id
+        AND ch.path LIKE 'test-persona|%'
         ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
       )
       `,
       {
-        replacements: { clinic_id, test_phone_regex: TEST_PHONE_REGEX },
+        replacements: { clinic_id },
         type: Sequelize.QueryTypes.SELECT,
       },
     );
