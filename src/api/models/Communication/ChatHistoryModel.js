@@ -116,6 +116,14 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.UUID,
         allowNull: true,
       },
+      n8n_execution_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      n8n_workflow_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: 'chat_history',
