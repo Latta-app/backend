@@ -1461,8 +1461,21 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
     const offset = (page - 1) * limit;
     const { Op } = Sequelize;
 
+    // Exclui test personas (55000000000XX) mesmo no modo "sem filtros" —
+    // elas têm sua própria aba "Testes" no frontend e poluem a visualização
+    // quando misturadas aos contatos reais.
+    const testPersonaExcludeWhere = {
+      id: {
+        [Op.notIn]: Sequelize.literal(`(
+          SELECT c.id FROM contacts c
+          INNER JOIN pet_owners po ON c.pet_owner_id = po.id
+          WHERE po.cell_phone ~ '${TEST_PHONE_REGEX}'
+        )`),
+      },
+    };
 
     const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
+      where: testPersonaExcludeWhere,
       limit,
       offset,
       distinct: true,
