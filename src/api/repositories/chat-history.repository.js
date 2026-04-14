@@ -58,9 +58,25 @@ const getAllContactsWithMessages = async ({
     // O EXISTS substitui o antigo `required: true` no include de chatHistory,
     // que não funciona junto com `separate: true` (necessário para o limit
     // por contato funcionar corretamente).
-    let whereConditions = {
-      id: {
-        [Op.in]: Sequelize.literal(`(
+    //
+    // Quando testFilter === 'only' (aba Testes), usamos LEFT JOIN + OR IS NULL
+    // para alinhar com getTestContactsCount (linha ~1770): test personas criadas
+    // pelo script de testes NÃO têm row em pet_owner_clinics, então INNER JOIN
+    // as excluiria e a aba Testes ficaria vazia mesmo com count > 0. Bug real
+    // reportado em 2026-04-14 (count=14 mas lista []).
+    const baseSubquery = testFilter === 'only'
+      ? `(
+          SELECT DISTINCT c.id
+          FROM contacts c
+          LEFT JOIN pet_owners po ON c.pet_owner_id = po.id
+          LEFT JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+          WHERE (poc.clinic_id = '${clinic_id}' OR poc.clinic_id IS NULL)
+          AND EXISTS (
+            SELECT 1 FROM chat_history ch
+            WHERE ch.contact_id = c.id
+          )
+        )`
+      : `(
           SELECT DISTINCT c.id
           FROM contacts c
           INNER JOIN pet_owners po ON c.pet_owner_id = po.id
@@ -71,7 +87,11 @@ const getAllContactsWithMessages = async ({
             WHERE ch.contact_id = c.id
             ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
           )
-        )`),
+        )`;
+
+    let whereConditions = {
+      id: {
+        [Op.in]: Sequelize.literal(baseSubquery),
       },
     };
 
