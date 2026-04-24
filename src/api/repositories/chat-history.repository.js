@@ -20,15 +20,23 @@ import {
 } from '../models/index.js';
 
 // Test personas (scripts/test-onboarding-personas.ts): phones 5500000000XXX.
-// Source of truth no banco: chat_history.path LIKE 'test-persona|%'.
-// A EF chat-history-logger prefixa o path automaticamente ao gravar chats
-// desses phones (ver supabase/functions/chat-history-logger/index.ts:73).
-// Usamos ESSA fonte de verdade pra filtrar ao invés de regex no phone —
-// mesmo marcador usado pelo skill /delete-test-personas.
+// DUAS fontes de verdade (UNION) pra garantir que nenhum test persona vaza
+// pra aba "Geral":
+//   1) chat_history.path LIKE 'test-persona|%' — marker gravado pela EF
+//      chat-history-logger (supabase/functions/chat-history-logger/index.ts:73)
+//      ao processar phones no range.
+//   2) contacts.cellphone ~ '^5500000000[0-9]{3}$' — range oficial das test
+//      personas documentado em .claude/rules/general-rules.md. Cobre contacts
+//      criados direto via script (sem passar pela EF) ou cujo chat_history
+//      foi gravado antes do marker existir. Auditoria SQL 2026-04-24 detectou
+//      9 test personas vazando por depender só do marker.
 // Detalhes: docs/knowledge/test-personas.md
 const TEST_CONTACT_IDS_SUBQUERY = `(
   SELECT DISTINCT ch.contact_id FROM chat_history ch
   WHERE ch.path LIKE 'test-persona|%' AND ch.contact_id IS NOT NULL
+  UNION
+  SELECT c.id FROM contacts c
+  WHERE c.cellphone ~ '^5500000000[0-9]{3}$'
 )`;
 
 const buildTestChatFilter = (testFilter = 'exclude') => {
