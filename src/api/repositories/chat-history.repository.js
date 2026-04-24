@@ -1510,6 +1510,181 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
   }
 };
 
+const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 }) => {
+  try {
+    const { Op } = Sequelize;
+    const offset = (page - 1) * limit;
+
+    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+    const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
+
+    const contact = await Contact.findOne({
+      where: { id: contact_id },
+      order: [
+        [{ model: ChatHistory, as: 'chatHistory' }, 'timestamp', 'DESC'],
+      ],
+      include: [
+        {
+          model: ChatHistory,
+          as: 'chatHistory',
+          where: {
+            ...chatHistoryWhere,
+            id: {
+              [Op.in]: Sequelize.literal(`(
+                SELECT ch.id
+                FROM chat_history ch
+                WHERE ch.contact_id = "Contact".id
+                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ORDER BY ch.timestamp DESC
+                LIMIT ${limit} OFFSET ${offset}
+              )`),
+            },
+          },
+          attributes: [
+            'id',
+            [Sequelize.fn('LEFT', Sequelize.col('chatHistory.message'), 8000), 'message'],
+            'sent_by',
+            'sent_to',
+            'role',
+            'timestamp',
+            'window_timestamp',
+            'journey',
+            'message_type',
+            'date',
+            'message_id',
+            'midia_url',
+            'midia_name',
+            'reply',
+            'path',
+            'user_id',
+            'is_answered',
+            'template_id',
+            'n8n_execution_id',
+            'n8n_workflow_id',
+          ],
+          required: false,
+          order: [['timestamp', 'DESC']],
+          include: [
+            {
+              model: ChatHistoryContacts,
+              as: 'chatHistoryContacts',
+              attributes: [
+                'id',
+                'contact_name',
+                'cellphone',
+                'contact_phone',
+                'message_id',
+                'created_at',
+                'updated_at',
+              ],
+            },
+            {
+              model: Template,
+              as: 'template',
+              order: [['template_label', 'ASC']],
+              attributes: [
+                'id',
+                'template_name',
+                'template_label',
+                'template_category',
+                'template_status',
+              ],
+              include: [
+                {
+                  model: TemplateVariable,
+                  as: 'variables',
+                  attributes: [
+                    'id',
+                    'template_id',
+                    'template_component_id',
+                    'template_component_type_id',
+                    'template_varible_type_id',
+                    'variable_position',
+                  ],
+                  include: [
+                    {
+                      model: TemplateVariableType,
+                      as: 'templateVariableType',
+                      attributes: ['id', 'type', 'description', 'n8n_formula'],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: PetOwner,
+          as: 'petOwner',
+          attributes: [
+            'id',
+            'name',
+            'email',
+            'cell_phone',
+            'cpf',
+            'date_of_birth',
+            'is_active',
+            'created_at',
+          ],
+          include: [
+            {
+              model: Pet,
+              as: 'pets',
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
+              through: { attributes: [] },
+              where: { is_active: true },
+              required: false,
+              include: [
+                { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
+                { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
+                { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
+                { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
+                { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
+                { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
+              ],
+            },
+            {
+              model: PetOwnerTag,
+              as: 'tags',
+              attributes: ['id', 'name', 'label', 'color', 'is_active'],
+              through: { attributes: ['assigned_at', 'user_id'] },
+              order: [['name', 'ASC']],
+              where: { is_active: true },
+              required: false,
+            },
+          ],
+          required: false,
+        },
+      ],
+    });
+
+    let totalMessages = 0;
+    if (contact) {
+      totalMessages = await ChatHistory.count({
+        where: {
+          contact_id: contact.id,
+          ...chatHistoryWhere,
+        },
+      });
+    }
+
+    return {
+      contact,
+      pagination: {
+        currentPage: page,
+        limit,
+        totalMessages,
+        hasMore: totalMessages > page * limit,
+        totalPages: Math.ceil(totalMessages / limit),
+      },
+    };
+  } catch (error) {
+    console.error('❌ ERRO NA FUNÇÃO getContactByContactId:', error.message);
+    console.error('❌ STACK:', error.stack);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => {
   try {
     const offset = (page - 1) * limit;
@@ -1828,6 +2003,7 @@ export default {
   searchContacts,
   getReplyMessageById,
   getContactByPetOwnerId,
+  getContactByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllContactsMessagesWithNoFilters,
   getTestContactsCount,
