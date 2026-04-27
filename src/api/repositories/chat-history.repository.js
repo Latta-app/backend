@@ -356,29 +356,13 @@ const getAllContactsWithMessages = async ({
               where: { is_active: true },
               required: false,
             },
-            {
-              model: Order,
-              as: 'orders',
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
+            // ⚠️ Order include removido do listing.
+            // Único consumidor de petOwner.orders é o painel de detalhes
+            // (InfosSection.jsx) — que já chama getContactByPetOwnerId.
+            // Manter Orders + OrderItem aqui custava 14+ colunas x N pedidos
+            // x M itens por contato (até 15 contatos no listing) — peso real
+            // na latência do "Carregando conversas...". Mantido nos handlers
+            // de detalhe (getContactByPetOwnerId / getContactByContactId).
           ],
         },
       ],
@@ -685,29 +669,7 @@ const getAllContactsBeingAttended = async ({
               where: { is_active: true },
               required: false,
             },
-            {
-              model: Order,
-              as: 'orders',
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
+            // Order include removido — listing não usa orders no preview.
           ],
         },
       ],
@@ -1010,29 +972,7 @@ const searchContacts = async ({
               where: { is_active: true },
               required: false,
             },
-            {
-              model: Order,
-              as: 'orders',
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
+            // Order include removido do search listing.
           ],
         },
       ],
@@ -1473,6 +1413,32 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
               where: { is_active: true },
               required: false,
             },
+            // Orders no DETAIL handler (não no listing) — InfosSection.jsx
+            // consome via selectedContact.petOwner.orders. Listings cortaram
+            // pra performance; o detail (1 contato) absorve o custo.
+            {
+              model: Order,
+              as: 'orders',
+              attributes: [
+                'id',
+                'marketplace_order_id',
+                'created_at',
+                'total',
+                'current_status_name',
+                'payment_method',
+                'delivery_estimate',
+              ],
+              required: false,
+              order: [['created_at', 'DESC']],
+              include: [
+                {
+                  model: OrderItem,
+                  as: 'items',
+                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
+                  required: false,
+                },
+              ],
+            },
           ],
         },
       ],
@@ -1651,6 +1617,29 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
               order: [['name', 'ASC']],
               where: { is_active: true },
               required: false,
+            },
+            {
+              model: Order,
+              as: 'orders',
+              attributes: [
+                'id',
+                'marketplace_order_id',
+                'created_at',
+                'total',
+                'current_status_name',
+                'payment_method',
+                'delivery_estimate',
+              ],
+              required: false,
+              order: [['created_at', 'DESC']],
+              include: [
+                {
+                  model: OrderItem,
+                  as: 'items',
+                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
+                  required: false,
+                },
+              ],
             },
           ],
           required: false,
@@ -1879,29 +1868,9 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
               where: { is_active: true },
               required: false,
             },
-            {
-              model: Order,
-              as: 'orders',
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
+            // Order include removido do listing — detalhe via
+            // getContactByPetOwnerId. Sem o ORDER BY name/ASC inline pq não
+            // é uma listing com tags.
           ],
         },
       ],
