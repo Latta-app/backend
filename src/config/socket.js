@@ -13,8 +13,11 @@ function initializeSocket(httpServer) {
     },
     transports: ['websocket', 'polling'],
     allowEIO3: true,
-    pingTimeout: 60000,
-    pingInterval: 25000,
+    // Ping rápido (10s) + timeout curto (20s) pra detectar sockets mortos em
+    // ~20s em vez de 60s+. Reduz janela em que o admin vê "conectado" mas não
+    // recebe `new_message` porque a WS caiu silenciosa.
+    pingTimeout: 20000,
+    pingInterval: 10000,
     maxHttpBufferSize: 1e6,
     connectTimeout: 45000,
     forceNew: false,
