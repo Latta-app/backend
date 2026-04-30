@@ -381,6 +381,34 @@ const getTestContactsCount = async (req, res) => {
   }
 };
 
+// POST /chat-history/messages/markAsAnswered { pet_owner_id }
+// Migrado do webhook N8n is_answered (workflow Lattinha - Webhooks Front).
+const markAsAnswered = async (req, res) => {
+  try {
+    const { pet_owner_id } = req.body || {};
+
+    if (!pet_owner_id) {
+      return res.status(400).json({
+        code: 'PET_OWNER_ID_REQUIRED',
+        message: 'pet_owner_id é obrigatório',
+      });
+    }
+
+    const result = await ChatService.markAsAnswered({ pet_owner_id });
+
+    return res.status(200).json({
+      code: 'MESSAGES_MARKED_AS_ANSWERED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error marking messages as answered:', error);
+    return res.status(500).json({
+      code: 'MARK_AS_ANSWERED_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
@@ -391,4 +419,5 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getTestContactsCount,
+  markAsAnswered,
 };
