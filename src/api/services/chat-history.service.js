@@ -2,6 +2,7 @@ import ChatRepository from '../repositories/chat-history.repository.js';
 import S3ClientUtil from '../../utils/s3.js';
 import { normalizeQuery } from '../../utils/normalizeQuery.js';
 import { isValidUUID } from '../../utils/validate.js';
+import { ChatHistory, Contact } from '../models/index.js';
 
 const signMessagesMediaUrls = async (contacts) => {
   for (const contact of contacts) {
@@ -275,6 +276,41 @@ const getContactByPetOwnerIdOrPhone = async ({
   }
 };
 
+// Marca todas mensagens não-respondidas de um pet_owner como is_answered=true.
+// Substitui o webhook N8n `is_answered` (workflow Lattinha - Webhooks Front).
+//
+// Chamado pelo frontend quando o atendente abre uma conversa com mensagens
+// pendentes — o badge de unread some na próxima atualização do contact.
+//
+// Lookup do cellphone via Contact.pet_owner_id; UPDATE chat_history em
+// batch onde cell_phone match e is_answered=false. Retorna count atualizado.
+const markAsAnswered = async ({ pet_owner_id }) => {
+  if (!pet_owner_id || !isValidUUID(pet_owner_id)) {
+    throw new Error('pet_owner_id inválido');
+  }
+
+  const contact = await Contact.findOne({
+    where: { pet_owner_id },
+    attributes: ['cellphone'],
+  });
+
+  if (!contact?.cellphone) {
+    return { updated: 0, cellphone: null };
+  }
+
+  const [updated] = await ChatHistory.update(
+    { is_answered: true },
+    {
+      where: {
+        cell_phone: contact.cellphone,
+        is_answered: false,
+      },
+    },
+  );
+
+  return { updated, cellphone: contact.cellphone };
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
@@ -285,4 +321,5 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getTestContactsCount,
+  markAsAnswered,
 };
