@@ -276,25 +276,28 @@ const getContactByPetOwnerIdOrPhone = async ({
   }
 };
 
-// Marca todas mensagens não-respondidas de um pet_owner como is_answered=true.
+// Marca todas mensagens não-respondidas de um contact como is_answered=true.
 // Substitui o webhook N8n `is_answered` (workflow Lattinha - Webhooks Front).
 //
-// Chamado pelo frontend quando o atendente abre uma conversa com mensagens
-// pendentes — o badge de unread some na próxima atualização do contact.
-//
-// Lookup do cellphone via Contact.pet_owner_id; UPDATE chat_history em
-// batch onde cell_phone match e is_answered=false. Retorna count atualizado.
-const markAsAnswered = async ({ pet_owner_id }) => {
-  if (!pet_owner_id || !isValidUUID(pet_owner_id)) {
-    throw new Error('pet_owner_id inválido');
+// Aceita `cell_phone` (preferido — todo contact tem) ou `pet_owner_id`
+// (fallback com lookup). Usar só pet_owner_id falha em contacts sem
+// pet_owner vinculado (ex: leads sem pet ainda cadastrado), que é o caso
+// MAIS COMUM quando o atendente abre uma conversa nova.
+const markAsAnswered = async ({ pet_owner_id, cell_phone }) => {
+  let cellphone = cell_phone;
+
+  if (!cellphone && pet_owner_id) {
+    if (!isValidUUID(pet_owner_id)) {
+      throw new Error('pet_owner_id inválido');
+    }
+    const contact = await Contact.findOne({
+      where: { pet_owner_id },
+      attributes: ['cellphone'],
+    });
+    cellphone = contact?.cellphone;
   }
 
-  const contact = await Contact.findOne({
-    where: { pet_owner_id },
-    attributes: ['cellphone'],
-  });
-
-  if (!contact?.cellphone) {
+  if (!cellphone) {
     return { updated: 0, cellphone: null };
   }
 
@@ -302,13 +305,13 @@ const markAsAnswered = async ({ pet_owner_id }) => {
     { is_answered: true },
     {
       where: {
-        cell_phone: contact.cellphone,
+        cell_phone: cellphone,
         is_answered: false,
       },
     },
   );
 
-  return { updated, cellphone: contact.cellphone };
+  return { updated, cellphone };
 };
 
 export default {
