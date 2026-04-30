@@ -301,6 +301,13 @@ const markAsAnswered = async ({ pet_owner_id, cell_phone }) => {
     return { updated: 0, cellphone: null };
   }
 
+  // validate: false é OBRIGATÓRIO aqui — o ChatHistoryModel tem o custom
+  // validator `hasContactIdentifier` que exige cell_phone/contact_id/etc.
+  // não-nulos. Em UPDATE batch o Sequelize roda os validators dos campos
+  // sendo atualizados como se fosse criar uma row nova, então rejeita
+  // (é o caso clássico do "ValidationError: Pelo menos um identificador
+  // de contato deve ser fornecido"). Como aqui só tocamos is_answered, é
+  // safe pular validators — nenhuma constraint do banco é riscada.
   const [updated] = await ChatHistory.update(
     { is_answered: true },
     {
@@ -308,6 +315,7 @@ const markAsAnswered = async ({ pet_owner_id, cell_phone }) => {
         cell_phone: cellphone,
         is_answered: false,
       },
+      validate: false,
     },
   );
 
