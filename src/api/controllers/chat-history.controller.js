@@ -381,20 +381,22 @@ const getTestContactsCount = async (req, res) => {
   }
 };
 
-// POST /chat-history/messages/markAsAnswered { pet_owner_id }
+// POST /chat-history/messages/markAsAnswered { cell_phone, pet_owner_id }
 // Migrado do webhook N8n is_answered (workflow Lattinha - Webhooks Front).
+// Aceita cell_phone OU pet_owner_id — pelo menos um deve vir. cell_phone
+// é preferido pq cobre contacts sem pet_owner vinculado (leads novos).
 const markAsAnswered = async (req, res) => {
   try {
-    const { pet_owner_id } = req.body || {};
+    const { pet_owner_id, cell_phone } = req.body || {};
 
-    if (!pet_owner_id) {
+    if (!pet_owner_id && !cell_phone) {
       return res.status(400).json({
-        code: 'PET_OWNER_ID_REQUIRED',
-        message: 'pet_owner_id é obrigatório',
+        code: 'IDENTIFIER_REQUIRED',
+        message: 'cell_phone ou pet_owner_id é obrigatório',
       });
     }
 
-    const result = await ChatService.markAsAnswered({ pet_owner_id });
+    const result = await ChatService.markAsAnswered({ pet_owner_id, cell_phone });
 
     return res.status(200).json({
       code: 'MESSAGES_MARKED_AS_ANSWERED',
