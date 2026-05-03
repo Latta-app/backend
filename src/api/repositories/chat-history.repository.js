@@ -39,6 +39,45 @@ const TEST_CONTACT_IDS_SUBQUERY = `(
   WHERE c.cellphone ~ '^5500000000[0-9]{3}$'
 )`;
 
+const RECENT_ORDERS_LIMIT = 10;
+const ORDER_LIST_ATTRS = [
+  'id',
+  'marketplace_order_id',
+  'created_at',
+  'total',
+  'current_status_name',
+  'payment_method',
+  'delivery_estimate',
+];
+const ORDER_ITEM_LIST_ATTRS = ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'];
+
+// Anexa os N pedidos mais recentes do petOwner ao contact retornado pelos
+// handlers de detail. Substitui o include Sequelize com `separate: true` que
+// vinha truncando silenciosamente abaixo do limit em produção (LEFT OUTER
+// JOIN aninhado em PetOwner+OrderItem misturava o LIMIT do separate com
+// agregações do parent). Pedidos antigos chegam paginados via
+// getOrdersByContactId quando o operador scrolla a lista no chat.
+const attachRecentOrders = async (contact) => {
+  const petOwner = contact?.petOwner;
+  const petOwnerId = petOwner?.id;
+  if (!petOwnerId) return;
+  const orders = await Order.findAll({
+    where: { pet_owner_id: petOwnerId },
+    attributes: ORDER_LIST_ATTRS,
+    include: [
+      {
+        model: OrderItem,
+        as: 'items',
+        attributes: ORDER_ITEM_LIST_ATTRS,
+        required: false,
+      },
+    ],
+    order: [['created_at', 'DESC']],
+    limit: RECENT_ORDERS_LIMIT,
+  });
+  petOwner.setDataValue('orders', orders);
+};
+
 const buildTestChatFilter = (testFilter = 'exclude') => {
   if (testFilter === 'only') return { op: 'in' };
   if (testFilter === 'none') return null;
@@ -1195,39 +1234,12 @@ const getContactByPetOwnerIdOrPhone = async ({
               where: { is_active: true },
               required: false,
             },
-            {
-              model: Order,
-              as: 'orders',
-              // separate: true → query SELECT dedicada para orders, permite LIMIT
-              // honesto sem inflar o JOIN principal nem duplicar linhas via items.
-              // Pedidos antigos vêm sob demanda via getOrdersByContactId (scroll
-              // infinito em OrdersHistory.jsx).
-              separate: true,
-              limit: 10,
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
           ],
         },
       ],
     });
+
+    await attachRecentOrders(contactResult);
 
     let totalMessages = 0;
     if (contactResult) {
@@ -1419,42 +1431,12 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
               where: { is_active: true },
               required: false,
             },
-            // Orders no DETAIL handler (não no listing) — InfosSection.jsx
-            // consome via selectedContact.petOwner.orders. Listings cortaram
-            // pra performance; o detail (1 contato) absorve o custo.
-            {
-              model: Order,
-              as: 'orders',
-              // separate: true → query SELECT dedicada para orders, permite LIMIT
-              // honesto sem inflar o JOIN principal nem duplicar linhas via items.
-              // Pedidos antigos vêm sob demanda via getOrdersByContactId (scroll
-              // infinito em OrdersHistory.jsx).
-              separate: true,
-              limit: 10,
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
           ],
         },
       ],
     });
+
+    await attachRecentOrders(contact);
 
     // Contar total de mensagens para saber se há mais páginas
     let totalMessages = 0;
@@ -1630,40 +1612,13 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
               where: { is_active: true },
               required: false,
             },
-            {
-              model: Order,
-              as: 'orders',
-              // separate: true → query SELECT dedicada para orders, permite LIMIT
-              // honesto sem inflar o JOIN principal nem duplicar linhas via items.
-              // Pedidos antigos vêm sob demanda via getOrdersByContactId (scroll
-              // infinito em OrdersHistory.jsx).
-              separate: true,
-              limit: 10,
-              attributes: [
-                'id',
-                'marketplace_order_id',
-                'created_at',
-                'total',
-                'current_status_name',
-                'payment_method',
-                'delivery_estimate',
-              ],
-              required: false,
-              order: [['created_at', 'DESC']],
-              include: [
-                {
-                  model: OrderItem,
-                  as: 'items',
-                  attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
-                  required: false,
-                },
-              ],
-            },
           ],
           required: false,
         },
       ],
     });
+
+    await attachRecentOrders(contact);
 
     let totalMessages = 0;
     if (contact) {
