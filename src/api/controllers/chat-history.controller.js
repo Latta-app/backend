@@ -219,6 +219,48 @@ const getContactByContactId = async (req, res) => {
   }
 };
 
+const getOrdersByContactId = async (req, res) => {
+  try {
+    const { contact_id } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    if (!contact_id) {
+      return res.status(400).json({
+        code: 'MISSING_CONTACT_ID',
+        message: 'contact_id is required',
+      });
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        code: 'INVALID_PAGINATION_PARAMS',
+        message: 'Invalid pagination parameters',
+      });
+    }
+
+    const result = await ChatService.getOrdersByContactId({
+      contact_id,
+      page: pageNum,
+      limit: limitNum,
+    });
+
+    return res.status(200).json({
+      code: 'ORDERS_RETRIEVED',
+      data: result.orders,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error('Error retrieving orders by contact id:', error);
+    return res.status(500).json({
+      code: 'ORDERS_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getAllContactsMessagesWithNoFilters = async (req, res) => {
   try {
     const { role } = req.user;
@@ -418,6 +460,7 @@ export default {
   getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerId,
   getContactByContactId,
+  getOrdersByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getTestContactsCount,

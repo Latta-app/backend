@@ -217,6 +217,14 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
   }
 };
 
+const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
+  try {
+    return await ChatRepository.getOrdersByContactId({ contact_id, page, limit });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 15 }) => {
   try {
     const result = await ChatRepository.getAllContactsMessagesWithNoFilters({
@@ -328,6 +336,7 @@ export default {
   searchContacts,
   getContactByPetOwnerId,
   getContactByContactId,
+  getOrdersByContactId,
   getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
