@@ -54,6 +54,13 @@ router.get(
 );
 
 router.get(
+  '/messages/orders/by-contact/:contact_id',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getOrdersByContactId,
+);
+
+router.get(
   '/messages/getContactByPetOwnerIdOrPhone',
   verifyToken,
   checkRole(['admin', 'superAdmin', 'attendant']),

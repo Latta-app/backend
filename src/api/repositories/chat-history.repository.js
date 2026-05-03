@@ -1198,6 +1198,12 @@ const getContactByPetOwnerIdOrPhone = async ({
             {
               model: Order,
               as: 'orders',
+              // separate: true → query SELECT dedicada para orders, permite LIMIT
+              // honesto sem inflar o JOIN principal nem duplicar linhas via items.
+              // Pedidos antigos vêm sob demanda via getOrdersByContactId (scroll
+              // infinito em OrdersHistory.jsx).
+              separate: true,
+              limit: 10,
               attributes: [
                 'id',
                 'marketplace_order_id',
@@ -1419,6 +1425,12 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
             {
               model: Order,
               as: 'orders',
+              // separate: true → query SELECT dedicada para orders, permite LIMIT
+              // honesto sem inflar o JOIN principal nem duplicar linhas via items.
+              // Pedidos antigos vêm sob demanda via getOrdersByContactId (scroll
+              // infinito em OrdersHistory.jsx).
+              separate: true,
+              limit: 10,
               attributes: [
                 'id',
                 'marketplace_order_id',
@@ -1621,6 +1633,12 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
             {
               model: Order,
               as: 'orders',
+              // separate: true → query SELECT dedicada para orders, permite LIMIT
+              // honesto sem inflar o JOIN principal nem duplicar linhas via items.
+              // Pedidos antigos vêm sob demanda via getOrdersByContactId (scroll
+              // infinito em OrdersHistory.jsx).
+              separate: true,
+              limit: 10,
               attributes: [
                 'id',
                 'marketplace_order_id',
@@ -1669,6 +1687,67 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
     };
   } catch (error) {
     console.error('❌ ERRO NA FUNÇÃO getContactByContactId:', error.message);
+    console.error('❌ STACK:', error.stack);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
+// Paginação dos pedidos do contato — alimentada pelo scroll infinito do
+// OrdersHistory.jsx. A primeira página já vem embutida em getContactByContactId
+// (limit:10 no include); este endpoint serve as páginas seguintes (mais antigos).
+const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
+  try {
+    const contact = await Contact.findOne({
+      where: { id: contact_id },
+      attributes: ['id', 'pet_owner_id'],
+    });
+
+    if (!contact?.pet_owner_id) {
+      return {
+        orders: [],
+        pagination: { currentPage: page, limit, totalOrders: 0, hasMore: false, totalPages: 0 },
+      };
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Order.findAndCountAll({
+      where: { pet_owner_id: contact.pet_owner_id },
+      attributes: [
+        'id',
+        'marketplace_order_id',
+        'created_at',
+        'total',
+        'current_status_name',
+        'payment_method',
+        'delivery_estimate',
+      ],
+      include: [
+        {
+          model: OrderItem,
+          as: 'items',
+          attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
+          required: false,
+        },
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
+    });
+
+    return {
+      orders: rows,
+      pagination: {
+        currentPage: page,
+        limit,
+        totalOrders: count,
+        hasMore: count > page * limit,
+        totalPages: Math.ceil(count / limit),
+      },
+    };
+  } catch (error) {
+    console.error('❌ ERRO NA FUNÇÃO getOrdersByContactId:', error.message);
     console.error('❌ STACK:', error.stack);
     throw new Error(`Repository error: ${error.message}`);
   }
@@ -1975,5 +2054,6 @@ export default {
   getContactByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllContactsMessagesWithNoFilters,
+  getOrdersByContactId,
   getTestContactsCount,
 };
