@@ -3,12 +3,27 @@ import DashboardController from '../../controllers/dashboard.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
 const router = Router();
+const ALLOWED = ['admin', 'superAdmin', 'attendant'];
 
 router.get(
   '/summary',
   verifyToken,
-  checkRole(['admin', 'superAdmin', 'attendant']),
+  checkRole(ALLOWED),
   DashboardController.getDashboardSummary,
+);
+
+router.get(
+  '/abandoned',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getAbandonedFlows,
+);
+
+router.get(
+  '/contact/:phone',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getContactDrilldown,
 );
 
 export default router;
