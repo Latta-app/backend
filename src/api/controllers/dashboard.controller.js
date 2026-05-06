@@ -43,6 +43,34 @@ const getAbandonedFlows = async (req, res) => {
   }
 };
 
+const getFunnelStep = async (req, res) => {
+  try {
+    const step = req.params.step || req.query.step;
+    if (!step) {
+      return res.status(400).json({
+        code: 'DASHBOARD_FUNNEL_STEP_REQUIRED',
+        message: 'step é obrigatório',
+      });
+    }
+    const result = await DashboardService.getFunnelStep({
+      step,
+      window: req.query.window,
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_FUNNEL_STEP_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar funnel step:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_FUNNEL_STEP_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getContactDrilldown = async (req, res) => {
   try {
     const phone = req.params.phone || req.query.phone;
@@ -71,4 +99,5 @@ export default {
   getDashboardSummary,
   getAbandonedFlows,
   getContactDrilldown,
+  getFunnelStep,
 };

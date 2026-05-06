@@ -20,6 +20,13 @@ router.get(
 );
 
 router.get(
+  '/funnel/:step',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getFunnelStep,
+);
+
+router.get(
   '/contact/:phone',
   verifyToken,
   checkRole(ALLOWED),
