@@ -43,6 +43,29 @@ const getAbandonedFlows = async (req, res) => {
   }
 };
 
+const searchPhone = async (req, res) => {
+  try {
+    const q = req.query.q || req.params.q;
+    if (!q) {
+      return res.status(400).json({
+        code: 'DASHBOARD_SEARCH_QUERY_REQUIRED',
+        message: 'q é obrigatório',
+      });
+    }
+    const result = await DashboardService.searchPhone({ q });
+    return res.status(200).json({
+      code: 'DASHBOARD_SEARCH_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar phone:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_SEARCH_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getFunnelStep = async (req, res) => {
   try {
     const step = req.params.step || req.query.step;
@@ -100,4 +123,5 @@ export default {
   getAbandonedFlows,
   getContactDrilldown,
   getFunnelStep,
+  searchPhone,
 };
