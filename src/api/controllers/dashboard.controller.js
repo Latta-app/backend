@@ -78,6 +78,7 @@ const getFunnelStep = async (req, res) => {
     const result = await DashboardService.getFunnelStep({
       step,
       window: req.query.window,
+      scope: req.query.scope,
       refresh: parseRefresh(req.query),
     });
 

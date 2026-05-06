@@ -19,12 +19,13 @@ const ALLOWED_FUNNEL_STEPS = new Set([
   'pro',
 ]);
 
-const buildUrl = ({ action, window, phone, step, q, refresh }) => {
+const buildUrl = ({ action, window, phone, step, scope, q, refresh }) => {
   const params = new URLSearchParams();
   if (action && action !== 'summary') params.set('action', action);
   if (window) params.set('window', window);
   if (phone) params.set('phone', phone);
   if (step) params.set('step', step);
+  if (scope) params.set('scope', scope);
   if (q) params.set('q', q);
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
@@ -36,6 +37,7 @@ const callDashboardMetrics = async ({
   window,
   phone,
   step,
+  scope,
   q,
   refresh = false,
 } = {}) => {
@@ -66,7 +68,7 @@ const callDashboardMetrics = async ({
     if (digits.length < 6) throw new Error('q deve ter pelo menos 6 dígitos');
   }
 
-  const url = buildUrl({ action, window, phone, step, q, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -92,8 +94,8 @@ const getAbandonedFlows = async ({ window, refresh } = {}) =>
 const getContactDrilldown = async ({ phone } = {}) =>
   callDashboardMetrics({ action: 'drilldown', phone });
 
-const getFunnelStep = async ({ step, window, refresh } = {}) =>
-  callDashboardMetrics({ action: 'funnel_step', step, window, refresh });
+const getFunnelStep = async ({ step, window, scope, refresh } = {}) =>
+  callDashboardMetrics({ action: 'funnel_step', step, window, scope, refresh });
 
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
