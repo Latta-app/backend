@@ -9,6 +9,7 @@ const ALLOWED_ACTIONS = new Set([
   'abandoned',
   'drilldown',
   'funnel_step',
+  'search',
 ]);
 const ALLOWED_FUNNEL_STEPS = new Set([
   'talked',
@@ -18,12 +19,13 @@ const ALLOWED_FUNNEL_STEPS = new Set([
   'pro',
 ]);
 
-const buildUrl = ({ action, window, phone, step, refresh }) => {
+const buildUrl = ({ action, window, phone, step, q, refresh }) => {
   const params = new URLSearchParams();
   if (action && action !== 'summary') params.set('action', action);
   if (window) params.set('window', window);
   if (phone) params.set('phone', phone);
   if (step) params.set('step', step);
+  if (q) params.set('q', q);
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
   return query ? `${DASHBOARD_METRICS_URL}?${query}` : DASHBOARD_METRICS_URL;
@@ -34,6 +36,7 @@ const callDashboardMetrics = async ({
   window,
   phone,
   step,
+  q,
   refresh = false,
 } = {}) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -57,8 +60,13 @@ const callDashboardMetrics = async ({
   if (phone && !/^\d{10,15}$/.test(phone)) {
     throw new Error('phone inválido (apenas dígitos, 10-15)');
   }
+  if (action === 'search') {
+    if (!q) throw new Error('q é obrigatório para search');
+    const digits = String(q).replace(/\D/g, '');
+    if (digits.length < 6) throw new Error('q deve ter pelo menos 6 dígitos');
+  }
 
-  const url = buildUrl({ action, window, phone, step, refresh });
+  const url = buildUrl({ action, window, phone, step, q, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -87,9 +95,13 @@ const getContactDrilldown = async ({ phone } = {}) =>
 const getFunnelStep = async ({ step, window, refresh } = {}) =>
   callDashboardMetrics({ action: 'funnel_step', step, window, refresh });
 
+const searchPhone = async ({ q } = {}) =>
+  callDashboardMetrics({ action: 'search', q });
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
   getContactDrilldown,
   getFunnelStep,
+  searchPhone,
 };

@@ -20,6 +20,13 @@ router.get(
 );
 
 router.get(
+  '/search',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.searchPhone,
+);
+
+router.get(
   '/funnel/:step',
   verifyToken,
   checkRole(ALLOWED),
