@@ -34,6 +34,13 @@ router.get(
 );
 
 router.get(
+  '/onboarding-funnel',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getOnboardingFunnel,
+);
+
+router.get(
   '/contact/:phone',
   verifyToken,
   checkRole(ALLOWED),
