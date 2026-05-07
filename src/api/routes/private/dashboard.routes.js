@@ -48,6 +48,13 @@ router.get(
 );
 
 router.get(
+  '/cohort-retention',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getCohortRetention,
+);
+
+router.get(
   '/contact/:phone',
   verifyToken,
   checkRole(ALLOWED),

@@ -165,6 +165,29 @@ const getProRevenueChannels = async (req, res) => {
   }
 };
 
+const getCohortRetention = async (req, res) => {
+  try {
+    const lookbackRaw = req.query.lookback_days;
+    const lookbackDays = lookbackRaw != null ? parseInt(lookbackRaw, 10) : undefined;
+
+    const result = await DashboardService.getCohortRetention({
+      lookbackDays: Number.isFinite(lookbackDays) ? lookbackDays : undefined,
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_COHORT_RETENTION_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard cohort retention:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_COHORT_RETENTION_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
@@ -172,5 +195,6 @@ export default {
   getFunnelStep,
   getOnboardingFunnel,
   getProRevenueChannels,
+  getCohortRetention,
   searchPhone,
 };
