@@ -11,6 +11,7 @@ const ALLOWED_ACTIONS = new Set([
   'funnel_step',
   'onboarding_funnel',
   'pro_revenue_channels',
+  'cohort_retention',
   'search',
 ]);
 const ALLOWED_FUNNEL_STEPS = new Set([
@@ -29,7 +30,17 @@ const ALLOWED_FUNNEL_STEPS = new Set([
 ]);
 const ALLOWED_ONBOARDING_SCOPES = new Set(['cohort', 'all']);
 
-const buildUrl = ({ action, window, phone, step, scope, q, isPro, refresh }) => {
+const buildUrl = ({
+  action,
+  window,
+  phone,
+  step,
+  scope,
+  q,
+  isPro,
+  lookbackDays,
+  refresh,
+}) => {
   const params = new URLSearchParams();
   if (action && action !== 'summary') params.set('action', action);
   if (window) params.set('window', window);
@@ -39,6 +50,7 @@ const buildUrl = ({ action, window, phone, step, scope, q, isPro, refresh }) => 
   if (q) params.set('q', q);
   if (isPro === true) params.set('is_pro', 'true');
   else if (isPro === false) params.set('is_pro', 'false');
+  if (lookbackDays != null) params.set('lookback_days', String(lookbackDays));
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
   return query ? `${DASHBOARD_METRICS_URL}?${query}` : DASHBOARD_METRICS_URL;
@@ -52,6 +64,7 @@ const callDashboardMetrics = async ({
   scope,
   q,
   isPro,
+  lookbackDays,
   refresh = false,
 } = {}) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -89,7 +102,7 @@ const callDashboardMetrics = async ({
     if (digits.length < 6) throw new Error('q deve ter pelo menos 6 dígitos');
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, isPro, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -124,6 +137,9 @@ const getOnboardingFunnel = async ({ window, scope, isPro, refresh } = {}) =>
 const getProRevenueChannels = async ({ refresh } = {}) =>
   callDashboardMetrics({ action: 'pro_revenue_channels', refresh });
 
+const getCohortRetention = async ({ lookbackDays, refresh } = {}) =>
+  callDashboardMetrics({ action: 'cohort_retention', lookbackDays, refresh });
+
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
 
@@ -134,5 +150,6 @@ export default {
   getFunnelStep,
   getOnboardingFunnel,
   getProRevenueChannels,
+  getCohortRetention,
   searchPhone,
 };
