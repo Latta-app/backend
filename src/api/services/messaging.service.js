@@ -90,10 +90,17 @@ async function buildTemplatePayload({ phone, template, manualVars, contact }) {
   let petOwner = null;
   let pet = null;
   if (contact?.pet_owner_id) {
-    petOwner = await PetOwner.findByPk(contact.pet_owner_id);
+    // attributes: ['id','name'] — sem isso o Sequelize tenta SELECT *
+    // (incluindo pet_photo_commented que existe no model mas nao no DB →
+    // erro 42703 quebra o envio de template). Pra resolver auto-vars
+    // só precisamos do nome do tutor.
+    petOwner = await PetOwner.findByPk(contact.pet_owner_id, {
+      attributes: ['id', 'name'],
+    });
     if (petOwner) {
       pet = await Pet.findOne({
         where: { pet_owner_id: petOwner.id },
+        attributes: ['id', 'name'],
         order: [['created_at', 'ASC']],
       });
     }
