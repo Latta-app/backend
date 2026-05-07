@@ -1272,14 +1272,32 @@ const getContactByPetOwnerIdOrPhone = async ({
   }
 };
 
-const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20 }) => {
+const getContactByPetOwnerId = async ({
+  pet_owner_id,
+  role,
+  page = 1,
+  limit = 20,
+  before = null,
+}) => {
   try {
     const { Op } = Sequelize;
-    const offset = (page - 1) * limit;
 
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
 
+    // Cursor mode (before): pula offset/page e retorna msgs ANTES do timestamp.
+    // Estável quando novas msgs chegam em tempo real (offset desalinha).
+    // Page mode (legacy): mantém compat com chamadas antigas que ainda usam ?page=.
+    const useCursor = !!before;
+    const beforeIso = useCursor ? new Date(before).toISOString() : null;
+    if (useCursor && Number.isNaN(new Date(before).getTime())) {
+      throw new Error(`Invalid 'before' timestamp: ${before}`);
+    }
+    const offset = (page - 1) * limit;
+    const cursorClause = useCursor
+      ? `AND ch.timestamp < '${beforeIso}'`
+      : '';
+    const offsetClause = useCursor ? '' : `OFFSET ${offset}`;
 
     const whereConditions = {
       pet_owner_id: pet_owner_id,
@@ -1308,12 +1326,13 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
             ...chatHistoryWhere,
             id: {
               [Op.in]: Sequelize.literal(`(
-                SELECT ch.id 
+                SELECT ch.id
                 FROM chat_history ch
                 WHERE ch.contact_id = "Contact".id
                 ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ${cursorClause}
                 ORDER BY ch.timestamp DESC
-                LIMIT ${limit} OFFSET ${offset}
+                LIMIT ${limit} ${offsetClause}
               )`),
             },
           },
@@ -1450,19 +1469,31 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
       totalMessages = totalResult;
     }
 
-    const result = {
-      contact,
-      pagination: {
-        currentPage: page,
-        limit,
-        totalMessages,
-        hasMore: totalMessages > page * limit,
-        totalPages: Math.ceil(totalMessages / limit),
-      },
-    };
+    const returnedMessages = contact?.chatHistory?.length || 0;
+    const oldestTimestamp = returnedMessages
+      ? contact.chatHistory[contact.chatHistory.length - 1]?.timestamp || null
+      : null;
 
+    const pagination = useCursor
+      ? {
+          mode: 'cursor',
+          limit,
+          before: beforeIso,
+          returned: returnedMessages,
+          oldestTimestamp,
+          hasMore: returnedMessages >= limit,
+          totalMessages,
+        }
+      : {
+          mode: 'offset',
+          currentPage: page,
+          limit,
+          totalMessages,
+          hasMore: totalMessages > page * limit,
+          totalPages: Math.ceil(totalMessages / limit),
+        };
 
-    return result;
+    return { contact, pagination };
   } catch (error) {
     console.error('❌ ERRO NA FUNÇÃO getContactByPetOwnerId:', error.message);
     console.error('❌ STACK:', error.stack);
@@ -1470,13 +1501,27 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
   }
 };
 
-const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 }) => {
+const getContactByContactId = async ({
+  contact_id,
+  role,
+  page = 1,
+  limit = 20,
+  before = null,
+}) => {
   try {
     const { Op } = Sequelize;
-    const offset = (page - 1) * limit;
 
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
+
+    const useCursor = !!before;
+    const beforeIso = useCursor ? new Date(before).toISOString() : null;
+    if (useCursor && Number.isNaN(new Date(before).getTime())) {
+      throw new Error(`Invalid 'before' timestamp: ${before}`);
+    }
+    const offset = (page - 1) * limit;
+    const cursorClause = useCursor ? `AND ch.timestamp < '${beforeIso}'` : '';
+    const offsetClause = useCursor ? '' : `OFFSET ${offset}`;
 
     const contact = await Contact.findOne({
       where: { id: contact_id },
@@ -1495,8 +1540,9 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
                 FROM chat_history ch
                 WHERE ch.contact_id = "Contact".id
                 ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ${cursorClause}
                 ORDER BY ch.timestamp DESC
-                LIMIT ${limit} OFFSET ${offset}
+                LIMIT ${limit} ${offsetClause}
               )`),
             },
           },
@@ -1630,16 +1676,31 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
       });
     }
 
-    return {
-      contact,
-      pagination: {
-        currentPage: page,
-        limit,
-        totalMessages,
-        hasMore: totalMessages > page * limit,
-        totalPages: Math.ceil(totalMessages / limit),
-      },
-    };
+    const returnedMessages = contact?.chatHistory?.length || 0;
+    const oldestTimestamp = returnedMessages
+      ? contact.chatHistory[contact.chatHistory.length - 1]?.timestamp || null
+      : null;
+
+    const pagination = useCursor
+      ? {
+          mode: 'cursor',
+          limit,
+          before: beforeIso,
+          returned: returnedMessages,
+          oldestTimestamp,
+          hasMore: returnedMessages >= limit,
+          totalMessages,
+        }
+      : {
+          mode: 'offset',
+          currentPage: page,
+          limit,
+          totalMessages,
+          hasMore: totalMessages > page * limit,
+          totalPages: Math.ceil(totalMessages / limit),
+        };
+
+    return { contact, pagination };
   } catch (error) {
     console.error('❌ ERRO NA FUNÇÃO getContactByContactId:', error.message);
     console.error('❌ STACK:', error.stack);
@@ -2000,6 +2061,70 @@ const getTestContactsCount = async ({ clinic_id, role }) => {
   }
 };
 
+// Resumo de dias com mensagens pra um contato — alimenta o date picker da
+// mensageria. Agrupa por dia em America/Sao_Paulo (timezone do operador) e
+// aplica o mesmo filtro de role usado em getContactByPetOwnerId/getContactByContactId.
+// Recebe pet_owner_id OU contact_id (um dos dois). Pet_owner_id é resolvido
+// pra contact_id internamente — consistente com o resto do módulo.
+const getMessagesDaysSummary = async ({ pet_owner_id = null, contact_id = null, role }) => {
+  try {
+    if (!pet_owner_id && !contact_id) {
+      throw new Error('pet_owner_id or contact_id is required');
+    }
+
+    let resolvedContactId = contact_id;
+    if (!resolvedContactId) {
+      const contact = await Contact.findOne({
+        where: { pet_owner_id },
+        attributes: ['id'],
+      });
+      if (!contact) {
+        return { days: [], totalDays: 0, totalMessages: 0 };
+      }
+      resolvedContactId = contact.id;
+    }
+
+    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+    const lattaFilter = shouldFilterLatta ? `AND path != 'latta'` : '';
+
+    const sequelize = ChatHistory.sequelize;
+    const rows = await sequelize.query(
+      `
+      SELECT
+        TO_CHAR(timestamp AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS day,
+        COUNT(*)::int AS msg_count,
+        MIN(timestamp) AS day_start,
+        MAX(timestamp) AS day_end
+      FROM chat_history
+      WHERE contact_id = :contact_id
+        ${lattaFilter}
+      GROUP BY day
+      ORDER BY day DESC
+      `,
+      {
+        replacements: { contact_id: resolvedContactId },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    const totalMessages = rows.reduce((sum, r) => sum + Number(r.msg_count || 0), 0);
+
+    return {
+      days: rows.map((r) => ({
+        day: r.day,
+        count: Number(r.msg_count),
+        dayStart: r.day_start,
+        dayEnd: r.day_end,
+      })),
+      totalDays: rows.length,
+      totalMessages,
+    };
+  } catch (error) {
+    console.error('❌ ERRO getMessagesDaysSummary:', error.message);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
@@ -2011,4 +2136,5 @@ export default {
   getAllContactsMessagesWithNoFilters,
   getOrdersByContactId,
   getTestContactsCount,
+  getMessagesDaysSummary,
 };
