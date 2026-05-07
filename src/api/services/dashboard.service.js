@@ -134,11 +134,11 @@ const callDashboardMetrics = async ({
   return res.json();
 };
 
-const getDashboardSummary = async ({ window, phone, refresh } = {}) =>
-  callDashboardMetrics({ action: 'summary', window, phone, refresh });
+const getDashboardSummary = async ({ window, phone, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'summary', window, phone, includeTest, refresh });
 
-const getAbandonedFlows = async ({ window, refresh } = {}) =>
-  callDashboardMetrics({ action: 'abandoned', window, refresh });
+const getAbandonedFlows = async ({ window, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'abandoned', window, includeTest, refresh });
 
 const getContactDrilldown = async ({ phone } = {}) =>
   callDashboardMetrics({ action: 'drilldown', phone });
