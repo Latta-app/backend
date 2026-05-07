@@ -21,7 +21,8 @@ const ALLOWED_FUNNEL_STEPS = new Set([
   'utilized',
   'purchased',
   'pro',
-  // Steps internos do Onboarding V3
+  // Steps internos do Onboarding V3 (cohort base = contacts criados na janela)
+  'messaged',
   'pet_registered',
   'pet_confirmed',
   'pro_decision',
