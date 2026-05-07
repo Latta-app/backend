@@ -118,7 +118,7 @@ const getContactByPetOwnerId = async (req, res) => {
   try {
     const { pet_owner_id } = req.params;
     const { role } = req.user;
-    const { page = 1, limit = 20, before } = req.query;
+    const { page = 1, limit = 20, before, after } = req.query;
 
     // Validação dos parâmetros
     if (!pet_owner_id) {
@@ -138,10 +138,24 @@ const getContactByPetOwnerId = async (req, res) => {
       });
     }
 
+    if (before && after) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: "Provide 'before' or 'after', not both",
+      });
+    }
+
     if (before && Number.isNaN(new Date(before).getTime())) {
       return res.status(400).json({
         code: 'INVALID_CURSOR',
         message: `Invalid 'before' timestamp: ${before}`,
+      });
+    }
+
+    if (after && Number.isNaN(new Date(after).getTime())) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: `Invalid 'after' timestamp: ${after}`,
       });
     }
 
@@ -153,6 +167,7 @@ const getContactByPetOwnerId = async (req, res) => {
       page: pageNum,
       limit: limitNum,
       before: before || null,
+      after: after || null,
     });
 
     if (!result || !result.contact) {
@@ -180,7 +195,7 @@ const getContactByContactId = async (req, res) => {
   try {
     const { contact_id } = req.params;
     const { role } = req.user;
-    const { page = 1, limit = 20, before } = req.query;
+    const { page = 1, limit = 20, before, after } = req.query;
 
     if (!contact_id) {
       return res.status(400).json({
@@ -199,10 +214,24 @@ const getContactByContactId = async (req, res) => {
       });
     }
 
+    if (before && after) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: "Provide 'before' or 'after', not both",
+      });
+    }
+
     if (before && Number.isNaN(new Date(before).getTime())) {
       return res.status(400).json({
         code: 'INVALID_CURSOR',
         message: `Invalid 'before' timestamp: ${before}`,
+      });
+    }
+
+    if (after && Number.isNaN(new Date(after).getTime())) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: `Invalid 'after' timestamp: ${after}`,
       });
     }
 
@@ -212,6 +241,7 @@ const getContactByContactId = async (req, res) => {
       page: pageNum,
       limit: limitNum,
       before: before || null,
+      after: after || null,
     });
 
     if (!result || !result.contact) {

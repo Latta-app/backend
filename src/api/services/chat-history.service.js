@@ -178,6 +178,7 @@ const getContactByPetOwnerId = async ({
   page = 1,
   limit = 20,
   before = null,
+  after = null,
 }) => {
   try {
     const result = await ChatRepository.getContactByPetOwnerId({
@@ -186,6 +187,7 @@ const getContactByPetOwnerId = async ({
       page,
       limit,
       before,
+      after,
     });
 
     if (!result.contact) {
@@ -208,6 +210,7 @@ const getContactByContactId = async ({
   page = 1,
   limit = 20,
   before = null,
+  after = null,
 }) => {
   try {
     const result = await ChatRepository.getContactByContactId({
@@ -216,6 +219,7 @@ const getContactByContactId = async ({
       page,
       limit,
       before,
+      after,
     });
 
     if (!result.contact) {
