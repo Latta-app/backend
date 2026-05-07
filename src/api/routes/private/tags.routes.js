@@ -31,4 +31,13 @@ router.put('/:id', verifyToken, checkRole(['admin', 'superAdmin']), TagControlle
 
 router.delete('/:id', verifyToken, checkRole(['admin', 'superAdmin']), TagController.deleteTag);
 
+// Migrado do webhook N8n /tags na Fase 4 (2026-05). Aplica create/delete
+// em batch nas associações pet_owner_tag_assignments.
+router.post(
+  '/manage-assignments',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  TagController.manageAssignments,
+);
+
 export default router;

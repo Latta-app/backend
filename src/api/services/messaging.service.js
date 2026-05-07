@@ -235,7 +235,56 @@ const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id }) =
   return { success: true, message_id: messageId, template_name: template.template_name };
 };
 
+// Migrado do webhook N8n /ai_accepted na Fase 4. Operador aprova (👍) +
+// edita (opcional) a sugestão IA do painel; este endpoint manda a mensagem
+// final pro tutor e registra no chat_history com flags ai_accepted=true e
+// is_modified (true se operador editou o texto antes de enviar).
+const sendAISuggestion = async ({ contact_id, message, is_modificated, user_id }) => {
+  if (!contact_id) throw new Error('contact_id obrigatorio');
+  if (!message) throw new Error('message obrigatoria');
+
+  const contact = await Contact.findByPk(contact_id);
+  if (!contact) throw new Error('Contact nao encontrado');
+
+  const phone = contact.cellphone;
+  // Mesmo header *Luma*\n usado pelo sendText (UX consistente — tutor não
+  // vê diferença entre "sugestão IA aceita" e "texto livre" do painel).
+  const fullText = `*${LUMA_NAME}*\n${message}`;
+
+  const metaResp = await callMeta({
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: phone,
+    type: 'text',
+    text: { body: fullText, preview_url: false },
+  });
+  const messageId = metaResp?.messages?.[0]?.id;
+
+  await logToHistory({
+    name: LUMA_NAME,
+    cell_phone: phone,
+    journey: 'enviada',
+    message,
+    sent_by: 'petshop',
+    message_type: 'text',
+    message_id: messageId,
+    path: 'petshop',
+    user_id: user_id || null,
+    contact_id,
+    pet_owner_id: contact.pet_owner_id || undefined,
+    clinic_id: contact.clinic_id || undefined,
+    ai_output: message,
+    is_modified: !!is_modificated,
+  });
+
+  // Luma assumiu via sugestão IA — set is_being_attended=true
+  await ContactRepository.setAttendance({ contact_id, is_being_attended: true });
+
+  return { success: true, message_id: messageId };
+};
+
 export default {
   sendText,
   sendTemplate,
+  sendAISuggestion,
 };

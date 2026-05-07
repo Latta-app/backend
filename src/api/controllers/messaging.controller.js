@@ -75,7 +75,43 @@ const sendTemplate = async (req, res) => {
   }
 };
 
+const sendAISuggestion = async (req, res) => {
+  try {
+    const { contact_id, message, is_modificated } = req.body;
+    const userId = req.user?.id || null;
+    if (!contact_id) {
+      return res.status(400).json({
+        code: 'MISSING_CONTACT_ID',
+        message: 'contact_id is required',
+      });
+    }
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({
+        code: 'MISSING_MESSAGE',
+        message: 'message is required',
+      });
+    }
+    const result = await MessagingService.sendAISuggestion({
+      contact_id,
+      message: message.trim(),
+      is_modificated: !!is_modificated,
+      user_id: userId,
+    });
+    return res.status(200).json({
+      code: 'AI_SUGGESTION_SENT',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error sending AI suggestion:', error);
+    return res.status(500).json({
+      code: 'AI_SUGGESTION_SEND_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   sendText,
   sendTemplate,
+  sendAISuggestion,
 };

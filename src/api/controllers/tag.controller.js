@@ -1,5 +1,34 @@
 import TagService from '../services/tag.service.js';
 
+// Migrado do webhook N8n /tags. Body: { pet_owner_id, create: [tag_id...],
+// delete: [tag_id...] }. Aplica em batch: idempotente em ambos.
+const manageAssignments = async (req, res) => {
+  try {
+    const { pet_owner_id, create, delete: toDelete } = req.body;
+    if (!pet_owner_id) {
+      return res.status(400).json({
+        code: 'MISSING_PET_OWNER_ID',
+        message: 'pet_owner_id is required',
+      });
+    }
+    const result = await TagService.manageAssignments({
+      pet_owner_id,
+      create,
+      delete: toDelete,
+    });
+    return res.status(200).json({
+      code: 'TAG_ASSIGNMENTS_UPDATED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error managing tag assignments:', error);
+    return res.status(500).json({
+      code: 'TAG_ASSIGNMENTS_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getAllTags = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -159,4 +188,5 @@ export default {
   updateTag,
   deleteTag,
   searchTags,
+  manageAssignments,
 };

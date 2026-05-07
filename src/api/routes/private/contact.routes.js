@@ -21,4 +21,14 @@ router.patch(
   ContactController.setAttendance,
 );
 
+// Migrado do webhook N8n /responsability na Fase 4 (2026-05). Define
+// quem está no comando da conversa: latta (bot), petshop (humano), ou
+// custom. Body: { user_id, path }.
+router.patch(
+  '/:id/responsibility',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ContactController.setResponsibility,
+);
+
 export default router;

@@ -18,7 +18,16 @@ const setAttendance = async ({ contact_id, is_being_attended }) => {
   }
 };
 
+const setResponsibility = async ({ contact_id, user_id, path }) => {
+  try {
+    return await ContactRepository.setResponsibility({ contact_id, user_id, path });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 export default {
   toggleAttendance,
   setAttendance,
+  setResponsibility,
 };
