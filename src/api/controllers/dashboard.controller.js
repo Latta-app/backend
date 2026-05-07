@@ -1,6 +1,7 @@
 import DashboardService from '../services/dashboard.service.js';
 
 const parseRefresh = (q) => q?.refresh === '1' || q?.refresh === 'true';
+const parseIncludeTest = (q) => q?.include_test === 'true';
 
 const getDashboardSummary = async (req, res) => {
   try {
@@ -84,6 +85,7 @@ const getFunnelStep = async (req, res) => {
       window: req.query.window,
       scope: req.query.scope,
       isPro,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
@@ -135,6 +137,7 @@ const getOnboardingFunnel = async (req, res) => {
       window,
       scope,
       isPro,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
@@ -154,6 +157,7 @@ const getOnboardingFunnel = async (req, res) => {
 const getProRevenueChannels = async (req, res) => {
   try {
     const result = await DashboardService.getProRevenueChannels({
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
@@ -181,6 +185,7 @@ const getActivityFunnel = async (req, res) => {
       window,
       scope,
       isPro,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
@@ -204,6 +209,7 @@ const getCohortRetention = async (req, res) => {
 
     const result = await DashboardService.getCohortRetention({
       lookbackDays: Number.isFinite(lookbackDays) ? lookbackDays : undefined,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
@@ -225,6 +231,7 @@ const getTimeToEvent = async (req, res) => {
     const result = await DashboardService.getTimeToEvent({
       window: req.query.window,
       event: req.query.event,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
