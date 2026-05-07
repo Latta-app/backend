@@ -10,6 +10,7 @@ const ALLOWED_ACTIONS = new Set([
   'drilldown',
   'funnel_step',
   'onboarding_funnel',
+  'activity_funnel',
   'pro_revenue_channels',
   'cohort_retention',
   'search',
@@ -129,11 +130,14 @@ const getAbandonedFlows = async ({ window, refresh } = {}) =>
 const getContactDrilldown = async ({ phone } = {}) =>
   callDashboardMetrics({ action: 'drilldown', phone });
 
-const getFunnelStep = async ({ step, window, scope, refresh } = {}) =>
-  callDashboardMetrics({ action: 'funnel_step', step, window, scope, refresh });
+const getFunnelStep = async ({ step, window, scope, isPro, refresh } = {}) =>
+  callDashboardMetrics({ action: 'funnel_step', step, window, scope, isPro, refresh });
 
 const getOnboardingFunnel = async ({ window, scope, isPro, refresh } = {}) =>
   callDashboardMetrics({ action: 'onboarding_funnel', window, scope, isPro, refresh });
+
+const getActivityFunnel = async ({ window, scope, isPro, refresh } = {}) =>
+  callDashboardMetrics({ action: 'activity_funnel', window, scope, isPro, refresh });
 
 const getProRevenueChannels = async ({ refresh } = {}) =>
   callDashboardMetrics({ action: 'pro_revenue_channels', refresh });
@@ -150,6 +154,7 @@ export default {
   getContactDrilldown,
   getFunnelStep,
   getOnboardingFunnel,
+  getActivityFunnel,
   getProRevenueChannels,
   getCohortRetention,
   searchPhone,

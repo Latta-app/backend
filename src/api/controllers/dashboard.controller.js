@@ -75,10 +75,15 @@ const getFunnelStep = async (req, res) => {
         message: 'step é obrigatório',
       });
     }
+    let isPro;
+    if (req.query.is_pro === 'true') isPro = true;
+    else if (req.query.is_pro === 'false') isPro = false;
+
     const result = await DashboardService.getFunnelStep({
       step,
       window: req.query.window,
       scope: req.query.scope,
+      isPro,
       refresh: parseRefresh(req.query),
     });
 
@@ -165,6 +170,33 @@ const getProRevenueChannels = async (req, res) => {
   }
 };
 
+const getActivityFunnel = async (req, res) => {
+  try {
+    const { window, scope } = req.query;
+    let isPro;
+    if (req.query.is_pro === 'true') isPro = true;
+    else if (req.query.is_pro === 'false') isPro = false;
+
+    const result = await DashboardService.getActivityFunnel({
+      window,
+      scope,
+      isPro,
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_ACTIVITY_FUNNEL_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard activity funnel:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_ACTIVITY_FUNNEL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getCohortRetention = async (req, res) => {
   try {
     const lookbackRaw = req.query.lookback_days;
@@ -194,6 +226,7 @@ export default {
   getContactDrilldown,
   getFunnelStep,
   getOnboardingFunnel,
+  getActivityFunnel,
   getProRevenueChannels,
   getCohortRetention,
   searchPhone,
