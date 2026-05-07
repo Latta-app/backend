@@ -41,6 +41,13 @@ router.get(
 );
 
 router.get(
+  '/activity-funnel',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getActivityFunnel,
+);
+
+router.get(
   '/pro-revenue-channels',
   verifyToken,
   checkRole(ALLOWED),
