@@ -45,6 +45,7 @@ const buildUrl = ({
   isPro,
   lookbackDays,
   event,
+  includeTest,
   refresh,
 }) => {
   const params = new URLSearchParams();
@@ -58,6 +59,7 @@ const buildUrl = ({
   else if (isPro === false) params.set('is_pro', 'false');
   if (lookbackDays != null) params.set('lookback_days', String(lookbackDays));
   if (event) params.set('event', event);
+  if (includeTest === true) params.set('include_test', 'true');
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
   return query ? `${DASHBOARD_METRICS_URL}?${query}` : DASHBOARD_METRICS_URL;
@@ -73,6 +75,7 @@ const callDashboardMetrics = async ({
   isPro,
   lookbackDays,
   event,
+  includeTest,
   refresh = false,
 } = {}) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -114,7 +117,7 @@ const callDashboardMetrics = async ({
     throw new Error(`event inválido: ${event}`);
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, includeTest, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -140,23 +143,23 @@ const getAbandonedFlows = async ({ window, refresh } = {}) =>
 const getContactDrilldown = async ({ phone } = {}) =>
   callDashboardMetrics({ action: 'drilldown', phone });
 
-const getFunnelStep = async ({ step, window, scope, isPro, refresh } = {}) =>
-  callDashboardMetrics({ action: 'funnel_step', step, window, scope, isPro, refresh });
+const getFunnelStep = async ({ step, window, scope, isPro, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'funnel_step', step, window, scope, isPro, includeTest, refresh });
 
-const getOnboardingFunnel = async ({ window, scope, isPro, refresh } = {}) =>
-  callDashboardMetrics({ action: 'onboarding_funnel', window, scope, isPro, refresh });
+const getOnboardingFunnel = async ({ window, scope, isPro, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'onboarding_funnel', window, scope, isPro, includeTest, refresh });
 
-const getActivityFunnel = async ({ window, scope, isPro, refresh } = {}) =>
-  callDashboardMetrics({ action: 'activity_funnel', window, scope, isPro, refresh });
+const getActivityFunnel = async ({ window, scope, isPro, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'activity_funnel', window, scope, isPro, includeTest, refresh });
 
-const getProRevenueChannels = async ({ refresh } = {}) =>
-  callDashboardMetrics({ action: 'pro_revenue_channels', refresh });
+const getProRevenueChannels = async ({ includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'pro_revenue_channels', includeTest, refresh });
 
-const getCohortRetention = async ({ lookbackDays, refresh } = {}) =>
-  callDashboardMetrics({ action: 'cohort_retention', lookbackDays, refresh });
+const getCohortRetention = async ({ lookbackDays, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'cohort_retention', lookbackDays, includeTest, refresh });
 
-const getTimeToEvent = async ({ window, event, refresh } = {}) =>
-  callDashboardMetrics({ action: 'time_to_event', window, event, refresh });
+const getTimeToEvent = async ({ window, event, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'time_to_event', window, event, includeTest, refresh });
 
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
