@@ -146,11 +146,31 @@ const getOnboardingFunnel = async (req, res) => {
   }
 };
 
+const getProRevenueChannels = async (req, res) => {
+  try {
+    const result = await DashboardService.getProRevenueChannels({
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_PRO_REVENUE_CHANNELS_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard pro revenue channels:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_PRO_REVENUE_CHANNELS_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
   getContactDrilldown,
   getFunnelStep,
   getOnboardingFunnel,
+  getProRevenueChannels,
   searchPhone,
 };

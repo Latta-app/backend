@@ -41,6 +41,13 @@ router.get(
 );
 
 router.get(
+  '/pro-revenue-channels',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getProRevenueChannels,
+);
+
+router.get(
   '/contact/:phone',
   verifyToken,
   checkRole(ALLOWED),

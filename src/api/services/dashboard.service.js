@@ -10,6 +10,7 @@ const ALLOWED_ACTIONS = new Set([
   'drilldown',
   'funnel_step',
   'onboarding_funnel',
+  'pro_revenue_channels',
   'search',
 ]);
 const ALLOWED_FUNNEL_STEPS = new Set([
@@ -120,6 +121,9 @@ const getFunnelStep = async ({ step, window, scope, refresh } = {}) =>
 const getOnboardingFunnel = async ({ window, scope, isPro, refresh } = {}) =>
   callDashboardMetrics({ action: 'onboarding_funnel', window, scope, isPro, refresh });
 
+const getProRevenueChannels = async ({ refresh } = {}) =>
+  callDashboardMetrics({ action: 'pro_revenue_channels', refresh });
+
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
 
@@ -129,5 +133,6 @@ export default {
   getContactDrilldown,
   getFunnelStep,
   getOnboardingFunnel,
+  getProRevenueChannels,
   searchPhone,
 };
