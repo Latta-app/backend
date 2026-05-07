@@ -97,4 +97,13 @@ router.post(
   ChatController.markAsAnswered,
 );
 
+// Resumo de dias com mensagens — alimenta date picker da mensageria.
+// Query: ?pet_owner_id=X OU ?contact_id=Y
+router.get(
+  '/messages/daysSummary',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getMessagesDaysSummary,
+);
+
 export default router;

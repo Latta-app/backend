@@ -118,7 +118,7 @@ const getContactByPetOwnerId = async (req, res) => {
   try {
     const { pet_owner_id } = req.params;
     const { role } = req.user;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, before } = req.query;
 
     // Validação dos parâmetros
     if (!pet_owner_id) {
@@ -138,6 +138,13 @@ const getContactByPetOwnerId = async (req, res) => {
       });
     }
 
+    if (before && Number.isNaN(new Date(before).getTime())) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: `Invalid 'before' timestamp: ${before}`,
+      });
+    }
+
     console.log('🔍 Controller - Buscando contato para pet_owner_id:', pet_owner_id);
 
     const result = await ChatService.getContactByPetOwnerId({
@@ -145,6 +152,7 @@ const getContactByPetOwnerId = async (req, res) => {
       role: role.role,
       page: pageNum,
       limit: limitNum,
+      before: before || null,
     });
 
     if (!result || !result.contact) {
@@ -172,7 +180,7 @@ const getContactByContactId = async (req, res) => {
   try {
     const { contact_id } = req.params;
     const { role } = req.user;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, before } = req.query;
 
     if (!contact_id) {
       return res.status(400).json({
@@ -191,11 +199,19 @@ const getContactByContactId = async (req, res) => {
       });
     }
 
+    if (before && Number.isNaN(new Date(before).getTime())) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: `Invalid 'before' timestamp: ${before}`,
+      });
+    }
+
     const result = await ChatService.getContactByContactId({
       contact_id,
       role: role.role,
       page: pageNum,
       limit: limitNum,
+      before: before || null,
     });
 
     if (!result || !result.contact) {
@@ -453,6 +469,40 @@ const markAsAnswered = async (req, res) => {
   }
 };
 
+// Lista os dias com mensagens para um contato (alimenta o date picker da
+// mensageria). Aceita pet_owner_id OU contact_id via query param. O agrupamento
+// usa America/Sao_Paulo pra bater com o que o operador vê na tela.
+const getMessagesDaysSummary = async (req, res) => {
+  try {
+    const { role } = req.user;
+    const { pet_owner_id = null, contact_id = null } = req.query;
+
+    if (!pet_owner_id && !contact_id) {
+      return res.status(400).json({
+        code: 'IDENTIFIER_REQUIRED',
+        message: 'pet_owner_id or contact_id is required',
+      });
+    }
+
+    const result = await ChatService.getMessagesDaysSummary({
+      pet_owner_id,
+      contact_id,
+      role: role.role,
+    });
+
+    return res.status(200).json({
+      code: 'DAYS_SUMMARY_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error retrieving days summary:', error);
+    return res.status(500).json({
+      code: 'DAYS_SUMMARY_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
@@ -465,4 +515,5 @@ export default {
   getAllTestContacts,
   getTestContactsCount,
   markAsAnswered,
+  getMessagesDaysSummary,
 };

@@ -172,13 +172,20 @@ const searchContacts = async ({ clinic_id, query, page, limit, role, user_id, fi
   }
 };
 
-const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20 }) => {
+const getContactByPetOwnerId = async ({
+  pet_owner_id,
+  role,
+  page = 1,
+  limit = 20,
+  before = null,
+}) => {
   try {
     const result = await ChatRepository.getContactByPetOwnerId({
       pet_owner_id,
       role,
       page,
       limit,
+      before,
     });
 
     if (!result.contact) {
@@ -195,13 +202,20 @@ const getContactByPetOwnerId = async ({ pet_owner_id, role, page = 1, limit = 20
   }
 };
 
-const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 }) => {
+const getContactByContactId = async ({
+  contact_id,
+  role,
+  page = 1,
+  limit = 20,
+  before = null,
+}) => {
   try {
     const result = await ChatRepository.getContactByContactId({
       contact_id,
       role,
       page,
       limit,
+      before,
     });
 
     if (!result.contact) {
@@ -212,6 +226,14 @@ const getContactByContactId = async ({ contact_id, role, page = 1, limit = 20 })
     await signMessagesMediaUrls([result.contact]);
 
     return result;
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
+const getMessagesDaysSummary = async ({ pet_owner_id = null, contact_id = null, role }) => {
+  try {
+    return await ChatRepository.getMessagesDaysSummary({ pet_owner_id, contact_id, role });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -342,4 +364,5 @@ export default {
   getAllTestContacts,
   getTestContactsCount,
   markAsAnswered,
+  getMessagesDaysSummary,
 };
