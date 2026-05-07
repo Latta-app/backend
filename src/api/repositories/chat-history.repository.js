@@ -1278,6 +1278,7 @@ const getContactByPetOwnerId = async ({
   page = 1,
   limit = 20,
   before = null,
+  after = null,
 }) => {
   try {
     const { Op } = Sequelize;
@@ -1285,19 +1286,41 @@ const getContactByPetOwnerId = async ({
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
 
-    // Cursor mode (before): pula offset/page e retorna msgs ANTES do timestamp.
-    // Estável quando novas msgs chegam em tempo real (offset desalinha).
+    // Cursor modes:
+    //   before=ISO  → msgs ANTERIORES (scroll-up no histórico)
+    //   after=ISO   → msgs POSTERIORES (scroll-down após jumpToDate)
     // Page mode (legacy): mantém compat com chamadas antigas que ainda usam ?page=.
-    const useCursor = !!before;
-    const beforeIso = useCursor ? new Date(before).toISOString() : null;
-    if (useCursor && Number.isNaN(new Date(before).getTime())) {
+    if (before && after) {
+      throw new Error("Provide 'before' or 'after', not both");
+    }
+    const useBeforeCursor = !!before;
+    const useAfterCursor = !!after;
+    const useCursor = useBeforeCursor || useAfterCursor;
+    if (useBeforeCursor && Number.isNaN(new Date(before).getTime())) {
       throw new Error(`Invalid 'before' timestamp: ${before}`);
     }
+    if (useAfterCursor && Number.isNaN(new Date(after).getTime())) {
+      throw new Error(`Invalid 'after' timestamp: ${after}`);
+    }
+    const beforeIso = useBeforeCursor ? new Date(before).toISOString() : null;
+    const afterIso = useAfterCursor ? new Date(after).toISOString() : null;
     const offset = (page - 1) * limit;
-    const cursorClause = useCursor
-      ? `AND ch.timestamp < '${beforeIso}'`
-      : '';
-    const offsetClause = useCursor ? '' : `OFFSET ${offset}`;
+
+    // SQL clauses pro subquery interno do include de chatHistory.
+    // Pra 'after' usamos ASC (próximas msgs em ordem cronológica) e
+    // depois invertemos pra DESC ao retornar — mantém shape consistente
+    // com os outros modos.
+    let cursorClause = '';
+    let orderClause = 'ORDER BY ch.timestamp DESC';
+    let offsetClause = '';
+    if (useBeforeCursor) {
+      cursorClause = `AND ch.timestamp < '${beforeIso}'`;
+    } else if (useAfterCursor) {
+      cursorClause = `AND ch.timestamp > '${afterIso}'`;
+      orderClause = 'ORDER BY ch.timestamp ASC';
+    } else {
+      offsetClause = `OFFSET ${offset}`;
+    }
 
     const whereConditions = {
       pet_owner_id: pet_owner_id,
@@ -1331,7 +1354,7 @@ const getContactByPetOwnerId = async ({
                 WHERE ch.contact_id = "Contact".id
                 ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
                 ${cursorClause}
-                ORDER BY ch.timestamp DESC
+                ${orderClause}
                 LIMIT ${limit} ${offsetClause}
               )`),
             },
@@ -1469,18 +1492,28 @@ const getContactByPetOwnerId = async ({
       totalMessages = totalResult;
     }
 
+    // chatHistory vem ordenado DESC pelo include order. Cobre os 3 modos:
+    // - before/offset: já DESC do subquery
+    // - after: subquery ASC pega "primeiras N depois do cursor", mas o
+    //   include order DESC reordena pra UI consumir igual aos outros modos
     const returnedMessages = contact?.chatHistory?.length || 0;
     const oldestTimestamp = returnedMessages
       ? contact.chatHistory[contact.chatHistory.length - 1]?.timestamp || null
+      : null;
+    const newestTimestamp = returnedMessages
+      ? contact.chatHistory[0]?.timestamp || null
       : null;
 
     const pagination = useCursor
       ? {
           mode: 'cursor',
+          direction: useAfterCursor ? 'after' : 'before',
           limit,
           before: beforeIso,
+          after: afterIso,
           returned: returnedMessages,
           oldestTimestamp,
+          newestTimestamp,
           hasMore: returnedMessages >= limit,
           totalMessages,
         }
@@ -1507,6 +1540,7 @@ const getContactByContactId = async ({
   page = 1,
   limit = 20,
   before = null,
+  after = null,
 }) => {
   try {
     const { Op } = Sequelize;
@@ -1514,14 +1548,33 @@ const getContactByContactId = async ({
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
 
-    const useCursor = !!before;
-    const beforeIso = useCursor ? new Date(before).toISOString() : null;
-    if (useCursor && Number.isNaN(new Date(before).getTime())) {
+    if (before && after) {
+      throw new Error("Provide 'before' or 'after', not both");
+    }
+    const useBeforeCursor = !!before;
+    const useAfterCursor = !!after;
+    const useCursor = useBeforeCursor || useAfterCursor;
+    if (useBeforeCursor && Number.isNaN(new Date(before).getTime())) {
       throw new Error(`Invalid 'before' timestamp: ${before}`);
     }
+    if (useAfterCursor && Number.isNaN(new Date(after).getTime())) {
+      throw new Error(`Invalid 'after' timestamp: ${after}`);
+    }
+    const beforeIso = useBeforeCursor ? new Date(before).toISOString() : null;
+    const afterIso = useAfterCursor ? new Date(after).toISOString() : null;
     const offset = (page - 1) * limit;
-    const cursorClause = useCursor ? `AND ch.timestamp < '${beforeIso}'` : '';
-    const offsetClause = useCursor ? '' : `OFFSET ${offset}`;
+
+    let cursorClause = '';
+    let orderClause = 'ORDER BY ch.timestamp DESC';
+    let offsetClause = '';
+    if (useBeforeCursor) {
+      cursorClause = `AND ch.timestamp < '${beforeIso}'`;
+    } else if (useAfterCursor) {
+      cursorClause = `AND ch.timestamp > '${afterIso}'`;
+      orderClause = 'ORDER BY ch.timestamp ASC';
+    } else {
+      offsetClause = `OFFSET ${offset}`;
+    }
 
     const contact = await Contact.findOne({
       where: { id: contact_id },
@@ -1541,7 +1594,7 @@ const getContactByContactId = async ({
                 WHERE ch.contact_id = "Contact".id
                 ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
                 ${cursorClause}
-                ORDER BY ch.timestamp DESC
+                ${orderClause}
                 LIMIT ${limit} ${offsetClause}
               )`),
             },
@@ -1680,14 +1733,20 @@ const getContactByContactId = async ({
     const oldestTimestamp = returnedMessages
       ? contact.chatHistory[contact.chatHistory.length - 1]?.timestamp || null
       : null;
+    const newestTimestamp = returnedMessages
+      ? contact.chatHistory[0]?.timestamp || null
+      : null;
 
     const pagination = useCursor
       ? {
           mode: 'cursor',
+          direction: useAfterCursor ? 'after' : 'before',
           limit,
           before: beforeIso,
+          after: afterIso,
           returned: returnedMessages,
           oldestTimestamp,
+          newestTimestamp,
           hasMore: returnedMessages >= limit,
           totalMessages,
         }
