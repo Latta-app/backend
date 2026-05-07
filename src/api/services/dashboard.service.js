@@ -9,17 +9,26 @@ const ALLOWED_ACTIONS = new Set([
   'abandoned',
   'drilldown',
   'funnel_step',
+  'onboarding_funnel',
   'search',
 ]);
 const ALLOWED_FUNNEL_STEPS = new Set([
+  // Steps legados (funil macro)
   'talked',
   'onboarded',
   'utilized',
   'purchased',
   'pro',
+  // Steps internos do Onboarding V3
+  'pet_registered',
+  'pet_confirmed',
+  'pro_decision',
+  'hub_action',
+  'completed',
 ]);
+const ALLOWED_ONBOARDING_SCOPES = new Set(['cohort', 'all']);
 
-const buildUrl = ({ action, window, phone, step, scope, q, refresh }) => {
+const buildUrl = ({ action, window, phone, step, scope, q, isPro, refresh }) => {
   const params = new URLSearchParams();
   if (action && action !== 'summary') params.set('action', action);
   if (window) params.set('window', window);
@@ -27,6 +36,8 @@ const buildUrl = ({ action, window, phone, step, scope, q, refresh }) => {
   if (step) params.set('step', step);
   if (scope) params.set('scope', scope);
   if (q) params.set('q', q);
+  if (isPro === true) params.set('is_pro', 'true');
+  else if (isPro === false) params.set('is_pro', 'false');
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
   return query ? `${DASHBOARD_METRICS_URL}?${query}` : DASHBOARD_METRICS_URL;
@@ -39,6 +50,7 @@ const callDashboardMetrics = async ({
   step,
   scope,
   q,
+  isPro,
   refresh = false,
 } = {}) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -59,6 +71,14 @@ const callDashboardMetrics = async ({
       throw new Error(`step inválido: ${step}`);
     }
   }
+  if (action === 'onboarding_funnel') {
+    if (scope && !ALLOWED_ONBOARDING_SCOPES.has(scope)) {
+      throw new Error(`scope inválido para onboarding_funnel: ${scope}`);
+    }
+    if (isPro !== undefined && isPro !== null && typeof isPro !== 'boolean') {
+      throw new Error('isPro deve ser boolean (ou omitido para "todos")');
+    }
+  }
   if (phone && !/^\d{10,15}$/.test(phone)) {
     throw new Error('phone inválido (apenas dígitos, 10-15)');
   }
@@ -68,7 +88,7 @@ const callDashboardMetrics = async ({
     if (digits.length < 6) throw new Error('q deve ter pelo menos 6 dígitos');
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -97,6 +117,9 @@ const getContactDrilldown = async ({ phone } = {}) =>
 const getFunnelStep = async ({ step, window, scope, refresh } = {}) =>
   callDashboardMetrics({ action: 'funnel_step', step, window, scope, refresh });
 
+const getOnboardingFunnel = async ({ window, scope, isPro, refresh } = {}) =>
+  callDashboardMetrics({ action: 'onboarding_funnel', window, scope, isPro, refresh });
+
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
 
@@ -105,5 +128,6 @@ export default {
   getAbandonedFlows,
   getContactDrilldown,
   getFunnelStep,
+  getOnboardingFunnel,
   searchPhone,
 };

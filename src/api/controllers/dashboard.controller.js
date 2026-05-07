@@ -119,10 +119,38 @@ const getContactDrilldown = async (req, res) => {
   }
 };
 
+const getOnboardingFunnel = async (req, res) => {
+  try {
+    const { window, scope } = req.query;
+    let isPro;
+    if (req.query.is_pro === 'true') isPro = true;
+    else if (req.query.is_pro === 'false') isPro = false;
+
+    const result = await DashboardService.getOnboardingFunnel({
+      window,
+      scope,
+      isPro,
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_ONBOARDING_FUNNEL_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard onboarding funnel:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_ONBOARDING_FUNNEL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
   getContactDrilldown,
   getFunnelStep,
+  getOnboardingFunnel,
   searchPhone,
 };
