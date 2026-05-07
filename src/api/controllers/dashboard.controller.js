@@ -220,6 +220,27 @@ const getCohortRetention = async (req, res) => {
   }
 };
 
+const getTimeToEvent = async (req, res) => {
+  try {
+    const result = await DashboardService.getTimeToEvent({
+      window: req.query.window,
+      event: req.query.event,
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_TIME_TO_EVENT_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard time to event:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_TIME_TO_EVENT_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
@@ -229,5 +250,6 @@ export default {
   getActivityFunnel,
   getProRevenueChannels,
   getCohortRetention,
+  getTimeToEvent,
   searchPhone,
 };

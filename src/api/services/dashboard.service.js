@@ -13,8 +13,11 @@ const ALLOWED_ACTIONS = new Set([
   'activity_funnel',
   'pro_revenue_channels',
   'cohort_retention',
+  'time_to_event',
   'search',
 ]);
+
+const ALLOWED_TIME_TO_EVENT = new Set(['first_purchase', 'first_pro', 'first_utilization']);
 const ALLOWED_FUNNEL_STEPS = new Set([
   // Steps legados (funil macro)
   'talked',
@@ -41,6 +44,7 @@ const buildUrl = ({
   q,
   isPro,
   lookbackDays,
+  event,
   refresh,
 }) => {
   const params = new URLSearchParams();
@@ -53,6 +57,7 @@ const buildUrl = ({
   if (isPro === true) params.set('is_pro', 'true');
   else if (isPro === false) params.set('is_pro', 'false');
   if (lookbackDays != null) params.set('lookback_days', String(lookbackDays));
+  if (event) params.set('event', event);
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
   return query ? `${DASHBOARD_METRICS_URL}?${query}` : DASHBOARD_METRICS_URL;
@@ -67,6 +72,7 @@ const callDashboardMetrics = async ({
   q,
   isPro,
   lookbackDays,
+  event,
   refresh = false,
 } = {}) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -104,7 +110,11 @@ const callDashboardMetrics = async ({
     if (digits.length < 6) throw new Error('q deve ter pelo menos 6 dígitos');
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, refresh });
+  if (action === 'time_to_event' && event && !ALLOWED_TIME_TO_EVENT.has(event)) {
+    throw new Error(`event inválido: ${event}`);
+  }
+
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -145,6 +155,9 @@ const getProRevenueChannels = async ({ refresh } = {}) =>
 const getCohortRetention = async ({ lookbackDays, refresh } = {}) =>
   callDashboardMetrics({ action: 'cohort_retention', lookbackDays, refresh });
 
+const getTimeToEvent = async ({ window, event, refresh } = {}) =>
+  callDashboardMetrics({ action: 'time_to_event', window, event, refresh });
+
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
 
@@ -157,5 +170,6 @@ export default {
   getActivityFunnel,
   getProRevenueChannels,
   getCohortRetention,
+  getTimeToEvent,
   searchPhone,
 };

@@ -62,6 +62,13 @@ router.get(
 );
 
 router.get(
+  '/time-to-event',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getTimeToEvent,
+);
+
+router.get(
   '/contact/:phone',
   verifyToken,
   checkRole(ALLOWED),
