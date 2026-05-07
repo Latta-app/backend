@@ -5,6 +5,11 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
     // const offset = (page - 1) * limit;
 
     const { count: totalItems, rows: templates } = await Template.findAndCountAll({
+      where: {
+        // Esconde templates ARCHIVED (Petland-herdados desativados em 2026-05),
+        // PENDING (em revisão Meta — não pode enviar) e REJECTED.
+        template_status: 'APPROVED',
+      },
       attributes: [
         'id',
         'template_id',
