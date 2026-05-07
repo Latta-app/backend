@@ -20,4 +20,14 @@ router.post(
   MessagingController.sendTemplate,
 );
 
+// Migrado do webhook N8n /ai_accepted na Fase 4 (2026-05). Operador
+// aprova/edita sugestão IA Offer ou Scheduling no painel e dispara
+// envio. Body: { contact_id, message, is_modificated? }.
+router.post(
+  '/send-ai-suggestion',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  MessagingController.sendAISuggestion,
+);
+
 export default router;

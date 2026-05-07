@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import express from 'express';
 import AuthRoutes from './private/auth.routes.js';
+import AIFeedbackRoutes from './private/ai-feedback.routes.js';
 import ChatHistoryRoutes from './private/chat-history.routes.js';
 import ContactRoutes from './private/contact.routes.js';
 import MessagingRoutes from './private/messaging.routes.js';
@@ -21,6 +22,7 @@ import VarejonlineRoutes from './private/varejonline.routes.js';
 const router = Router();
 
 router.use('/auth', AuthRoutes);
+router.use('/ai/feedback', AIFeedbackRoutes);
 router.use('/chat-history', ChatHistoryRoutes);
 router.use('/contacts', ContactRoutes);
 router.use('/messaging', MessagingRoutes);

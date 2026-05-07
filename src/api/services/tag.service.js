@@ -118,6 +118,19 @@ const searchTags = async ({ clinic_id, query, page = 1, limit = 15 }) => {
   }
 };
 
+const manageAssignments = async ({ pet_owner_id, create, delete: toDelete }) => {
+  try {
+    if (!pet_owner_id) throw new Error('pet_owner_id is required');
+    return await TagRepository.manageAssignments({
+      pet_owner_id,
+      create: create || [],
+      delete: toDelete || [],
+    });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 export default {
   getAllTags,
   getTagById,
@@ -125,4 +138,5 @@ export default {
   updateTag,
   deleteTag,
   searchTags,
+  manageAssignments,
 };
