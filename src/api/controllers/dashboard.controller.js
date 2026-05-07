@@ -8,6 +8,7 @@ const getDashboardSummary = async (req, res) => {
     const summary = await DashboardService.getDashboardSummary({
       window: req.query.window,
       phone: req.query.phone,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
@@ -28,6 +29,7 @@ const getAbandonedFlows = async (req, res) => {
   try {
     const result = await DashboardService.getAbandonedFlows({
       window: req.query.window,
+      includeTest: parseIncludeTest(req.query),
       refresh: parseRefresh(req.query),
     });
 
