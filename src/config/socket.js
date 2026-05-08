@@ -148,6 +148,15 @@ function initializeSocket(httpServer) {
       socket.join(`clinic_${clinicId}`);
       console.log(`✅ Usuário adicionado à sala 'clinic_${clinicId}'`);
       console.log(`📊 Conexões ativas na clínica ${clinicId}: ${clinicUsers.size}`);
+
+      // Tambem entra em debug_global pra capturar mensagens de contacts SEM
+      // clinic_id (leads novos, conversas onde o user nunca foi vinculado a
+      // uma clinic). socketRoutes.js:155-157 emite essas mensagens APENAS
+      // pra debug_global — sem esse join, o operador so via depois de F5.
+      // Trade-off: se houver multi-clinic, esse user vera leads de outras
+      // clinics. Hoje so existe Suporte Latta como clinic real, entao OK.
+      socket.join('debug_global');
+      console.log(`✅ Usuário adicionado à sala 'debug_global' (catch-all leads sem clinic)`);
       console.log(`📊 Salas do socket:`, Array.from(socket.rooms));
 
       // Notificar outros atendentes
