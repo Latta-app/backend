@@ -32,6 +32,14 @@ router.get(
   ChatController.getTestContactsCount,
 );
 
+// Badge da aba "Luma" no painel — conta contacts.is_being_attended=true.
+router.get(
+  '/messages/getInAttendanceContactsCount',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getInAttendanceContactsCount,
+);
+
 router.get(
   '/messages/searchContacts',
   verifyToken,
