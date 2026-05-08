@@ -142,6 +142,13 @@ const getAllContactsWithMessages = async ({
       },
     };
 
+    // Geral exclui conversas em atendimento humano (Luma assumiu) — essas
+    // só aparecem na aba "Luma" (getAllContactsBeingAttended). Sem isso,
+    // conversa atendida apareceria em duas abas. Aplicado só quando
+    // testFilter !== 'only' pra não interferir na aba Testes.
+    if (testFilter !== 'only') {
+      whereConditions.is_being_attended = { [Op.not]: true };
+    }
 
     // Constrói os filtros condicionalmente
     const additionalConditions = [];
