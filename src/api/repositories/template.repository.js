@@ -1,3 +1,4 @@
+import { Op, Sequelize } from 'sequelize';
 import { Template, TemplateVariable, TemplateVariableType } from '../models/index.js';
 
 const getAllTemplates = async ({ page = 1, limit = 15 }) => {
@@ -9,6 +10,11 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
         // Esconde templates ARCHIVED (Petland-herdados desativados em 2026-05),
         // PENDING (em revisão Meta — não pode enviar) e REJECTED.
         template_status: 'APPROVED',
+        // Esconde templates sem label legível ("Template sem nome" no painel).
+        // template_label é populado automaticamente pelo manage-templates.ts
+        // cmdCreate desde a Fase de melhorias 2026-05; templates antigos sem
+        // label só serão visíveis quando alguém preencher manualmente via SQL.
+        template_label: { [Op.not]: null },
       },
       attributes: [
         'id',
@@ -44,6 +50,13 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
       // limit,
       // offset,
       order: [
+        // Suporte sobre Assunto (Luma) sempre primeiro — é o template mais
+        // usado pra abrir atendimento humano contextual com qualquer assunto
+        // (input livre). Demais templates seguem ordem alfabética por label.
+        [
+          Sequelize.literal(`CASE WHEN "Template"."template_name" = 'luma_suporte_assunto_pontual_v1' THEN 0 ELSE 1 END`),
+          'ASC',
+        ],
         ['template_label', 'ASC'],
         // Ordenar as variáveis por posição também
         [{ model: TemplateVariable, as: 'variables' }, 'variable_position', 'ASC'],
