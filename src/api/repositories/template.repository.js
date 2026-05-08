@@ -25,6 +25,7 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
         'template_status',
         'template_preview',
         'template_category',
+        'manual_var_positions',
       ],
       include: [
         {
@@ -88,6 +89,7 @@ const getTemplateById = async ({ id }) => {
         'template_status',
         'template_preview',
         'template_category',
+        'manual_var_positions',
       ],
     });
 
@@ -119,6 +121,7 @@ const searchTemplates = async ({ name, page = 1, limit = 15 }) => {
         'template_status',
         'template_preview',
         'template_category',
+        'manual_var_positions',
       ],
       // limit,
       // offset,

@@ -13,6 +13,7 @@ import SchedulingRoutes from './private/scheduling.routes.js';
 import ServiceTypeRoutes from './private/service-type.routes.js';
 import TagsRoutes from './private/tags.routes.js';
 import TemplateRoutes from './private/template.routes.js';
+import TemplateCreateRoutes from './private/template-create.routes.js';
 import UserRoutes from './private/user.routes.js';
 import VaccineRoutes from './private/vaccine.routes.js';
 import N8NRoutes from './private/n8n.routes.js';
@@ -34,6 +35,7 @@ router.use('/scheduling', SchedulingRoutes);
 router.use('/service-type', ServiceTypeRoutes);
 router.use('/tags', TagsRoutes);
 router.use('/template', TemplateRoutes);
+router.use('/messaging/templates', TemplateCreateRoutes);
 router.use('/users', UserRoutes);
 router.use('/vaccine', VaccineRoutes);
 router.use(
