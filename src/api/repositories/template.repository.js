@@ -15,6 +15,11 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
         // cmdCreate desde a Fase de melhorias 2026-05; templates antigos sem
         // label só serão visíveis quando alguém preencher manualmente via SQL.
         template_label: { [Op.not]: null },
+        // Mostra apenas templates assinados pela Luma (atendimento humano).
+        // Templates da marca (*Latta 🐾*) são automatizados via cron/webhooks
+        // e não fazem sentido como sugestão proativa pelo operador no painel.
+        // Critério via prefixo do body — robusto contra renaming de template.
+        template_preview: { [Op.like]: '*Luma%' },
       },
       attributes: [
         'id',
