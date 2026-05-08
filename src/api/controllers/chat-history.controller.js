@@ -469,6 +469,23 @@ const getTestContactsCount = async (req, res) => {
   }
 };
 
+const getInAttendanceContactsCount = async (req, res) => {
+  try {
+    const { clinic_id } = req.user;
+    const result = await ChatService.getInAttendanceContactsCount({ clinic_id });
+    return res.status(200).json({
+      code: 'IN_ATTENDANCE_CONTACTS_COUNT_RETRIEVED',
+      data: { count: result.count },
+    });
+  } catch (error) {
+    console.error('Error retrieving in-attendance contacts count:', error);
+    return res.status(500).json({
+      code: 'IN_ATTENDANCE_CONTACTS_COUNT_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 // POST /chat-history/messages/markAsAnswered { cell_phone, pet_owner_id }
 // Migrado do webhook N8n is_answered (workflow Lattinha - Webhooks Front).
 // Aceita cell_phone OU pet_owner_id — pelo menos um deve vir. cell_phone
@@ -544,6 +561,7 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getTestContactsCount,
+  getInAttendanceContactsCount,
   markAsAnswered,
   getMessagesDaysSummary,
 };

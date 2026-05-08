@@ -2092,6 +2092,33 @@ const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 20 }) => 
   }
 };
 
+// Conta contacts com is_being_attended=true (alimenta o badge da aba Luma).
+// Pareado com getAllContactsBeingAttended pra alinhar count vs lista. LEFT JOIN
+// em pet_owner_clinics pra incluir leads sem clinic vinculada (mesmo pattern
+// de getTestContactsCount).
+const getInAttendanceContactsCount = async ({ clinic_id }) => {
+  try {
+    const [result] = await Contact.sequelize.query(
+      `
+      SELECT COUNT(DISTINCT c.id)::int AS count
+      FROM contacts c
+      LEFT JOIN pet_owners po ON c.pet_owner_id = po.id
+      LEFT JOIN pet_owner_clinics poc ON po.id = poc.pet_owner_id
+      WHERE (poc.clinic_id = :clinic_id OR poc.clinic_id IS NULL)
+      AND c.is_being_attended = true
+      `,
+      {
+        replacements: { clinic_id },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+    return { count: result?.count || 0 };
+  } catch (error) {
+    console.error('❌ ERRO getInAttendanceContactsCount:', error.message);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 const getTestContactsCount = async ({ clinic_id, role }) => {
   try {
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
@@ -2202,5 +2229,6 @@ export default {
   getAllContactsMessagesWithNoFilters,
   getOrdersByContactId,
   getTestContactsCount,
+  getInAttendanceContactsCount,
   getMessagesDaysSummary,
 };

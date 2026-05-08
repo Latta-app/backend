@@ -112,6 +112,14 @@ const getTestContactsCount = async ({ clinic_id, role }) => {
   }
 };
 
+const getInAttendanceContactsCount = async ({ clinic_id }) => {
+  try {
+    return await ChatRepository.getInAttendanceContactsCount({ clinic_id });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 const getAllContactsBeingAttended = async ({
   clinic_id,
   role,
@@ -367,6 +375,7 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getTestContactsCount,
+  getInAttendanceContactsCount,
   markAsAnswered,
   getMessagesDaysSummary,
 };
