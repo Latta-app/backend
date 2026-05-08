@@ -7,18 +7,26 @@ const getAllTemplates = async ({ page = 1, limit = 15 }) => {
 
     const { count: totalItems, rows: templates } = await Template.findAndCountAll({
       where: {
-        // Esconde templates ARCHIVED (Petland-herdados desativados em 2026-05),
-        // PENDING (em revisão Meta — não pode enviar) e REJECTED.
-        template_status: 'APPROVED',
+        // APPROVED sempre visível. PENDING/REJECTED só pra templates criados
+        // pelo painel (luma_custom_*) — assim o operador acompanha o status
+        // do que ele mesmo solicitou (com badge "Solicitado" no frontend).
+        // ARCHIVED segue oculto.
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { template_status: 'APPROVED' },
+              {
+                template_status: { [Op.in]: ['PENDING', 'REJECTED'] },
+                template_name: { [Op.like]: 'luma_custom_%' },
+              },
+            ],
+          },
+        ],
         // Esconde templates sem label legível ("Template sem nome" no painel).
-        // template_label é populado automaticamente pelo manage-templates.ts
-        // cmdCreate desde a Fase de melhorias 2026-05; templates antigos sem
-        // label só serão visíveis quando alguém preencher manualmente via SQL.
         template_label: { [Op.not]: null },
         // Mostra apenas templates assinados pela Luma (atendimento humano).
         // Templates da marca (*Latta 🐾*) são automatizados via cron/webhooks
         // e não fazem sentido como sugestão proativa pelo operador no painel.
-        // Critério via prefixo do body — robusto contra renaming de template.
         template_preview: { [Op.like]: '*Luma%' },
       },
       attributes: [

@@ -12,6 +12,7 @@
 //      templateManualVars.js.
 
 import axios from 'axios';
+import { QueryTypes } from 'sequelize';
 import { Template } from '../models/index.js';
 import { sequelize } from '../../config/database.js';
 
@@ -360,7 +361,64 @@ const submitToMeta = async ({
   };
 };
 
+// Sincroniza status dos templates luma_custom_* PENDING/REJECTED com a Meta
+// API. Frontend chama isso ao abrir o modal pra refletir aprovacoes recentes
+// sem esperar webhook Meta. Limita a templates do painel pra nao bater Meta
+// API toa pros legados que nao mudam.
+const syncPendingTemplates = async () => {
+  if (!META_TOKEN) {
+    return { synced: 0, skipped: 0, reason: 'no_meta_token' };
+  }
+
+  const pending = await sequelize.query(
+    `SELECT id, template_code, template_name, template_status
+     FROM templates
+     WHERE template_name LIKE 'luma_custom_%'
+       AND template_status IN ('PENDING', 'REJECTED')
+       AND template_code IS NOT NULL`,
+    { type: QueryTypes.SELECT },
+  );
+
+  if (pending.length === 0) {
+    return { synced: 0, skipped: 0 };
+  }
+
+  let synced = 0;
+  let skipped = 0;
+  for (const tpl of pending) {
+    try {
+      // GET /{template_id} retorna { name, status, language, components, ... }
+      const resp = await axios.get(
+        `${WHATSAPP_API}/${tpl.template_code}`,
+        {
+          headers: { Authorization: `Bearer ${META_TOKEN}` },
+          timeout: 10000,
+        },
+      );
+      const newStatus = resp.data?.status;
+      if (newStatus && newStatus !== tpl.template_status) {
+        await sequelize.query(
+          `UPDATE templates SET template_status = :status, updated_at = NOW()
+           WHERE id = :id`,
+          {
+            replacements: { status: newStatus, id: tpl.id },
+          },
+        );
+        synced++;
+      } else {
+        skipped++;
+      }
+    } catch (err) {
+      console.warn(`[template-sync] ${tpl.template_name} falhou:`, err.message);
+      skipped++;
+    }
+  }
+
+  return { synced, skipped, total: pending.length };
+};
+
 export default {
   draftFromDescription,
   submitToMeta,
+  syncPendingTemplates,
 };

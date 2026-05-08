@@ -57,4 +57,20 @@ const submit = async (req, res) => {
   }
 };
 
-export default { draft, submit };
+const sync = async (req, res) => {
+  try {
+    const result = await TemplateCreateService.syncPendingTemplates();
+    return res.status(200).json({
+      code: 'TEMPLATES_SYNCED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('[template-create] sync falhou:', error.message);
+    return res.status(500).json({
+      code: 'TEMPLATE_SYNC_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+export default { draft, submit, sync };

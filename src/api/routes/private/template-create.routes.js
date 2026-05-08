@@ -23,4 +23,14 @@ router.post(
   TemplateCreateController.submit,
 );
 
+// Sincroniza status (PENDING → APPROVED/REJECTED) dos templates criados
+// pelo painel (luma_custom_*) consultando Meta API. Frontend chama ao
+// abrir o modal pra ver aprovacoes recentes sem esperar webhook.
+router.post(
+  '/sync',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  TemplateCreateController.sync,
+);
+
 export default router;
