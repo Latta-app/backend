@@ -17,6 +17,9 @@ import { sequelize } from '../../config/database.js';
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+// Aceita GEMINI_API_KEY (mesma var das EFs Supabase) ou
+// GOOGLE_GENERATIVE_AI_API_KEY (declarada no .env.example do backend).
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 const WABA_ID = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '2831596893680901';
 const META_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const WHATSAPP_API = 'https://graph.facebook.com/v21.0';
@@ -90,9 +93,31 @@ function userFriendlyMessage(err) {
   return 'Nao foi possivel gerar o template agora. Tenta de novo em alguns minutos.';
 }
 
-// Provider: Anthropic Claude Haiku 4.5 (rapido + barato). Fallback OpenAI
-// gpt-4.1-nano se ANTHROPIC_API_KEY nao configurada. Ambos retornam JSON
-// estruturado seguindo o mesmo schema do SYSTEM_PROMPT.
+// Provider order (escolha do user 2026-05): Gemini Flash → Claude Haiku
+// → OpenAI nano. Gemini tem free tier generoso (60 RPM, 1500 RPD), entao
+// e a primeira opcao. Os 2 pagos viram fallback.
+async function callGemini(description) {
+  // gemini-2.5-flash: estavel, rapido, ~$0.075/1M input tokens (free tier
+  // cobre uso esporadico do painel sem custo).
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+  const resp = await axios.post(
+    url,
+    {
+      contents: [{ parts: [{ text: USER_PROMPT_TEMPLATE(description) }] }],
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      generationConfig: {
+        temperature: 0.4,
+        responseMimeType: 'application/json',
+      },
+    },
+    {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000,
+    },
+  );
+  return resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
 async function callAnthropic(description) {
   const resp = await axios.post(
     'https://api.anthropic.com/v1/messages',
@@ -145,18 +170,27 @@ const draftFromDescription = async ({ description }) => {
   if (!description || !description.trim()) {
     throw new Error('description obrigatoria');
   }
-  if (!ANTHROPIC_KEY && !OPENAI_KEY) {
-    throw new Error('Nenhuma chave de IA configurada (ANTHROPIC_API_KEY ou OPENAI_API_KEY)');
+  if (!GEMINI_KEY && !ANTHROPIC_KEY && !OPENAI_KEY) {
+    throw new Error('Nenhuma chave de IA configurada (GEMINI_API_KEY, ANTHROPIC_API_KEY ou OPENAI_API_KEY)');
   }
 
   const cleaned = description.trim();
 
-  // Prefere Anthropic — mais barato e a key tem credito disponivel
-  // (OpenAI key esgotou em 2026-05). Fallback OpenAI quando Anthropic
-  // falha por timeout/quota tambem.
+  // Cadeia de providers (escolha do user 2026-05):
+  //   1. Gemini 2.5 Flash — free tier generoso (1500 RPD)
+  //   2. Anthropic Claude Haiku 4.5 — fallback se Gemini falhar
+  //   3. OpenAI gpt-4.1-nano — ultimo fallback
   let raw = '';
   let lastError = null;
-  if (ANTHROPIC_KEY) {
+  if (GEMINI_KEY) {
+    try {
+      raw = await callGemini(cleaned);
+    } catch (err) {
+      lastError = sanitizeAxiosError(err);
+      console.warn('[template-create] Gemini falhou:', lastError.message);
+    }
+  }
+  if (!raw && ANTHROPIC_KEY) {
     try {
       raw = await callAnthropic(cleaned);
     } catch (err) {
