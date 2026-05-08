@@ -43,6 +43,15 @@ const TemplateModel = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      // Posições de variáveis ({{N}}) que são input livre do operador
+      // — populado por templates criados via /messaging/templates/submit.
+      // Templates antigos têm array vazio e caem no fallback do
+      // templateManualVars.js no frontend.
+      manual_var_positions: {
+        type: DataTypes.ARRAY(DataTypes.INTEGER),
+        allowNull: true,
+        defaultValue: [],
+      },
     },
     {
       tableName: 'templates',
