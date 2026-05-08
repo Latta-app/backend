@@ -251,7 +251,14 @@ const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id }) =
 
   await ContactRepository.setAttendance({ contact_id, is_being_attended: true });
 
-  return { success: true, message_id: messageId, template_name: template.template_name };
+  return {
+    success: true,
+    message_id: messageId,
+    template_name: template.template_name,
+    // Mensagem com {{N}} ja substituidos — frontend usa pra optimistic UI
+    // (sem isso, painel mostraria template_preview cru ate o socket chegar).
+    rendered_message: renderedMsg,
+  };
 };
 
 // Migrado do webhook N8n /ai_accepted na Fase 4. Operador aprova (👍) +
