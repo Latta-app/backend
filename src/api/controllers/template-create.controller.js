@@ -73,4 +73,27 @@ const sync = async (req, res) => {
   }
 };
 
-export default { draft, submit, sync };
+const archive = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        code: 'MISSING_TEMPLATE_ID',
+        message: 'template id is required',
+      });
+    }
+    const result = await TemplateCreateService.archiveTemplate({ id });
+    return res.status(200).json({
+      code: 'TEMPLATE_ARCHIVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('[template-create] archive falhou:', error.message);
+    return res.status(500).json({
+      code: 'TEMPLATE_ARCHIVE_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+export default { draft, submit, sync, archive };

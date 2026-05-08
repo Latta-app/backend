@@ -361,6 +361,25 @@ const submitToMeta = async ({
   };
 };
 
+// Soft delete — marca template_status='ARCHIVED'. Mantem registro do
+// template_components / template_variables / chat_history pra preservar
+// historico de mensagens enviadas (FK constraint impediria DELETE hard
+// de qualquer jeito). Frontend filtra ARCHIVED no getAllTemplates.
+const archiveTemplate = async ({ id }) => {
+  if (!id) throw new Error('id obrigatorio');
+  const [_, meta] = await sequelize.query(
+    `UPDATE templates
+     SET template_status = 'ARCHIVED', updated_at = NOW()
+     WHERE id = :id
+     RETURNING id, template_name, template_status`,
+    { replacements: { id } },
+  );
+  if (!meta?.rowCount) {
+    throw new Error('Template nao encontrado');
+  }
+  return { success: true, archived: meta.rowCount };
+};
+
 // Sincroniza status dos templates luma_custom_* PENDING/REJECTED com a Meta
 // API. Frontend chama isso ao abrir o modal pra refletir aprovacoes recentes
 // sem esperar webhook Meta. Limita a templates do painel pra nao bater Meta
@@ -421,4 +440,5 @@ export default {
   draftFromDescription,
   submitToMeta,
   syncPendingTemplates,
+  archiveTemplate,
 };

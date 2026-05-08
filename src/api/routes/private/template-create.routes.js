@@ -33,4 +33,13 @@ router.post(
   TemplateCreateController.sync,
 );
 
+// Soft delete — UPDATE template_status='ARCHIVED'. Frontend filtra
+// ARCHIVED no listing, ent�o o template some da UI sem perder historico.
+router.delete(
+  '/:id',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  TemplateCreateController.archive,
+);
+
 export default router;
