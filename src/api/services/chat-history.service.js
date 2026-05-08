@@ -52,7 +52,6 @@ const attachReplyMessages = async (contacts) => {
 };
 
 const getAllContactsWithMessages = async ({
-  clinic_id,
   role,
   page = 1,
   limit = 15,
@@ -62,12 +61,11 @@ const getAllContactsWithMessages = async ({
 }) => {
   try {
     const result = await ChatRepository.getAllContactsWithMessages({
-      clinic_id,
       role,
       page,
       limit,
       user_id,
-      filters, // Repassa os filtros para o repository
+      filters,
       testFilter,
     });
     const contacts = result.contacts;
@@ -86,7 +84,6 @@ const getAllContactsWithMessages = async ({
 };
 
 const getAllTestContacts = async ({
-  clinic_id,
   role,
   page = 1,
   limit = 15,
@@ -94,7 +91,6 @@ const getAllTestContacts = async ({
   filters = {},
 }) => {
   return getAllContactsWithMessages({
-    clinic_id,
     role,
     page,
     limit,
@@ -104,24 +100,23 @@ const getAllTestContacts = async ({
   });
 };
 
-const getTestContactsCount = async ({ clinic_id, role }) => {
+const getTestContactsCount = async ({ role }) => {
   try {
-    return await ChatRepository.getTestContactsCount({ clinic_id, role });
+    return await ChatRepository.getTestContactsCount({ role });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
 };
 
-const getInAttendanceContactsCount = async ({ clinic_id }) => {
+const getInAttendanceContactsCount = async () => {
   try {
-    return await ChatRepository.getInAttendanceContactsCount({ clinic_id });
+    return await ChatRepository.getInAttendanceContactsCount();
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
 };
 
 const getAllContactsBeingAttended = async ({
-  clinic_id,
   role,
   page = 1,
   limit = 15,
@@ -130,7 +125,6 @@ const getAllContactsBeingAttended = async ({
 }) => {
   try {
     const result = await ChatRepository.getAllContactsBeingAttended({
-      clinic_id,
       role,
       page,
       limit,
@@ -152,7 +146,7 @@ const getAllContactsBeingAttended = async ({
   }
 };
 
-const searchContacts = async ({ clinic_id, query, page, limit, role, user_id, filters = {} }) => {
+const searchContacts = async ({ query, page, limit, role, user_id, filters = {} }) => {
   try {
     const cleanedQuery = normalizeQuery(query);
     const hasLetter = /[a-zA-Z]/.test(cleanedQuery);
@@ -161,14 +155,13 @@ const searchContacts = async ({ clinic_id, query, page, limit, role, user_id, fi
     const phone = cleanedQuery && !hasLetter ? cleanedQuery : null;
 
     const contacts = await ChatRepository.searchContacts({
-      clinic_id,
       name,
       phone,
       page,
       limit,
       role,
       user_id,
-      filters, // Repassa os filtros para o repository
+      filters,
     });
 
     await attachReplyMessages(contacts);
@@ -259,36 +252,6 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
   }
 };
 
-const getAllContactsMessagesWithNoFilters = async ({ page = 1, limit = 15 }) => {
-  try {
-    const result = await ChatRepository.getAllContactsMessagesWithNoFilters({
-      page,
-      limit,
-    });
-
-    // Corrigir - deve retornar contacts, não contact
-    if (!result || !result.contacts) {
-      return {
-        contacts: [],
-        totalItems: 0,
-        totalPages: 0,
-      };
-    }
-
-    // Aplica os mesmos tratamentos dos outros métodos
-    await attachReplyMessages(result.contacts);
-    await signMessagesMediaUrls(result.contacts);
-
-    return {
-      contacts: result.contacts,
-      totalItems: result.totalItems,
-      totalPages: Math.ceil(result.totalItems / limit),
-    };
-  } catch (error) {
-    throw new Error(`Service error: ${error.message}`);
-  }
-};
-
 const getContactByPetOwnerIdOrPhone = async ({
   pet_owner_id,
   contact,
@@ -371,7 +334,6 @@ export default {
   getContactByPetOwnerId,
   getContactByContactId,
   getOrdersByContactId,
-  getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getTestContactsCount,

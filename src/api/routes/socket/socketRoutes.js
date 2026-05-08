@@ -2,6 +2,7 @@ import express from 'express';
 import S3ClientUtil from '../../../utils/s3.js';
 import ChatRepository from '../../repositories/chat-history.repository.js';
 import { isValidUUID } from '../../../utils/validate.js';
+import { MESSAGING_ROOM } from '../../../config/socket.js';
 
 // Função para assinar URLs de mídia
 const signMessageMediaUrl = async (messageData) => {
@@ -44,7 +45,7 @@ const attachReplyMessage = async (messageData) => {
   return messageData;
 };
 
-function createSocketRoutes(io, clinicConnections) {
+function createSocketRoutes(io) {
   const router = express.Router();
 
   // ==========================================
@@ -128,57 +129,22 @@ function createSocketRoutes(io, clinicConnections) {
       messageData = await signMessageMediaUrl(messageData);
       messageData = await attachReplyMessage(messageData);
 
-      // ======================
-      // 1️⃣ Log de conexões
-      // ======================
-      const allSockets = Array.from(io.sockets.sockets.values());
-      const debuggerSockets = allSockets.filter((s) => s.user?.email === 'debuger@latta.app');
-      console.log('🧠 TOTAL DE SOCKETS CONECTADOS:', allSockets.length);
+      // Visão unificada (refactor 2026-05-08): emite pra sala global única.
+      // Todos os usuários autenticados recebem todas as mensagens.
+      const room = io.sockets.adapter.rooms.get(MESSAGING_ROOM);
       console.log(
-        '🐞 DEBUGGERS ATIVOS:',
-        debuggerSockets.map((s) => ({
-          id: s.id,
-          email: s.user?.email,
-          salas: Array.from(s.rooms),
-        })),
+        room
+          ? `✅ Sala '${MESSAGING_ROOM}' com ${room.size} sockets`
+          : `❌ Sala '${MESSAGING_ROOM}' vazia`,
       );
 
-      // ======================
-      // 2️⃣ Emissão para a clínica
-      // ======================
-      if (clinic_id) {
-        const roomName = `clinic_${clinic_id}`;
-        const clinicAttendants = clinicConnections.get(clinic_id);
-        console.log(`📨 Enviando mensagem para sala: ${roomName}`);
-        console.log(`👥 Atendentes conectados nessa clínica: ${clinicAttendants?.size || 0}`);
+      io.to(MESSAGING_ROOM).emit('new_message', messageData);
+      console.log(`📤 new_message emitido para '${MESSAGING_ROOM}'`);
 
-        io.to(roomName).emit('new_message', messageData);
-      } else {
-        console.log('⚠️ Mensagem sem clinic_id — será enviada apenas para debug_global');
-      }
-
-      // ======================
-      // 3️⃣ Emissão global
-      // ======================
-      console.log(`🐛 Tentando enviar mensagem para sala 'debug_global'...`);
-      const debugRoom = io.sockets.adapter.rooms.get('debug_global');
-      console.log(
-        debugRoom
-          ? `✅ Sala 'debug_global' existe com ${debugRoom.size} sockets`
-          : '❌ Sala debug_global não existe ou vazia',
-      );
-
-      io.to('debug_global').emit('new_message', messageData);
-      console.log('📤 Evento new_message emitido para debug_global com sucesso');
-
-      // ======================
-      // 4️⃣ Retorno da API
-      // ======================
       res.json({
         success: true,
         sent: true,
-        clinic_id: clinic_id || null,
-        debug_notified: true,
+        room: MESSAGING_ROOM,
       });
 
       console.log('✅ Webhook finalizado com sucesso');
@@ -194,11 +160,9 @@ function createSocketRoutes(io, clinicConnections) {
   // ==========================================
   router.post('/test-socket', express.json(), async (_req, res) => {
     console.log('\n🧪 TESTE MANUAL DE SOCKET');
-    console.log('📡 Emitindo mensagens de teste para as salas...');
 
     const testMessage = {
       id: 'test-' + Date.now(),
-      clinic_id: '524f5b01-20b7-45e0-adf4-7b4eecea938a',
       contact_id: 'test-contact',
       message: 'MENSAGEM DE TESTE DO SOCKET',
       timestamp: new Date(),
@@ -207,26 +171,15 @@ function createSocketRoutes(io, clinicConnections) {
       role: 'client',
     };
 
-    // Log das salas antes de emitir
     const allRooms = Array.from(io.sockets.adapter.rooms.keys());
-    console.log('📡 Todas as salas atuais:', allRooms);
+    const room = io.sockets.adapter.rooms.get(MESSAGING_ROOM);
 
-    const debugRoom = io.sockets.adapter.rooms.get('debug_global');
-    console.log(
-      debugRoom
-        ? `✅ Sala debug_global com ${debugRoom.size} sockets`
-        : '❌ Sala debug_global inexistente',
-    );
-
-    io.to('clinic_524f5b01-20b7-45e0-adf4-7b4eecea938a').emit('new_message', testMessage);
-    io.to('debug_global').emit('new_message', testMessage);
-
-    console.log('✅ Mensagens de teste emitidas com sucesso');
+    io.to(MESSAGING_ROOM).emit('new_message', testMessage);
 
     res.json({
       success: true,
       rooms: allRooms,
-      debugRoomSize: debugRoom?.size || 0,
+      messagingRoomSize: room?.size || 0,
     });
   });
 
