@@ -37,7 +37,7 @@ checkDatabaseConnection();
 const app = express();
 const httpServer = createServer(app);
 
-const { io, clinicConnections } = initializeSocket(httpServer);
+const { io } = initializeSocket(httpServer);
 
 app.use(cors(corsConfig));
 
@@ -57,7 +57,7 @@ app.use(express.json(jsonConfig));
 app.use(helmet());
 app.use(limiter);
 app.use('/api/', privateRoutes);
-app.use('/api', createSocketRoutes(io, clinicConnections));
+app.use('/api', createSocketRoutes(io));
 
 app.get('/', (_req, res) => {
   res.status(200).json({ message: '🚀 Server is running with WebSocket!' });

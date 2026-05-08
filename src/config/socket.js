@@ -1,8 +1,13 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 
-const clinicConnections = new Map();
+// Refactor 2026-05-08: visão unificada — todos os usuários autenticados (apenas
+// 2 sócios hoje) entram em uma única sala global e veem todas as mensagens.
+// Se voltar multi-clinic no futuro, reintroduzir clinic-specific rooms.
+const MESSAGING_ROOM = 'messaging_global';
+
 const userLastSeen = new Map();
+const userSockets = new Map();
 
 function initializeSocket(httpServer) {
   const io = new Server(httpServer, {
@@ -50,124 +55,49 @@ function initializeSocket(httpServer) {
   });
 
   io.on('connection', (socket) => {
-    const { id: userId, clinic_id: clinicId, email } = socket.user;
+    const { id: userId } = socket.user;
     const userName = socket.user.name || 'Atendente';
-
-    // 🔥 CORREÇÃO: Verificar debugger ANTES de qualquer outra lógica
-    const isDebugUser = email === 'debuger@latta.app';
-    const userKey = `${userId}-${isDebugUser ? 'debug' : clinicId}`;
 
     console.log(`🔗 Atendente conectado: ${userName} (${userId})`);
 
-    if (isDebugUser) {
-      console.log(`🐛 USUÁRIO DEBUGGER DETECTADO - Modo Global Ativado`);
-      console.log(`📍 Email: ${email}`);
-    } else {
-      console.log(`📍 Clínica: ${clinicId}`);
+    // Throttle de reconexão muito rápida (loop de cliente)
+    const lastSeen = userLastSeen.get(userId);
+    if (lastSeen && Date.now() - lastSeen < 2000) {
+      console.log(`⚠️ Reconexão muito rápida para ${userId}, descartando.`);
+      socket.emit('connection_throttled', {
+        message: 'Aguarde antes de reconectar',
+        waitTime: 2000,
+      });
+      socket.disconnect(true);
+      return;
     }
 
-    // Verificar reconexão muito rápida (loop)
-    if (!isDebugUser) {
-      const lastSeen = userLastSeen.get(userKey);
-      if (lastSeen && Date.now() - lastSeen < 2000) {
-        console.log(
-          `⚠️ Conexão muito rápida detectada para ${userId}, possível loop. Aguardando...`,
-        );
-        socket.emit('connection_throttled', {
-          message: 'Aguarde antes de reconectar',
-          waitTime: 2000,
+    // Substitui conexão prévia do mesmo usuário (evita duplicar handlers e
+    // mensagens duplicadas no painel quando o navegador reabre o socket).
+    const existingSocketId = userSockets.get(userId);
+    if (existingSocketId && existingSocketId !== socket.id) {
+      const existingSocket = io.sockets.sockets.get(existingSocketId);
+      if (existingSocket) {
+        existingSocket.emit('connection_replaced', {
+          message: 'Sua conexão foi substituída por uma nova sessão',
         });
-        socket.disconnect(true);
-        return;
+        existingSocket.removeAllListeners();
+        existingSocket.disconnect(true);
       }
     }
+    userSockets.set(userId, socket.id);
 
-    // 🔥 LÓGICA SEPARADA: Debugger vs Usuário Normal
-    if (isDebugUser) {
-      // ==========================================
-      // DEBUGGER: Entra APENAS na sala global
-      // ==========================================
+    socket.join(MESSAGING_ROOM);
+    console.log(`✅ Usuário ${userName} adicionado à sala '${MESSAGING_ROOM}'`);
 
-      const existingDebugSockets = Array.from(io.sockets.sockets.values()).filter(
-        (s) => s.user?.email === 'debuger@latta.app',
-      );
+    // Notifica os outros conectados
+    socket.to(MESSAGING_ROOM).emit('attendant_connected', {
+      userId,
+      userName,
+      timestamp: new Date(),
+    });
 
-      console.log(`🐛 Total de debugers conectados: ${existingDebugSockets.length}`);
-
-      socket.join('debug_global');
-      console.log(`✅ Debugger adicionado à sala 'debug_global'`);
-      console.log(`📊 Salas do socket:`, Array.from(socket.rooms));
-
-      // Notificar sobre modo debug
-      socket.emit('debug_mode_active', {
-        message: 'Modo debug ativo - você receberá mensagens de todas as clínicas',
-        timestamp: new Date(),
-      });
-    } else {
-      // ==========================================
-      // USUÁRIO NORMAL: Validar clinic_id
-      // ==========================================
-      if (!clinicId) {
-        console.error(`❌ Usuário ${userId} sem clinic_id`);
-        socket.emit('connection_error', {
-          error: 'Usuário sem clínica associada',
-        });
-        socket.disconnect(true);
-        return;
-      }
-
-      // Gerenciar conexões da clínica
-      if (!clinicConnections.has(clinicId)) {
-        clinicConnections.set(clinicId, new Map());
-      }
-
-      const clinicUsers = clinicConnections.get(clinicId);
-      const existingConnection = clinicUsers.get(userId);
-
-      if (existingConnection) {
-        console.log(`⚠️ Substituindo conexão existente do usuário ${userId}`);
-
-        const existingSocket = io.sockets.sockets.get(existingConnection.socketId);
-        if (existingSocket && existingSocket.id !== socket.id) {
-          existingSocket.emit('connection_replaced', {
-            message: 'Sua conexão foi substituída por uma nova sessão',
-          });
-          existingSocket.removeAllListeners();
-          existingSocket.disconnect(true);
-        }
-      }
-
-      // Adicionar nova conexão
-      clinicUsers.set(userId, {
-        socketId: socket.id,
-        userName,
-        connectedAt: new Date(),
-        isActive: true,
-      });
-
-      socket.join(`clinic_${clinicId}`);
-      console.log(`✅ Usuário adicionado à sala 'clinic_${clinicId}'`);
-      console.log(`📊 Conexões ativas na clínica ${clinicId}: ${clinicUsers.size}`);
-
-      // Tambem entra em debug_global pra capturar mensagens de contacts SEM
-      // clinic_id (leads novos, conversas onde o user nunca foi vinculado a
-      // uma clinic). socketRoutes.js:155-157 emite essas mensagens APENAS
-      // pra debug_global — sem esse join, o operador so via depois de F5.
-      // Trade-off: se houver multi-clinic, esse user vera leads de outras
-      // clinics. Hoje so existe Suporte Latta como clinic real, entao OK.
-      socket.join('debug_global');
-      console.log(`✅ Usuário adicionado à sala 'debug_global' (catch-all leads sem clinic)`);
-      console.log(`📊 Salas do socket:`, Array.from(socket.rooms));
-
-      // Notificar outros atendentes
-      socket.to(`clinic_${clinicId}`).emit('attendant_connected', {
-        userId,
-        userName,
-        timestamp: new Date(),
-      });
-    }
-
-    userLastSeen.set(userKey, Date.now());
+    userLastSeen.set(userId, Date.now());
 
     // Rate limiting para ping/pong
     let lastPing = 0;
@@ -228,34 +158,23 @@ function initializeSocket(httpServer) {
     const handleDisconnection = (reason) => {
       console.log(`❌ Atendente desconectado: ${userName} - Motivo: ${reason}`);
 
-      userLastSeen.set(userKey, Date.now());
+      userLastSeen.set(userId, Date.now());
 
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
       }
 
-      // Cleanup apenas para usuários normais (não debugger)
-      if (!isDebugUser && clinicId && clinicConnections.has(clinicId)) {
-        const currentConnection = clinicConnections.get(clinicId).get(userId);
-        if (currentConnection && currentConnection.socketId === socket.id) {
-          clinicConnections.get(clinicId).delete(userId);
-
-          if (clinicConnections.get(clinicId).size === 0) {
-            clinicConnections.delete(clinicId);
-          }
-
-          socket.to(`clinic_${clinicId}`).emit('attendant_disconnected', {
-            userId,
-            userName,
-            timestamp: new Date(),
-          });
-
-          console.log(
-            `📊 Conexões restantes na clínica ${clinicId}:`,
-            clinicConnections.get(clinicId)?.size || 0,
-          );
-        }
+      // Limpa o pointer só se ainda for este socket (uma reconexão substituta
+      // pode ter acabado de re-setar pra um id novo).
+      if (userSockets.get(userId) === socket.id) {
+        userSockets.delete(userId);
       }
+
+      socket.to(MESSAGING_ROOM).emit('attendant_disconnected', {
+        userId,
+        userName,
+        timestamp: new Date(),
+      });
     };
 
     socket.on('disconnect', handleDisconnection);
@@ -269,8 +188,6 @@ function initializeSocket(httpServer) {
     // Confirmar conexão
     socket.emit('connection_confirmed', {
       userId,
-      clinicId: clinicId || 'debug',
-      isDebugMode: isDebugUser,
       timestamp: Date.now(),
       rooms: Array.from(socket.rooms),
       message: 'Conexão estabelecida com sucesso',
@@ -286,14 +203,14 @@ function initializeSocket(httpServer) {
     const now = Date.now();
     const CLEANUP_THRESHOLD = 300000;
 
-    for (const [userKey, lastSeen] of userLastSeen.entries()) {
-      if (now - lastSeen > CLEANUP_THRESHOLD) {
-        userLastSeen.delete(userKey);
+    for (const [userId, lastSeenAt] of userLastSeen.entries()) {
+      if (now - lastSeenAt > CLEANUP_THRESHOLD) {
+        userLastSeen.delete(userId);
       }
     }
   }, 60000);
 
-  return { io, clinicConnections };
+  return { io, MESSAGING_ROOM };
 }
 
-export { initializeSocket };
+export { initializeSocket, MESSAGING_ROOM };

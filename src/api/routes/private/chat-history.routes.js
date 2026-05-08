@@ -82,20 +82,6 @@ router.get(
   ChatController.getContactByPetOwnerId,
 );
 
-router.get(
-  '/messages/getAllContactsMessagesWithNoFilters',
-  verifyToken,
-  checkRole(['admin', 'superAdmin', 'attendant']),
-  ChatController.getAllContactsMessagesWithNoFilters,
-);
-
-router.get(
-  '/messages/loadMoreAllContacts',
-  verifyToken,
-  checkRole(['admin', 'superAdmin', 'attendant']),
-  ChatController.getAllContactsMessagesWithNoFilters,
-);
-
 // Marca mensagens não-respondidas de um pet_owner como answered (substitui
 // o webhook N8n `is_answered` em Lattinha - Webhooks Front).
 router.post(

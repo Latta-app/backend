@@ -4,7 +4,7 @@ const getAllContactsWithMessages = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const { id, role, clinic_id } = req.user;
+    const { id, role } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -18,7 +18,6 @@ const getAllContactsWithMessages = async (req, res) => {
 
     const result = await ChatService.getAllContactsWithMessages({
       user_id: id,
-      clinic_id,
       role: role.role,
       page,
       limit,
@@ -42,7 +41,7 @@ const getAllContactsBeingAttended = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const { id, role, clinic_id } = req.user;
+    const { id, role } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -56,7 +55,6 @@ const getAllContactsBeingAttended = async (req, res) => {
 
     const result = await ChatService.getAllContactsBeingAttended({
       user_id: id,
-      clinic_id,
       role: role.role,
       page,
       limit,
@@ -79,7 +77,7 @@ const getAllContactsBeingAttended = async (req, res) => {
 const searchContacts = async (req, res) => {
   try {
     const { query, page = 1, limit = 15 } = req.query;
-    const { id, clinic_id, role } = req.user;
+    const { id, role } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -92,13 +90,12 @@ const searchContacts = async (req, res) => {
     };
 
     const contacts = await ChatService.searchContacts({
-      clinic_id,
       query,
       page: parseInt(page),
       limit: parseInt(limit),
       role: role.role,
       user_id: id,
-      filters, // Novo parâmetro
+      filters,
     });
 
     return res.status(200).json({
@@ -307,51 +304,6 @@ const getOrdersByContactId = async (req, res) => {
   }
 };
 
-const getAllContactsMessagesWithNoFilters = async (req, res) => {
-  try {
-    const { role } = req.user;
-    const { page = 1, limit = 15 } = req.query; // Mudei de 20 para 15 para manter padrão
-
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-
-    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
-      return res.status(400).json({
-        code: 'INVALID_PAGINATION_PARAMS',
-        message: 'Invalid pagination parameters',
-      });
-    }
-
-    console.log('🔍 Controller - Buscando TODOS os contatos sem filtros');
-
-    const result = await ChatService.getAllContactsMessagesWithNoFilters({
-      role: role.role,
-      page: pageNum,
-      limit: limitNum,
-    });
-
-    // Corrigir estrutura da resposta - deve retornar contacts, não contact
-    if (!result || !result.contacts) {
-      return res.status(404).json({
-        code: 'CONTACTS_NOT_FOUND',
-        message: 'No contacts found',
-      });
-    }
-
-    return res.status(200).json({
-      code: 'CONTACTS_RETRIEVED',
-      data: result.contacts,
-      totalItems: result.totalItems,
-    });
-  } catch (error) {
-    console.error('Error retrieving all contacts without filters:', error);
-    return res.status(500).json({
-      code: 'CONTACTS_RETRIEVAL_ERROR',
-      message: error.message,
-    });
-  }
-};
-
 const getContactByPetOwnerIdOrPhone = async (req, res) => {
   try {
     const { pet_owner_id, contact } = req.query;
@@ -417,7 +369,7 @@ const getAllTestContacts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
-    const { id, role, clinic_id } = req.user;
+    const { id, role } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -427,7 +379,6 @@ const getAllTestContacts = async (req, res) => {
 
     const result = await ChatService.getAllTestContacts({
       user_id: id,
-      clinic_id,
       role: role.role,
       page,
       limit,
@@ -449,10 +400,9 @@ const getAllTestContacts = async (req, res) => {
 
 const getTestContactsCount = async (req, res) => {
   try {
-    const { role, clinic_id } = req.user;
+    const { role } = req.user;
 
     const result = await ChatService.getTestContactsCount({
-      clinic_id,
       role: role.role,
     });
 
@@ -469,10 +419,9 @@ const getTestContactsCount = async (req, res) => {
   }
 };
 
-const getInAttendanceContactsCount = async (req, res) => {
+const getInAttendanceContactsCount = async (_req, res) => {
   try {
-    const { clinic_id } = req.user;
-    const result = await ChatService.getInAttendanceContactsCount({ clinic_id });
+    const result = await ChatService.getInAttendanceContactsCount();
     return res.status(200).json({
       code: 'IN_ATTENDANCE_CONTACTS_COUNT_RETRIEVED',
       data: { count: result.count },
@@ -554,7 +503,6 @@ export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
   searchContacts,
-  getAllContactsMessagesWithNoFilters,
   getContactByPetOwnerId,
   getContactByContactId,
   getOrdersByContactId,
