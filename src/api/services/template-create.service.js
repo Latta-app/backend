@@ -16,6 +16,7 @@ import { Template } from '../models/index.js';
 import { sequelize } from '../../config/database.js';
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const WABA_ID = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '2831596893680901';
 const META_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const WHATSAPP_API = 'https://graph.facebook.com/v21.0';
@@ -58,21 +59,73 @@ Retorne APENAS JSON válido neste schema (sem markdown, sem comentários):
 const USER_PROMPT_TEMPLATE = (description) =>
   `Descrição do operador: """${description}"""\n\nGere o template em JSON.`;
 
-const draftFromDescription = async ({ description }) => {
-  if (!description || !description.trim()) {
-    throw new Error('description obrigatoria');
+// Sanitiza erro do axios pra logs sem vazar Bearer token. Axios.toJSON()
+// inclui o config completo (incluindo headers Authorization). console.error
+// com o objeto err inteiro vaza a key — ja aconteceu uma vez nos logs do
+// PM2 e foi flagrado.
+function sanitizeAxiosError(err) {
+  if (err.response) {
+    const status = err.response.status;
+    const code = err.response.data?.error?.code;
+    const message = err.response.data?.error?.message;
+    return new Error(`HTTP ${status}${code ? ` (${code})` : ''}: ${message || err.message}`);
   }
-  if (!OPENAI_KEY) {
-    throw new Error('OPENAI_API_KEY nao configurado no backend');
-  }
+  return new Error(err.message || 'unknown axios error');
+}
 
+// Mapeia erro tecnico de provider em mensagem amigavel pro operador.
+// 429 (insufficient_quota / rate_limit) tem causas distintas e o operador
+// nao precisa saber qual; mensagem unica que sugere proxima a��ao.
+function userFriendlyMessage(err) {
+  const msg = err.message || '';
+  if (msg.includes('429') || msg.includes('insufficient_quota')) {
+    return 'A IA da Latta atingiu o limite agora. Tenta de novo em alguns minutos — se persistir, o time tecnico precisa renovar credito.';
+  }
+  if (msg.includes('401') || msg.includes('invalid_api_key')) {
+    return 'A chave da IA nao esta configurada corretamente. Avise o time tecnico.';
+  }
+  if (msg.includes('timeout')) {
+    return 'A IA demorou pra responder. Tenta de novo.';
+  }
+  return 'Nao foi possivel gerar o template agora. Tenta de novo em alguns minutos.';
+}
+
+// Provider: Anthropic Claude Haiku 4.5 (rapido + barato). Fallback OpenAI
+// gpt-4.1-nano se ANTHROPIC_API_KEY nao configurada. Ambos retornam JSON
+// estruturado seguindo o mesmo schema do SYSTEM_PROMPT.
+async function callAnthropic(description) {
+  const resp = await axios.post(
+    'https://api.anthropic.com/v1/messages',
+    {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: USER_PROMPT_TEMPLATE(description) }],
+    },
+    {
+      headers: {
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    },
+  );
+  // Anthropic retorna content[0].text — extrair JSON dele. Como nao tem
+  // response_format=json, o LLM pode incluir markdown — strip se necessario.
+  let raw = resp.data?.content?.[0]?.text || '';
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  return raw;
+}
+
+async function callOpenAI(description) {
   const resp = await axios.post(
     'https://api.openai.com/v1/chat/completions',
     {
       model: 'gpt-4.1-nano',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: USER_PROMPT_TEMPLATE(description.trim()) },
+        { role: 'user', content: USER_PROMPT_TEMPLATE(description) },
       ],
       temperature: 0.4,
       response_format: { type: 'json_object' },
@@ -85,9 +138,45 @@ const draftFromDescription = async ({ description }) => {
       timeout: 30000,
     },
   );
+  return resp.data?.choices?.[0]?.message?.content || '';
+}
 
-  const raw = resp.data?.choices?.[0]?.message?.content;
-  if (!raw) throw new Error('LLM retornou resposta vazia');
+const draftFromDescription = async ({ description }) => {
+  if (!description || !description.trim()) {
+    throw new Error('description obrigatoria');
+  }
+  if (!ANTHROPIC_KEY && !OPENAI_KEY) {
+    throw new Error('Nenhuma chave de IA configurada (ANTHROPIC_API_KEY ou OPENAI_API_KEY)');
+  }
+
+  const cleaned = description.trim();
+
+  // Prefere Anthropic — mais barato e a key tem credito disponivel
+  // (OpenAI key esgotou em 2026-05). Fallback OpenAI quando Anthropic
+  // falha por timeout/quota tambem.
+  let raw = '';
+  let lastError = null;
+  if (ANTHROPIC_KEY) {
+    try {
+      raw = await callAnthropic(cleaned);
+    } catch (err) {
+      lastError = sanitizeAxiosError(err);
+      console.warn('[template-create] Anthropic falhou:', lastError.message);
+    }
+  }
+  if (!raw && OPENAI_KEY) {
+    try {
+      raw = await callOpenAI(cleaned);
+    } catch (err) {
+      lastError = sanitizeAxiosError(err);
+      console.warn('[template-create] OpenAI falhou:', lastError.message);
+    }
+  }
+  if (!raw) {
+    const friendlyError = new Error(userFriendlyMessage(lastError || new Error('')));
+    friendlyError.cause = lastError;
+    throw friendlyError;
+  }
 
   let parsed;
   try {
@@ -184,10 +273,12 @@ const submitToMeta = async ({
     );
     metaResp = resp.data;
   } catch (err) {
+    // sanitize: NUNCA throw com err inteiro — config.headers expoe token
     const detail = err.response?.data?.error?.error_user_msg
       || err.response?.data?.error?.message
       || err.message;
-    throw new Error(`Meta API rejeitou: ${detail}`);
+    const safe = new Error(`Meta API rejeitou: ${detail}`);
+    throw safe;
   }
 
   // Extrai BODY pra template_preview (o que o frontend mostra na lista)

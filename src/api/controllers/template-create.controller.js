@@ -15,7 +15,10 @@ const draft = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error('Error drafting template:', error);
+    // IMPORTANT: log SO a mensagem (nao o objeto inteiro) — axios errors
+    // incluem config.headers com Bearer tokens. Vazou uma vez nos logs PM2,
+    // nao deve repetir.
+    console.error('[template-create] draft falhou:', error.message);
     return res.status(500).json({
       code: 'TEMPLATE_DRAFT_ERROR',
       message: error.message,
@@ -46,7 +49,7 @@ const submit = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error('Error submitting template:', error);
+    console.error('[template-create] submit falhou:', error.message);
     return res.status(500).json({
       code: 'TEMPLATE_SUBMIT_ERROR',
       message: error.message,
