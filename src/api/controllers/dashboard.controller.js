@@ -1,4 +1,5 @@
 import DashboardService from '../services/dashboard.service.js';
+import DashboardAuditService from '../services/dashboard-audit.service.js';
 
 const parseRefresh = (q) => q?.refresh === '1' || q?.refresh === 'true';
 const parseIncludeTest = (q) => q?.include_test === 'true';
@@ -114,6 +115,16 @@ const getContactDrilldown = async (req, res) => {
       });
     }
     const result = await DashboardService.getContactDrilldown({ phone });
+
+    // Audit LGPD: registra quem (req.user) abriu drilldown de quem (phone).
+    // Fire-and-forget — não bloqueia response.
+    DashboardAuditService.logAudit({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      action: 'drilldown_open',
+      targetPhone: phone,
+      targetPetOwnerId: result?.pet_owner?.id,
+    });
 
     return res.status(200).json({
       code: 'DASHBOARD_DRILLDOWN_RETRIEVED',
