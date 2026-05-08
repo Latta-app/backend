@@ -11,8 +11,10 @@
 // Workaround: chama via whatsapp-proxy EF que age como proxy estável.
 
 import axios from 'axios';
-import { Contact, PetOwner, Pet, Template, TemplateVariable, TemplateVariableType } from '../models/index.js';
+import { QueryTypes } from 'sequelize';
+import { Contact, PetOwner, Template, TemplateVariable, TemplateVariableType } from '../models/index.js';
 import ContactRepository from '../repositories/contact.repository.js';
+import { sequelize } from '../../config/database.js';
 
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '587778224419344';
 const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -98,11 +100,21 @@ async function buildTemplatePayload({ phone, template, manualVars, contact }) {
       attributes: ['id', 'name'],
     });
     if (petOwner) {
-      pet = await Pet.findOne({
-        where: { pet_owner_id: petOwner.id },
-        attributes: ['id', 'name'],
-        order: [['created_at', 'ASC']],
-      });
+      // Pets vinculados via tabela M:M pet_owner_pets (não FK direto em pets).
+      // Pega o pet principal ativo (is_main_owner=true tem prioridade, fallback
+      // pro mais antigo). Raw query pra escapar do model Sequelize cheio.
+      const rows = await sequelize.query(
+        `SELECT p.id, p.name FROM pets p
+         INNER JOIN pet_owner_pets pop ON pop.pet_id = p.id
+         WHERE pop.pet_owner_id = :owner_id AND pop.is_active = true
+         ORDER BY pop.is_main_owner DESC, pop.added_at ASC
+         LIMIT 1`,
+        {
+          replacements: { owner_id: petOwner.id },
+          type: QueryTypes.SELECT,
+        },
+      );
+      pet = rows[0] || null;
     }
   }
 
