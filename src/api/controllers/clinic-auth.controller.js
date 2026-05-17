@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import ClinicAuthService from '../services/clinic-auth.service.js';
+import { isClinicPortalEnabled } from '../services/feature-flag.service.js';
 
 const handleAuthError = (res, err, fallbackCode) => {
   if (err.code === 'NOT_FOUND') return res.status(404).json({ code: 'NOT_FOUND', message: err.message });
@@ -74,6 +75,15 @@ export const login = async (req, res) => {
   if (error) return res.status(400).json({ code: 'VALIDATION_ERROR', error: error.details });
   try {
     const result = await ClinicAuthService.login(value);
+    // Gate fatia 07: roles 'clinic' so logam se clinic_portal_v0 ON pro clinic_id
+    const enabled = await isClinicPortalEnabled(result?.user?.clinic_id);
+    if (!enabled) {
+      return res.status(403).json({
+        code: 'CLINIC_PORTAL_NOT_IN_BETA',
+        message:
+          'Sua clínica ainda não está no beta do painel. Fala com a Latta pra entrar na lista.',
+      });
+    }
     return res.json({ code: 'CLINIC_LOGIN_SUCCESS', data: result });
   } catch (err) {
     return handleAuthError(res, err, 'CLINIC_LOGIN_ERROR');
