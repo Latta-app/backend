@@ -1,5 +1,20 @@
 import SchedulingService from '../services/scheduling.service.js';
 import { validateSchedulingUpdate } from '../validators/scheduling.validations.js';
+import {
+  redactAppointmentForClinic,
+  redactAppointmentsForClinic,
+} from '../utils/appointment-redactor.js';
+
+const getRoleString = (req) => {
+  const raw = req?.user?.role;
+  if (typeof raw === 'string') return raw;
+  return raw?.role || raw?.name || null;
+};
+
+const getClinicId = (req) =>
+  req?.user?.clinic_id || req?.user?.role?.clinic_id || null;
+
+const isClinicRole = (req) => getRoleString(req) === 'clinic';
 
 const actorOf = (req) => {
   if (!req?.user) return 'backend_admin';
@@ -59,14 +74,37 @@ const getSchedulingsByClinic = async (req, res) => {
   try {
     const { clinicId } = req.params;
     const { date, status } = req.query;
+
+    // Anti-bypass: role clinic so vê própria clínica, ignora URL diferente
+    if (isClinicRole(req)) {
+      const jwtClinicId = getClinicId(req);
+      if (!jwtClinicId) {
+        return res.status(403).json({
+          code: 'CLINIC_FORBIDDEN',
+          message: 'JWT sem clinic_id',
+        });
+      }
+      if (jwtClinicId !== clinicId) {
+        return res.status(403).json({
+          code: 'CLINIC_FORBIDDEN',
+          message: 'Acesso a agendamentos de outra clínica não permitido',
+        });
+      }
+    }
+
     const schedulings = await SchedulingService.getSchedulingsByClinic({
       clinicId,
       date,
       status,
     });
+
+    const payload = isClinicRole(req)
+      ? redactAppointmentsForClinic(schedulings)
+      : schedulings;
+
     return res.status(200).json({
       code: 'CLINIC_SCHEDULINGS_FETCHED',
-      data: schedulings,
+      data: payload,
     });
   } catch (error) {
     return handleError(res, error, {
@@ -139,12 +177,29 @@ const getSchedulingById = async (req, res) => {
   try {
     const { id } = req.params;
     const scheduling = await SchedulingService.getSchedulingById({ id });
-    if (req.user.role === 'petOwner' && scheduling.pet_owner_id !== req.user.id) {
+
+    if (getRoleString(req) === 'petOwner' && scheduling.pet_owner_id !== req.user.id) {
       return res.status(403).json({
         code: 'FORBIDDEN',
         message: 'Você não tem permissão para acessar este agendamento',
       });
     }
+
+    // Role clinic: só vê própria clinic + payload redacted
+    if (isClinicRole(req)) {
+      const jwtClinicId = getClinicId(req);
+      if (!jwtClinicId || scheduling.clinic_id !== jwtClinicId) {
+        return res.status(403).json({
+          code: 'CLINIC_FORBIDDEN',
+          message: 'Agendamento não pertence à sua clínica',
+        });
+      }
+      return res.status(200).json({
+        code: 'SCHEDULING_FETCHED',
+        data: redactAppointmentForClinic(scheduling),
+      });
+    }
+
     return res.status(200).json({
       code: 'SCHEDULING_FETCHED',
       data: scheduling,
