@@ -31,14 +31,14 @@ export const validateSchedulingCreate = (data) => {
       'string.uuid': 'O ID da clínica deve ser um UUID válido',
       'any.required': 'O ID da clínica é obrigatório',
     }),
-    pet_id: Joi.string().uuid().required().messages({
+    pet_id: Joi.string().uuid().allow(null).messages({
       'string.uuid': 'O ID do pet deve ser um UUID válido',
-      'any.required': 'O ID do pet é obrigatório',
     }),
-    pet_owner_id: Joi.string().uuid().required().messages({
+    pet_owner_id: Joi.string().uuid().allow(null).messages({
       'string.uuid': 'O ID do dono do pet deve ser um UUID válido',
-      'any.required': 'O ID do dono do pet é obrigatório',
     }),
+    external_pet_id: Joi.string().uuid().allow(null),
+    external_contact_id: Joi.string().uuid().allow(null),
     user_phone: Joi.string().allow(null, ''),
     category: Joi.string().valid(...CATEGORIES).default('veterinaria'),
     appointment_date: Joi.alternatives()
@@ -57,7 +57,9 @@ export const validateSchedulingCreate = (data) => {
     notes: Joi.string().allow(null, ''),
     frequency: FREQUENCY,
     endCondition: END_CONDITION,
-  });
+  })
+    .or('pet_id', 'external_pet_id')
+    .or('pet_owner_id', 'external_contact_id');
 
   return schema.validate(data, { abortEarly: false, allowUnknown: true });
 };

@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import SchedulingRepository from '../repositories/scheduling.repository.js';
+import ClinicExternalRepository from '../repositories/clinic-external.repository.js';
 import { pgPool } from '../../config/postgres.js';
 
 const MAX_RECURRENT_SCHEDULINGS = 50;
@@ -87,6 +88,25 @@ const createScheduling = async ({ schedulingData }) => {
     );
   }
 
+  for (const item of allSchedulings) {
+    if (!item.external_pet_id && !item.external_contact_id) continue;
+    if (!item.clinic_id) {
+      throw new Error('clinic_id obrigatório quando external_pet_id ou external_contact_id presente');
+    }
+    if (item.external_pet_id) {
+      await ClinicExternalRepository.assertExternalPetBelongsToClinic({
+        clinicId: item.clinic_id,
+        externalPetId: item.external_pet_id,
+      });
+    }
+    if (item.external_contact_id) {
+      await ClinicExternalRepository.assertExternalContactBelongsToClinic({
+        clinicId: item.clinic_id,
+        externalContactId: item.external_contact_id,
+      });
+    }
+  }
+
   const client = await pgPool.connect();
   const createdSchedulings = [];
   try {
@@ -105,6 +125,7 @@ const createScheduling = async ({ schedulingData }) => {
     return createdSchedulings;
   } catch (error) {
     await client.query('ROLLBACK');
+    if (error.code === 'FORBIDDEN') throw error;
     throw new Error(`Service error: ${error.message}`);
   } finally {
     client.release();

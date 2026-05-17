@@ -8,7 +8,7 @@ const router = Router();
 router.post(
   '/',
   verifyToken,
-  checkRole(['admin', 'superAdmin', 'petOwner']),
+  checkRole(['admin', 'superAdmin', 'petOwner', 'clinic']),
   SchedulingController.createScheduling,
 );
 
@@ -16,7 +16,7 @@ router.post(
 router.get(
   '/',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
+  checkRole(['admin', 'superAdmin', 'clinic']),
   SchedulingController.getAllSchedulings,
 );
 
@@ -24,7 +24,7 @@ router.get(
 router.get(
   '/clinic/:clinicId',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
+  checkRole(['admin', 'superAdmin', 'clinic']),
   SchedulingController.getSchedulingsByClinic,
 );
 
@@ -32,7 +32,7 @@ router.get(
 router.get(
   '/pet-owner/:petOwnerId',
   verifyToken,
-  checkRole(['admin', 'superAdmin', 'petOwner']),
+  checkRole(['admin', 'superAdmin', 'petOwner', 'clinic']),
   SchedulingController.getSchedulingsByPetOwner,
 );
 
@@ -40,7 +40,7 @@ router.get(
 router.get(
   '/pet/:petId',
   verifyToken,
-  checkRole(['admin', 'superAdmin', 'petOwner']),
+  checkRole(['admin', 'superAdmin', 'petOwner', 'clinic']),
   SchedulingController.getSchedulingsByPet,
 );
 
@@ -48,7 +48,7 @@ router.get(
 router.get(
   '/:id',
   verifyToken,
-  checkRole(['admin', 'superAdmin', 'petOwner']),
+  checkRole(['admin', 'superAdmin', 'petOwner', 'clinic']),
   SchedulingController.getSchedulingById,
 );
 
@@ -56,7 +56,7 @@ router.get(
 router.put(
   '/:id',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
+  checkRole(['admin', 'superAdmin', 'clinic']),
   SchedulingController.updateScheduling,
 );
 
@@ -64,7 +64,7 @@ router.put(
 router.patch(
   '/:id/cancel',
   verifyToken,
-  checkRole(['admin', 'superAdmin', 'petOwner']),
+  checkRole(['admin', 'superAdmin', 'petOwner', 'clinic']),
   SchedulingController.cancelScheduling,
 );
 
@@ -72,7 +72,7 @@ router.patch(
 router.patch(
   '/:id/confirm',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
+  checkRole(['admin', 'superAdmin', 'clinic']),
   SchedulingController.confirmScheduling,
 );
 
@@ -80,7 +80,7 @@ router.patch(
 router.delete(
   '/:id',
   verifyToken,
-  checkRole(['admin', 'superAdmin']),
+  checkRole(['admin', 'superAdmin', 'clinic']),
   SchedulingController.deleteScheduling,
 );
 
