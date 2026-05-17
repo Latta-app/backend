@@ -63,6 +63,8 @@ const createScheduling = async ({ schedulingData, client = null }) => {
     scheduled_service,
     notes,
     category,
+    external_pet_id,
+    external_contact_id,
   } = schedulingData;
 
   const scheduledDate = resolveScheduledDate(appointment_date, start_time);
@@ -76,17 +78,30 @@ const createScheduling = async ({ schedulingData, client = null }) => {
     INSERT INTO scheduling_sessions (
       user_phone, pet_id, pet_owner_id, clinic_id,
       scheduled_date, service_requested, scheduled_service,
-      category, state, source, state_history, confirmed_at
+      category, state, source, state_history, confirmed_at,
+      external_pet_id, external_contact_id
     ) VALUES (
       $1, $2, $3, $4,
       $5, $6, $7,
       $8, 'CONFIRMED', 'external',
       jsonb_build_array(jsonb_build_object('at', now(), 'state', 'CONFIRMED', 'source', 'backend_admin')),
-      now()
+      now(),
+      $9, $10
     )
     RETURNING id
     `,
-    [phone, pet_id, pet_owner_id, clinic_id, scheduledDate, serviceReq, serviceLabel, cat],
+    [
+      phone,
+      pet_id ?? null,
+      pet_owner_id ?? null,
+      clinic_id,
+      scheduledDate,
+      serviceReq,
+      serviceLabel,
+      cat,
+      external_pet_id ?? null,
+      external_contact_id ?? null,
+    ],
   );
 
   const insertedId = result.rows[0].id;
