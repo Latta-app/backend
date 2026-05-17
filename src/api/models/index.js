@@ -34,8 +34,6 @@ import PetTemperamentModel from './Pets/PetTemperamentModel.js';
 import PetTypeModel from './Pets/PetTypeModel.js';
 import PlanModel from './Plans/PlanModel.js';
 import ProtocolModel from './Protocols/ProtocolModel.js';
-import SchedulingModel from './Scheduling/SchedulingModel.js';
-import SchedulingStatusModel from './Scheduling/SchedulingStatusModel.js';
 import ServiceTypeModel from './Services/ServiceType.js';
 import UserModel from './Users/UserModel.js';
 import RoleModel from './Users/RoleModel.js';
@@ -77,8 +75,6 @@ const models = {
   PetSubscription: PetSubscriptionModel(sequelize),
   Plan: PlanModel(sequelize),
   Protocol: ProtocolModel(sequelize),
-  Scheduling: SchedulingModel(sequelize),
-  SchedulingStatus: SchedulingStatusModel(sequelize),
   ServiceType: ServiceTypeModel(sequelize),
   User: UserModel(sequelize),
   Role: RoleModel(sequelize),
@@ -126,8 +122,6 @@ export const PetTemperament = models.PetTemperament;
 export const PetType = models.PetType;
 export const Plan = models.Plan;
 export const Protocol = models.Protocol;
-export const Scheduling = models.Scheduling;
-export const SchedulingStatus = models.SchedulingStatus;
 export const ServiceType = models.ServiceType;
 export const User = models.User;
 export const Role = models.Role;
