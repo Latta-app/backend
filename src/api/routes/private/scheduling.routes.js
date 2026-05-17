@@ -68,6 +68,22 @@ router.patch(
   SchedulingController.cancelScheduling,
 );
 
+// Marcar no-show (tutor nao compareceu)
+router.patch(
+  '/:id/no-show',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'clinic']),
+  SchedulingController.noShowScheduling,
+);
+
+// Remarcar agendamento
+router.patch(
+  '/:id/reschedule',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'clinic']),
+  SchedulingController.rescheduleScheduling,
+);
+
 // Confirmar um agendamento
 router.patch(
   '/:id/confirm',
