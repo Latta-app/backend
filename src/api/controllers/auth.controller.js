@@ -1,5 +1,6 @@
 // src/api/controllers/auth.controller.js
 import AuthService from '../services/auth.service.js';
+import { logClinicActivity } from '../services/clinic-activity-log.service.js';
 
 const login = async (req, res) => {
   try {
@@ -13,6 +14,24 @@ const login = async (req, res) => {
     }
 
     const authData = await AuthService.login({ email, password });
+
+    const user = authData?.user || {};
+    const userRole =
+      typeof user.role === 'string' ? user.role : user.role?.role || user.role?.name;
+    if (userRole === 'clinic' || userRole === 'admin' || userRole === 'superAdmin') {
+      logClinicActivity({
+        clinicId: user.clinic_id || user.role?.clinic_id || null,
+        userId: user.id,
+        userEmail: user.email,
+        eventType: 'login',
+        eventData: { role: userRole },
+        ipAddress:
+          req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+          req.ip ||
+          null,
+        userAgent: req.headers['user-agent'] || null,
+      });
+    }
 
     return res.status(200).json({
       code: 'LOGIN_SUCCESS',

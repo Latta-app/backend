@@ -3,6 +3,7 @@ import {
   validateExternalPet,
   validateExternalContact,
 } from '../validators/clinic-external.validations.js';
+import { logFromReq } from '../services/clinic-activity-log.service.js';
 
 const resolveClinicId = (req) =>
   req.user?.clinic_id || req.user?.role?.clinic_id || req.body?.clinic_id || null;
@@ -54,6 +55,7 @@ export const createExternalPet = async (req, res) => {
   }
   try {
     const created = await ClinicExternalRepository.createExternalPet({ clinicId, data: value });
+    logFromReq(req, 'external_pet_created', { pet_id: created.id });
     return res.status(201).json({ code: 'EXTERNAL_PET_CREATED', data: created });
   } catch (err) {
     return handleError(res, err, 'EXTERNAL_PET_CREATE_ERROR');
@@ -118,6 +120,7 @@ export const createExternalContact = async (req, res) => {
       clinicId,
       data: value,
     });
+    logFromReq(req, 'external_contact_created', { contact_id: created.id });
     return res.status(201).json({ code: 'EXTERNAL_CONTACT_CREATED', data: created });
   } catch (err) {
     return handleError(res, err, 'EXTERNAL_CONTACT_CREATE_ERROR');

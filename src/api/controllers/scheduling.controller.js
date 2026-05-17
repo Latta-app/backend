@@ -4,6 +4,7 @@ import {
   redactAppointmentForClinic,
   redactAppointmentsForClinic,
 } from '../utils/appointment-redactor.js';
+import { logFromReq } from '../services/clinic-activity-log.service.js';
 
 const getRoleString = (req) => {
   const raw = req?.user?.role;
@@ -194,6 +195,10 @@ const getSchedulingById = async (req, res) => {
           message: 'Agendamento não pertence à sua clínica',
         });
       }
+      logFromReq(req, 'view_appointment_detail', {
+        appointment_id: scheduling.id,
+        source: scheduling.source,
+      });
       return res.status(200).json({
         code: 'SCHEDULING_FETCHED',
         data: redactAppointmentForClinic(scheduling),
@@ -237,6 +242,7 @@ const cancelScheduling = async (req, res) => {
       });
     }
     const canceled = await SchedulingService.cancelScheduling({ id, actor: actorOf(req) });
+    logFromReq(req, 'scheduling_cancelled', { appointment_id: id, source: scheduling.source });
     return res.status(200).json({
       code: 'SCHEDULING_CANCELED',
       data: canceled,
@@ -250,6 +256,7 @@ const confirmScheduling = async (req, res) => {
   try {
     const { id } = req.params;
     const confirmed = await SchedulingService.confirmScheduling({ id, actor: actorOf(req) });
+    logFromReq(req, 'scheduling_confirmed', { appointment_id: id });
     return res.status(200).json({
       code: 'SCHEDULING_CONFIRMED',
       data: confirmed,
