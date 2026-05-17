@@ -1,486 +1,325 @@
-import {
-  Scheduling,
-  Clinic,
-  ServiceType,
-  SchedulingStatus,
-  User,
-  Plan,
-  Pet,
-  PetOwner,
-  PaymentMethod,
-  PaymentStatus,
-} from '../models/index.js';
-import { DateTime } from 'luxon';
+import { pgPool, pgQuery } from '../../config/postgres.js';
+import { mapRows, mapSessionToScheduling } from '../utils/scheduling.mapper.js';
 
-// Modificação do método createScheduling para aceitar transação
-const createScheduling = async ({ schedulingData, transaction = null }) => {
-  try {
-    const options = transaction ? { transaction } : {};
+const BASE_SELECT = `
+  SELECT
+    s.id,
+    s.user_phone,
+    s.pet_owner_id,
+    s.pet_id,
+    s.pet_ids,
+    s.clinic_id,
+    s.clinic_phone_normalized,
+    s.state,
+    s.category,
+    s.service_requested,
+    s.scheduled_date,
+    s.scheduled_service,
+    s.state_history,
+    s.source,
+    s.external_pet_id,
+    s.external_contact_id,
+    s.confirmed_at,
+    s.created_at,
+    s.updated_at,
+    c.name AS clinic_name,
+    p.name AS pet_name,
+    po.email AS pet_owner_email,
+    po.name AS pet_owner_name
+  FROM scheduling_sessions s
+  LEFT JOIN clinics c ON c.id = s.clinic_id
+  LEFT JOIN pets p ON p.id = s.pet_id
+  LEFT JOIN pet_owners po ON po.id = s.pet_owner_id
+`;
 
-    const newScheduling = await Scheduling.create(schedulingData, options);
+const buildDateAndStatusFilter = (params, alias = 's', startIndex = 1) => {
+  const filters = [];
+  const values = [];
+  let i = startIndex;
 
-    if (!newScheduling) {
-      throw new Error('Failed to create scheduling');
-    }
-
-    return newScheduling;
-  } catch (error) {
-    throw new Error(`Repository error: ${error.message}`);
+  if (params?.date) {
+    values.push(params.date);
+    filters.push(`${alias}.scheduled_date::date = $${i}`);
+    i += 1;
   }
+  if (params?.status) {
+    values.push(params.status);
+    filters.push(`${alias}.state = $${i}`);
+    i += 1;
+  }
+  return { filters, values, nextIndex: i };
 };
 
-// Modificação do método getSchedulingById para aceitar transação
-const getSchedulingById = async ({ id, transaction = null }) => {
-  try {
-    const options = {
-      where: { id },
-      include: [
-        {
-          model: Clinic,
-          as: 'clinic',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: ServiceType,
-          as: 'serviceType',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: SchedulingStatus,
-          as: 'schedulingStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email'],
-        },
-        {
-          model: Plan,
-          as: 'plan',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: Pet,
-          as: 'pet',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: PetOwner,
-          as: 'petOwner',
-          attributes: ['id', 'email'],
-        },
-        {
-          model: PaymentMethod,
-          as: 'paymentMethod',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: PaymentStatus,
-          as: 'paymentStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-      ],
-    };
+const createScheduling = async ({ schedulingData, client = null }) => {
+  const runner = client ?? pgPool;
+  const {
+    clinic_id,
+    pet_id,
+    pet_owner_id,
+    user_phone,
+    appointment_date,
+    start_time,
+    service_requested,
+    scheduled_service,
+    notes,
+    category,
+    external_pet_id,
+    external_contact_id,
+  } = schedulingData;
 
-    if (transaction) {
-      options.transaction = transaction;
-    }
+  const scheduledDate = resolveScheduledDate(appointment_date, start_time);
+  const phone = user_phone ?? '';
+  const cat = category ?? 'veterinaria';
+  const serviceReq = service_requested ?? notes ?? null;
+  const serviceLabel = scheduled_service ?? service_requested ?? notes ?? null;
 
-    const scheduling = await Scheduling.findOne(options);
+  const result = await runner.query(
+    `
+    INSERT INTO scheduling_sessions (
+      user_phone, pet_id, pet_owner_id, clinic_id,
+      scheduled_date, service_requested, scheduled_service,
+      category, state, source, state_history, confirmed_at,
+      external_pet_id, external_contact_id
+    ) VALUES (
+      $1, $2, $3, $4,
+      $5, $6, $7,
+      $8, 'CONFIRMED', 'external',
+      jsonb_build_array(jsonb_build_object('at', now(), 'state', 'CONFIRMED', 'source', 'backend_admin')),
+      now(),
+      $9, $10
+    )
+    RETURNING id
+    `,
+    [
+      phone,
+      pet_id ?? null,
+      pet_owner_id ?? null,
+      clinic_id,
+      scheduledDate,
+      serviceReq,
+      serviceLabel,
+      cat,
+      external_pet_id ?? null,
+      external_contact_id ?? null,
+    ],
+  );
 
-    if (!scheduling) {
-      throw new Error('Scheduling not found');
-    }
-
-    return scheduling;
-  } catch (error) {
-    throw new Error(`Error fetching scheduling by id: ${error.message}`);
-  }
+  const insertedId = result.rows[0].id;
+  return getSchedulingById({ id: insertedId, client: runner });
 };
 
-const getAllSchedulings = async ({ date, status }) => {
-  try {
-    const whereCondition = {};
-
-    if (date) {
-      whereCondition.appointment_date = date;
-    }
-
-    if (status) {
-      whereCondition.scheduling_status_id = status;
-    }
-
-    const schedulings = await Scheduling.findAll({
-      where: whereCondition,
-      include: [
-        {
-          model: Clinic,
-          as: 'clinic',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: ServiceType,
-          as: 'serviceType',
-          attributes: ['id', 'name', 'label', 'color', 'emoji'],
-        },
-        {
-          model: SchedulingStatus,
-          as: 'schedulingStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email'],
-        },
-        {
-          model: Plan,
-          as: 'plan',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: Pet,
-          as: 'pet',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: PetOwner,
-          as: 'petOwner',
-          attributes: ['id', 'email'],
-        },
-        {
-          model: PaymentMethod,
-          as: 'paymentMethod',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: PaymentStatus,
-          as: 'paymentStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-      ],
-      order: [
-        ['appointment_date', 'ASC'],
-        ['start_time', 'ASC'],
-      ],
-    });
-
-    return schedulings;
-  } catch (error) {
-    throw new Error(`Error fetching schedulings: ${error.message}`);
+const getSchedulingById = async ({ id, client = null }) => {
+  const runner = client ?? pgPool;
+  const result = await runner.query(`${BASE_SELECT} WHERE s.id = $1 LIMIT 1`, [id]);
+  if (result.rows.length === 0) {
+    const error = new Error('Scheduling not found');
+    error.code = 'NOT_FOUND';
+    throw error;
   }
+  return mapSessionToScheduling(result.rows[0]);
 };
 
-const getAllSchedulingsService = async ({ date, status }) => {
-  try {
-    const schedulings = await getAllSchedulings({ date, status });
-
-    const fixedSchedulings = schedulings.map((scheduling) => {
-      const plainData = scheduling.get({ plain: true });
-
-      if (plainData.start_time) {
-        const startDateTime = DateTime.fromJSDate(plainData.start_time).plus({ hours: 3 });
-        plainData.start_time = startDateTime.toJSDate();
-      }
-
-      if (plainData.end_time) {
-        const endDateTime = DateTime.fromJSDate(plainData.end_time).plus({ hours: 3 });
-        plainData.end_time = endDateTime.toJSDate();
-      }
-
-      return plainData;
-    });
-
-    return fixedSchedulings;
-  } catch (error) {
-    throw new Error(`Error getting schedulings with timezone correction: ${error.message}`);
-  }
+const getAllSchedulings = async ({ date, status } = {}) => {
+  const { filters, values } = buildDateAndStatusFilter({ date, status });
+  const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+  const result = await pgQuery(
+    `${BASE_SELECT} ${where} ORDER BY s.scheduled_date ASC NULLS LAST`,
+    values,
+  );
+  return mapRows(result.rows);
 };
 
 const getSchedulingsByClinic = async ({ clinicId, date, status }) => {
-  try {
-    const whereCondition = {
-      clinic_id: clinicId,
-    };
-
-    if (date) {
-      whereCondition.appointment_date = date;
-    }
-
-    if (status) {
-      whereCondition.scheduling_status_id = status;
-    }
-
-    const schedulings = await Scheduling.findAll({
-      where: whereCondition,
-      include: [
-        {
-          model: ServiceType,
-          as: 'serviceType',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: SchedulingStatus,
-          as: 'schedulingStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email'],
-        },
-        {
-          model: Pet,
-          as: 'pet',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: PetOwner,
-          as: 'petOwner',
-          attributes: ['id', 'email'],
-        },
-      ],
-      order: [
-        ['appointment_date', 'ASC'],
-        ['start_time', 'ASC'],
-      ],
-    });
-
-    return schedulings;
-  } catch (error) {
-    throw new Error(`Error fetching clinic schedulings: ${error.message}`);
-  }
+  const { filters, values, nextIndex } = buildDateAndStatusFilter(
+    { date, status },
+    's',
+    2,
+  );
+  values.unshift(clinicId);
+  const where = `WHERE s.clinic_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
+  const result = await pgQuery(
+    `${BASE_SELECT} ${where} ORDER BY s.scheduled_date ASC NULLS LAST`,
+    values,
+  );
+  // nextIndex unused — keeps signature explicit if extended later
+  void nextIndex;
+  return mapRows(result.rows);
 };
 
 const getSchedulingsByPetOwner = async ({ petOwnerId, date, status }) => {
-  try {
-    const whereCondition = {
-      pet_owner_id: petOwnerId,
-    };
-
-    if (date) {
-      whereCondition.appointment_date = date;
-    }
-
-    if (status) {
-      whereCondition.scheduling_status_id = status;
-    }
-
-    const schedulings = await Scheduling.findAll({
-      where: whereCondition,
-      include: [
-        {
-          model: Clinic,
-          as: 'clinic',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: ServiceType,
-          as: 'serviceType',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: SchedulingStatus,
-          as: 'schedulingStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: Pet,
-          as: 'pet',
-          attributes: ['id', 'name'],
-        },
-      ],
-      order: [
-        ['appointment_date', 'ASC'],
-        ['start_time', 'ASC'],
-      ],
-    });
-
-    return schedulings;
-  } catch (error) {
-    throw new Error(`Error fetching pet owner schedulings: ${error.message}`);
-  }
+  const { filters, values } = buildDateAndStatusFilter({ date, status }, 's', 2);
+  values.unshift(petOwnerId);
+  const where = `WHERE s.pet_owner_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
+  const result = await pgQuery(
+    `${BASE_SELECT} ${where} ORDER BY s.scheduled_date ASC NULLS LAST`,
+    values,
+  );
+  return mapRows(result.rows);
 };
 
 const getSchedulingsByPet = async ({ petId, date, status }) => {
-  try {
-    const whereCondition = {
-      pet_id: petId,
-    };
-
-    if (date) {
-      whereCondition.appointment_date = date;
-    }
-
-    if (status) {
-      whereCondition.scheduling_status_id = status;
-    }
-
-    const schedulings = await Scheduling.findAll({
-      where: whereCondition,
-      include: [
-        {
-          model: Clinic,
-          as: 'clinic',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: ServiceType,
-          as: 'serviceType',
-          attributes: ['id', 'name', 'label'],
-        },
-        {
-          model: SchedulingStatus,
-          as: 'schedulingStatus',
-          attributes: ['id', 'name', 'label'],
-        },
-      ],
-      order: [
-        ['appointment_date', 'ASC'],
-        ['start_time', 'ASC'],
-      ],
-    });
-
-    return schedulings;
-  } catch (error) {
-    throw new Error(`Error fetching pet schedulings: ${error.message}`);
-  }
+  const { filters, values } = buildDateAndStatusFilter({ date, status }, 's', 2);
+  values.unshift(petId);
+  const where = `WHERE (s.pet_id = $1 OR $1 = ANY(s.pet_ids))${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
+  const result = await pgQuery(
+    `${BASE_SELECT} ${where} ORDER BY s.scheduled_date ASC NULLS LAST`,
+    values,
+  );
+  return mapRows(result.rows);
 };
 
-// const getSchedulingById = async ({ id }) => {
-//   try {
-//     const scheduling = await Scheduling.findOne({
-//       where: { id },
-//       include: [
-//         {
-//           model: Clinic,
-//           as: 'clinic',
-//           attributes: ['id', 'name'],
-//         },
-//         {
-//           model: ServiceType,
-//           as: 'serviceType',
-//           attributes: ['id', 'name', 'label'],
-//         },
-//         {
-//           model: SchedulingStatus,
-//           as: 'schedulingStatus',
-//           attributes: ['id', 'name', 'label'],
-//         },
-//         {
-//           model: User,
-//           as: 'user',
-//           attributes: ['id', 'name', 'email'],
-//         },
-//         {
-//           model: Plan,
-//           as: 'plan',
-//           attributes: ['id', 'name'],
-//         },
-//         {
-//           model: Pet,
-//           as: 'pet',
-//           attributes: ['id', 'name'],
-//         },
-//         {
-//           model: PetOwner,
-//           as: 'petOwner',
-//           attributes: ['id', 'email'],
-//         },
-//         {
-//           model: PaymentMethod,
-//           as: 'paymentMethod',
-//           attributes: ['id', 'name', 'label'],
-//         },
-//         {
-//           model: PaymentStatus,
-//           as: 'paymentStatus',
-//           attributes: ['id', 'name', 'label'],
-//         },
-//       ],
-//     });
-
-//     if (!scheduling) {
-//       throw new Error('Scheduling not found');
-//     }
-
-//     return scheduling;
-//   } catch (error) {
-//     throw new Error(`Error fetching scheduling by id: ${error.message}`);
-//   }
-// };
+const UPDATABLE_COLUMNS = {
+  clinic_id: 'clinic_id',
+  pet_id: 'pet_id',
+  pet_owner_id: 'pet_owner_id',
+  user_phone: 'user_phone',
+  scheduled_date: 'scheduled_date',
+  service_requested: 'service_requested',
+  scheduled_service: 'scheduled_service',
+  notes: 'service_requested',
+  category: 'category',
+};
 
 const updateScheduling = async ({ id, schedulingData }) => {
-  try {
-    const allowedFields = [
-      'clinic_id',
-      'service_type_id',
-      'scheduling_status_id',
-      'user_id',
-      'plan_id',
-      'pet_id',
-      'pet_owner_id',
-      'payment_method_id',
-      'payment_status_id',
-      'appointment_date',
-      'start_time',
-      'end_time',
-      'price',
-      'notes',
-      'is_confirmed',
-    ];
+  const sets = [];
+  const values = [];
+  let i = 1;
 
-    const sanitizedData = Object.keys(schedulingData)
-      .filter((key) => allowedFields.includes(key) && schedulingData[key] !== undefined)
-      .reduce(
-        (obj, key) => ({
-          ...obj,
-          [key]: schedulingData[key],
-        }),
-        {},
-      );
-
-    const [updated] = await Scheduling.update(sanitizedData, {
-      where: { id },
-      returning: true,
-    });
-
-    if (!updated) {
-      throw new Error('Scheduling not found');
-    }
-
-    const updatedScheduling = await getSchedulingById({ id });
-    return updatedScheduling;
-  } catch (error) {
-    throw new Error(`Error updating scheduling: ${error.message}`);
+  const scheduledDate = resolveScheduledDate(
+    schedulingData.appointment_date,
+    schedulingData.start_time,
+  );
+  if (scheduledDate) {
+    sets.push(`scheduled_date = $${i}`);
+    values.push(scheduledDate);
+    i += 1;
   }
+
+  for (const [key, column] of Object.entries(UPDATABLE_COLUMNS)) {
+    if (key === 'scheduled_date') continue;
+    if (schedulingData[key] === undefined) continue;
+    if (key === 'notes' && schedulingData.service_requested !== undefined) continue;
+    sets.push(`${column} = $${i}`);
+    values.push(schedulingData[key]);
+    i += 1;
+  }
+
+  if (sets.length === 0) {
+    return getSchedulingById({ id });
+  }
+
+  sets.push('updated_at = now()');
+  values.push(id);
+  const result = await pgQuery(
+    `UPDATE scheduling_sessions SET ${sets.join(', ')} WHERE id = $${i} RETURNING id`,
+    values,
+  );
+  if (result.rowCount === 0) {
+    const error = new Error('Scheduling not found');
+    error.code = 'NOT_FOUND';
+    throw error;
+  }
+  return getSchedulingById({ id });
+};
+
+const cancelScheduling = async ({ id, actor = 'backend_admin' }) => {
+  const result = await pgQuery(
+    `
+    UPDATE scheduling_sessions
+       SET state = 'CANCELLED_BY_MERCHANT',
+           state_history = COALESCE(state_history, '[]'::jsonb)
+             || jsonb_build_array(jsonb_build_object('at', now(), 'state', 'CANCELLED_BY_MERCHANT', 'source', $2::text)),
+           updated_at = now()
+     WHERE id = $1
+     RETURNING id
+    `,
+    [id, actor],
+  );
+  if (result.rowCount === 0) {
+    const error = new Error('Scheduling not found');
+    error.code = 'NOT_FOUND';
+    throw error;
+  }
+  return getSchedulingById({ id });
+};
+
+const confirmScheduling = async ({ id, actor = 'backend_admin' }) => {
+  const result = await pgQuery(
+    `
+    UPDATE scheduling_sessions
+       SET state = 'CONFIRMED',
+           confirmed_at = COALESCE(confirmed_at, now()),
+           state_history = COALESCE(state_history, '[]'::jsonb)
+             || jsonb_build_array(jsonb_build_object('at', now(), 'state', 'CONFIRMED', 'source', $2::text)),
+           updated_at = now()
+     WHERE id = $1
+     RETURNING id
+    `,
+    [id, actor],
+  );
+  if (result.rowCount === 0) {
+    const error = new Error('Scheduling not found');
+    error.code = 'NOT_FOUND';
+    throw error;
+  }
+  return getSchedulingById({ id });
 };
 
 const deleteScheduling = async ({ id }) => {
-  try {
-    const deleted = await Scheduling.destroy({
-      where: { id },
-    });
-
-    if (!deleted) {
-      throw new Error('Scheduling not found');
-    }
-
-    return true;
-  } catch (error) {
-    throw new Error(`Error deleting scheduling: ${error.message}`);
+  const existing = await pgQuery(
+    `SELECT source FROM scheduling_sessions WHERE id = $1 LIMIT 1`,
+    [id],
+  );
+  if (existing.rowCount === 0) {
+    const error = new Error('Scheduling not found');
+    error.code = 'NOT_FOUND';
+    throw error;
   }
+  if (existing.rows[0].source !== 'external') {
+    const error = new Error('Cannot hard delete a Latta-originated scheduling. Cancel instead.');
+    error.code = 'FORBIDDEN';
+    throw error;
+  }
+
+  await pgQuery(`DELETE FROM scheduling_sessions WHERE id = $1`, [id]);
+  return true;
 };
+
+function resolveScheduledDate(appointmentDate, startTime) {
+  if (!appointmentDate && !startTime) return null;
+
+  if (startTime instanceof Date) return startTime;
+  if (typeof startTime === 'string') {
+    if (startTime.includes('T') || /\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}/.test(startTime)) {
+      return new Date(startTime);
+    }
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(startTime) && appointmentDate) {
+      const datePart =
+        appointmentDate instanceof Date
+          ? appointmentDate.toISOString().slice(0, 10)
+          : String(appointmentDate).slice(0, 10);
+      return new Date(`${datePart}T${startTime.length === 5 ? `${startTime}:00` : startTime}-03:00`);
+    }
+  }
+
+  if (appointmentDate instanceof Date) return appointmentDate;
+  if (typeof appointmentDate === 'string') {
+    if (appointmentDate.includes('T')) return new Date(appointmentDate);
+    return new Date(`${appointmentDate}T00:00:00-03:00`);
+  }
+
+  return null;
+}
 
 export default {
   createScheduling,
+  getSchedulingById,
   getAllSchedulings,
-  getAllSchedulingsService,
   getSchedulingsByClinic,
   getSchedulingsByPetOwner,
   getSchedulingsByPet,
-  getSchedulingById,
   updateScheduling,
+  cancelScheduling,
+  confirmScheduling,
   deleteScheduling,
 };
