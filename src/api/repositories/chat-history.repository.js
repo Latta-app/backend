@@ -39,6 +39,14 @@ const TEST_CONTACT_IDS_SUBQUERY = `(
   WHERE c.cellphone ~ '^5500000000[0-9]{3}$'
 )`;
 
+// B2B contacts (clínicas): qualquer contact com chat_history cujo path
+// começa com 'merchant-scheduling-agent|' — pattern do agent que conversa
+// com clínica em nome do tutor. Tab "B2B" no painel.
+const B2B_CONTACT_IDS_SUBQUERY = `(
+  SELECT DISTINCT ch.contact_id FROM chat_history ch
+  WHERE ch.path LIKE 'merchant-scheduling-agent|%' AND ch.contact_id IS NOT NULL
+)`;
+
 const RECENT_ORDERS_LIMIT = 10;
 const ORDER_LIST_ATTRS = [
   'id',
@@ -84,6 +92,16 @@ const buildTestChatFilter = (testFilter = 'exclude') => {
   return { op: 'notIn' };
 };
 
+// Mesmo pattern do testFilter pra aba B2B:
+//   'only'    -> mostra SO clinicas
+//   'exclude' -> exclui clinicas das outras abas (Geral/Luma)
+//   'none'    -> nao filtra
+const buildB2bChatFilter = (b2bFilter = 'exclude') => {
+  if (b2bFilter === 'only') return { op: 'in' };
+  if (b2bFilter === 'none') return null;
+  return { op: 'notIn' };
+};
+
 const getAllContactsWithMessages = async ({
   role,
   page = 1,
@@ -91,6 +109,7 @@ const getAllContactsWithMessages = async ({
   user_id,
   filters = {},
   testFilter = 'exclude',
+  b2bFilter = 'exclude',
 }) => {
   try {
     const offset = (page - 1) * limit;
@@ -99,6 +118,7 @@ const getAllContactsWithMessages = async ({
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
     const testChatFilter = buildTestChatFilter(testFilter);
+    const b2bChatFilter = buildB2bChatFilter(b2bFilter);
 
     // Filtro base: contatos QUE TÊM pelo menos uma chat_history. Sem corte por
     // clinic_id — visão unificada (refactor 2026-05-08): só dois sócios usam o
@@ -139,6 +159,17 @@ const getAllContactsWithMessages = async ({
         id: {
           [testChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
             TEST_CONTACT_IDS_SUBQUERY,
+          ),
+        },
+      });
+    }
+
+    // FILTRO B2B (clinicas) — mesmo pattern do testFilter
+    if (b2bChatFilter) {
+      additionalConditions.push({
+        id: {
+          [b2bChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
+            B2B_CONTACT_IDS_SUBQUERY,
           ),
         },
       });
@@ -411,6 +442,7 @@ const getAllContactsBeingAttended = async ({
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
     const testChatFilter = buildTestChatFilter(testFilter);
+    const b2bChatFilter = buildB2bChatFilter(b2bFilter);
 
     // Filtro base: contatos em atendimento humano (Luma) com chat_history.
     // Sem corte por clinic_id — visão unificada (refactor 2026-05-08).
@@ -440,6 +472,17 @@ const getAllContactsBeingAttended = async ({
         id: {
           [testChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
             TEST_CONTACT_IDS_SUBQUERY,
+          ),
+        },
+      });
+    }
+
+    // FILTRO B2B (clinicas) — mesmo pattern do testFilter
+    if (b2bChatFilter) {
+      additionalConditions.push({
+        id: {
+          [b2bChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
+            B2B_CONTACT_IDS_SUBQUERY,
           ),
         },
       });
@@ -1836,6 +1879,34 @@ const getTestContactsCount = async ({ role }) => {
   }
 };
 
+const getB2bContactsCount = async ({ role }) => {
+  try {
+    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+
+    // Conta contatos (clínicas) com ao menos 1 chat do merchant-scheduling-agent.
+    const [result] = await Contact.sequelize.query(
+      `
+      SELECT COUNT(DISTINCT c.id)::int AS count
+      FROM contacts c
+      WHERE EXISTS (
+        SELECT 1 FROM chat_history ch
+        WHERE ch.contact_id = c.id
+        AND ch.path LIKE 'merchant-scheduling-agent|%'
+        ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+      )
+      `,
+      {
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    return { count: result?.count || 0 };
+  } catch (error) {
+    console.error('❌ ERRO getB2bContactsCount:', error.message);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 // Resumo de dias com mensagens pra um contato — alimenta o date picker da
 // mensageria. Agrupa por dia em America/Sao_Paulo (timezone do operador) e
 // aplica o mesmo filtro de role usado em getContactByPetOwnerId/getContactByContactId.
@@ -1910,6 +1981,7 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getOrdersByContactId,
   getTestContactsCount,
+  getB2bContactsCount,
   getInAttendanceContactsCount,
   getMessagesDaysSummary,
 };
