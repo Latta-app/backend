@@ -39,12 +39,18 @@ const TEST_CONTACT_IDS_SUBQUERY = `(
   WHERE c.cellphone ~ '^5500000000[0-9]{3}$'
 )`;
 
-// B2B contacts (clínicas): qualquer contact com chat_history cujo path
-// começa com 'merchant-scheduling-agent|' — pattern do agent que conversa
-// com clínica em nome do tutor. Tab "B2B" no painel.
+// B2B contacts (clínicas): contacts cujo cellphone bate com algum
+// clinics.phone_normalized OU clinics.phone. Source of truth eh a tabela
+// clinics, NAO o path do chat_history — antes filtrávamos por
+// path LIKE 'merchant-scheduling-agent|%' mas isso incluia o tutor (o
+// agent loga inbound do user com esse mesmo prefixo).
 const B2B_CONTACT_IDS_SUBQUERY = `(
-  SELECT DISTINCT ch.contact_id FROM chat_history ch
-  WHERE ch.path LIKE 'merchant-scheduling-agent|%' AND ch.contact_id IS NOT NULL
+  SELECT DISTINCT c.id FROM contacts c
+  WHERE c.cellphone IN (
+    SELECT phone_normalized FROM clinics WHERE phone_normalized IS NOT NULL
+    UNION
+    SELECT phone FROM clinics WHERE phone IS NOT NULL
+  )
 )`;
 
 const RECENT_ORDERS_LIMIT = 10;
@@ -1879,20 +1885,18 @@ const getTestContactsCount = async ({ role }) => {
   }
 };
 
-const getB2bContactsCount = async ({ role }) => {
+const getB2bContactsCount = async ({ role: _role }) => {
   try {
-    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
-
-    // Conta contatos (clínicas) com ao menos 1 chat do merchant-scheduling-agent.
+    // Conta contatos cuja cellphone bate com algum clinics.phone_normalized
+    // ou clinics.phone. Mesma source do B2B_CONTACT_IDS_SUBQUERY.
     const [result] = await Contact.sequelize.query(
       `
       SELECT COUNT(DISTINCT c.id)::int AS count
       FROM contacts c
-      WHERE EXISTS (
-        SELECT 1 FROM chat_history ch
-        WHERE ch.contact_id = c.id
-        AND ch.path LIKE 'merchant-scheduling-agent|%'
-        ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+      WHERE c.cellphone IN (
+        SELECT phone_normalized FROM clinics WHERE phone_normalized IS NOT NULL
+        UNION
+        SELECT phone FROM clinics WHERE phone IS NOT NULL
       )
       `,
       {
