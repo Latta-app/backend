@@ -122,15 +122,19 @@ export const activate = async ({ token, password }) => {
   return { user: activated };
 };
 
-export const login = async ({ email, password }) => {
-  if (!email || !password) {
-    const e = new Error('email e password são obrigatórios');
+export const login = async ({ email, phone, password }) => {
+  // Aceita email OU phone como identificador. UX preferido pos-fatia 4: phone
+  // (clinic_users.email e placeholder synthetic gerado pelo bridge B2B).
+  if ((!email && !phone) || !password) {
+    const e = new Error('email/phone e password são obrigatórios');
     e.code = 'INVALID_CREDENTIALS';
     throw e;
   }
-  const user = await ClinicUserRepository.findByEmail(email);
+  const user = phone
+    ? await ClinicUserRepository.findByPhone(phone)
+    : await ClinicUserRepository.findByEmail(email);
   if (!user || !user.password_hash) {
-    const e = new Error('Email ou senha inválidos');
+    const e = new Error('Credenciais inválidas');
     e.code = 'INVALID_CREDENTIALS';
     throw e;
   }

@@ -11,6 +11,24 @@ export const findByEmail = async (email) => {
   return rows[0] ?? null;
 };
 
+// Login por phone: resolve via clinics.phone_normalized -> clinic_users.clinic_id.
+// Aceita phone com ou sem mascara — normaliza removendo nao-digitos.
+// Retorna apenas 1 (mais antigo) se houver multiplos clinic_users pra mesma clinic.
+export const findByPhone = async (phone) => {
+  const normalized = String(phone || '').replace(/\D+/g, '');
+  if (!normalized) return null;
+  const { rows } = await pgQuery(
+    `SELECT ${COLUMNS.split(',').map((c) => `cu.${c.trim()}`).join(', ')}
+     FROM clinic_users cu
+     JOIN clinics c ON c.id = cu.clinic_id
+     WHERE c.phone_normalized = $1
+     ORDER BY cu.created_at ASC
+     LIMIT 1`,
+    [normalized],
+  );
+  return rows[0] ?? null;
+};
+
 export const findByActivationToken = async (token) => {
   const { rows } = await pgQuery(
     `SELECT ${COLUMNS} FROM clinic_users WHERE activation_token = $1 LIMIT 1`,
@@ -107,6 +125,7 @@ export const getClinic = async (clinicId) => {
 
 export default {
   findByEmail,
+  findByPhone,
   findByActivationToken,
   findByResetToken,
   upsertForActivation,
