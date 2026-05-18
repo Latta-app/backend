@@ -21,9 +21,12 @@ const activateSchema = Joi.object({
 }).options({ stripUnknown: true });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email(),
+  phone: Joi.string().pattern(/^\+?[\d\s().-]{8,20}$/),
   password: Joi.string().required(),
-}).options({ stripUnknown: true });
+})
+  .xor('email', 'phone') // exatamente um dos dois
+  .options({ stripUnknown: true });
 
 const forgotSchema = Joi.object({
   email: Joi.string().email().required(),
