@@ -32,6 +32,21 @@ router.get(
   ChatController.getTestContactsCount,
 );
 
+// Aba B2B: contacts de clinicas (chat path 'merchant-scheduling-agent|%')
+router.get(
+  '/messages/getAllB2bContacts',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getAllB2bContacts,
+);
+
+router.get(
+  '/messages/getB2bContactsCount',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getB2bContactsCount,
+);
+
 // Badge da aba "Luma" no painel — conta contacts.is_being_attended=true.
 router.get(
   '/messages/getInAttendanceContactsCount',

@@ -419,6 +419,60 @@ const getTestContactsCount = async (req, res) => {
   }
 };
 
+const getAllB2bContacts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const { id, role } = req.user;
+
+    const responsibility = req.query.responsibility === 'true';
+    const unread = req.query.unread === 'true';
+    const tags = req?.query?.tags ? req.query.tags.split(',').filter((tag) => tag.trim()) : [];
+
+    const filters = { responsibility, unread, tags };
+
+    const result = await ChatService.getAllB2bContacts({
+      user_id: id,
+      role: role.role,
+      page,
+      limit,
+      filters,
+    });
+
+    return res.status(200).json({
+      code: 'B2B_CONTACTS_RETRIEVED',
+      data: result.contacts,
+    });
+  } catch (error) {
+    console.error('Error retrieving b2b contacts:', error);
+    return res.status(500).json({
+      code: 'B2B_CONTACTS_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+const getB2bContactsCount = async (req, res) => {
+  try {
+    const { role } = req.user;
+
+    const result = await ChatService.getB2bContactsCount({
+      role: role.role,
+    });
+
+    return res.status(200).json({
+      code: 'B2B_CONTACTS_COUNT_RETRIEVED',
+      data: { count: result.count },
+    });
+  } catch (error) {
+    console.error('Error retrieving b2b contacts count:', error);
+    return res.status(500).json({
+      code: 'B2B_CONTACTS_COUNT_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getInAttendanceContactsCount = async (_req, res) => {
   try {
     const result = await ChatService.getInAttendanceContactsCount();
@@ -508,7 +562,9 @@ export default {
   getOrdersByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
+  getAllB2bContacts,
   getTestContactsCount,
+  getB2bContactsCount,
   getInAttendanceContactsCount,
   markAsAnswered,
   getMessagesDaysSummary,

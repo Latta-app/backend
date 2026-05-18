@@ -58,6 +58,7 @@ const getAllContactsWithMessages = async ({
   user_id,
   filters = {},
   testFilter = 'exclude',
+  b2bFilter = 'exclude',
 }) => {
   try {
     const result = await ChatRepository.getAllContactsWithMessages({
@@ -67,6 +68,7 @@ const getAllContactsWithMessages = async ({
       user_id,
       filters,
       testFilter,
+      b2bFilter,
     });
     const contacts = result.contacts;
 
@@ -97,12 +99,40 @@ const getAllTestContacts = async ({
     user_id,
     filters,
     testFilter: 'only',
+    b2bFilter: 'none',
+  });
+};
+
+// Aba B2B: clínicas (chat path 'merchant-scheduling-agent|%')
+const getAllB2bContacts = async ({
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+}) => {
+  return getAllContactsWithMessages({
+    role,
+    page,
+    limit,
+    user_id,
+    filters,
+    testFilter: 'none',
+    b2bFilter: 'only',
   });
 };
 
 const getTestContactsCount = async ({ role }) => {
   try {
     return await ChatRepository.getTestContactsCount({ role });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
+const getB2bContactsCount = async ({ role }) => {
+  try {
+    return await ChatRepository.getB2bContactsCount({ role });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -336,7 +366,9 @@ export default {
   getOrdersByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
+  getAllB2bContacts,
   getTestContactsCount,
+  getB2bContactsCount,
   getInAttendanceContactsCount,
   markAsAnswered,
   getMessagesDaysSummary,
