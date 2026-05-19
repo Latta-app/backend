@@ -1,4 +1,5 @@
 import { pgQuery } from '../../config/postgres.js';
+import { normalizeBrPhone } from '../../utils/normalize-br-phone.js';
 
 const COLUMNS = `id, clinic_id, email, password_hash, activation_token, activation_token_expires_at,
   password_reset_token, password_reset_expires_at, activated_at, last_login_at, created_at, updated_at`;
@@ -12,10 +13,14 @@ export const findByEmail = async (email) => {
 };
 
 // Login por phone: resolve via clinics.phone_normalized -> clinic_users.clinic_id.
-// Aceita phone com ou sem mascara — normaliza removendo nao-digitos.
+// Aceita phone com ou sem mascara — normaliza via normalizeBrPhone pra obter
+// o formato canonico de 13 digitos (55 + DDD + 9 + 8) que o banco usa.
+// Bug 2 de 2026-05-19: a versao anterior so removia caracteres nao-numericos
+// e fazia match direto. Quando a clinica digitava 11 digitos (DDD+9+8 sem DDI),
+// query buscava por exemplo "31999155797" enquanto banco tem "5531999155797".
 // Retorna apenas 1 (mais antigo) se houver multiplos clinic_users pra mesma clinic.
 export const findByPhone = async (phone) => {
-  const normalized = String(phone || '').replace(/\D+/g, '');
+  const normalized = normalizeBrPhone(phone);
   if (!normalized) return null;
   const { rows } = await pgQuery(
     `SELECT ${COLUMNS.split(',').map((c) => `cu.${c.trim()}`).join(', ')}
