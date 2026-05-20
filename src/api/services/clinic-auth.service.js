@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 import ClinicUserRepository from '../repositories/clinic-user.repository.js';
 
 const ACTIVATION_TTL_DAYS = 7;
@@ -25,6 +26,27 @@ const verifyToken = (token) => {
     e.code = 'INVALID_TOKEN';
     throw e;
   }
+};
+
+// Alfabeto sem caracteres ambíguos (0/O/1/I/L/U fora). Mesma convenção do
+// EF clinic-portal-bridge.ts — código curto e legível no link de ativação.
+const ACTIVATION_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTWXYZ';
+const ACTIVATION_CODE_LEN = 10;
+
+// Código de ativação curto e aleatório (~28^10 ≈ 49 bits de entropia).
+// Substitui o JWT no link de ativação: o link fica enxuto (`/ativar/<code>`)
+// e a validação é por lookup no banco, sem secret compartilhada.
+const generateActivationCode = () => {
+  const max = 256 - (256 % ACTIVATION_CODE_ALPHABET.length);
+  let out = '';
+  while (out.length < ACTIVATION_CODE_LEN) {
+    for (const b of crypto.randomBytes(ACTIVATION_CODE_LEN)) {
+      if (b >= max) continue;
+      out += ACTIVATION_CODE_ALPHABET[b % ACTIVATION_CODE_ALPHABET.length];
+      if (out.length === ACTIVATION_CODE_LEN) break;
+    }
+  }
+  return out;
 };
 
 const sendEmail = async ({ to, subject, html }) => {
@@ -61,19 +83,20 @@ export const requestActivationLink = async ({ clinicId, email }) => {
   }
 
   const expiresAt = new Date(Date.now() + ACTIVATION_TTL_DAYS * 24 * 60 * 60 * 1000);
-  const token = signToken(
-    { clinic_id: clinicId, email: email.toLowerCase(), purpose: 'activation' },
-    `${ACTIVATION_TTL_DAYS}d`,
-  );
+  const code = generateActivationCode();
 
   const user = await ClinicUserRepository.upsertForActivation({
     clinicId,
     email,
-    token,
+    token: code,
     expiresAt,
   });
 
-  const url = `${FRONTEND_URL}/clinica/ativar?token=${encodeURIComponent(token)}`;
+  // Código no path (link enxuto): /clinica/<slug>/ativar/<code>. Fallback
+  // sem slug pra clínica legada que ainda não tem slug gerado.
+  const url = clinic.slug
+    ? `${FRONTEND_URL}/clinica/${clinic.slug}/ativar/${encodeURIComponent(code)}`
+    : `${FRONTEND_URL}/clinica/ativar/${encodeURIComponent(code)}`;
 
   const emailResult = await sendEmail({
     to: email,
@@ -93,21 +116,17 @@ export const activate = async ({ token, password }) => {
   if (!token || !password) throw new Error('token e password são obrigatórios');
   if (password.length < 6) throw new Error('senha deve ter no mínimo 6 caracteres');
 
-  const decoded = verifyToken(token);
-  if (decoded.purpose !== 'activation') {
-    const e = new Error('Token de propósito inválido');
-    e.code = 'INVALID_TOKEN';
-    throw e;
-  }
-
+  // `token` aqui é o código curto de ativação. Validação por lookup no banco
+  // — o próprio código é o segredo (só quem recebeu o link o conhece). Sem
+  // jwt.verify: não há mais secret compartilhada com o EF.
   const user = await ClinicUserRepository.findByActivationToken(token);
   if (!user) {
-    const e = new Error('Token de ativação não encontrado ou já usado');
+    const e = new Error('Código de ativação não encontrado ou já usado');
     e.code = 'INVALID_TOKEN';
     throw e;
   }
   if (user.activation_token_expires_at && new Date(user.activation_token_expires_at) < new Date()) {
-    const e = new Error('Token expirado');
+    const e = new Error('Código de ativação expirado');
     e.code = 'INVALID_TOKEN';
     throw e;
   }
