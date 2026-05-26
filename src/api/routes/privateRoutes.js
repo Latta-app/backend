@@ -27,6 +27,7 @@ import VaccineRoutes from './private/vaccine.routes.js';
 import N8NRoutes from './private/n8n.routes.js';
 import WebScrappingRoutes from './private/web-scrapping.route.js';
 import VarejonlineRoutes from './private/varejonline.routes.js';
+import PrescrapeRoutes from './private/prescrape.routes.js';
 
 const router = Router();
 
@@ -62,5 +63,6 @@ router.use(
 );
 router.use('/web-scrapping', WebScrappingRoutes);
 router.use('/oauth/varejonline', VarejonlineRoutes);
+router.use('/webhook', PrescrapeRoutes);
 
 export default router;
