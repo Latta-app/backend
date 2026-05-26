@@ -1,0 +1,33 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite trigger manual via UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 54.207.77.45
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ~/backend
+            git pull origin main
+            npm install --production=false
+            pm2 restart all 2>/dev/null || (pkill -f 'node.*app.js' || true; nohup npm start > /tmp/backend.log 2>&1 &)
+            sleep 3
+            echo "Deploy concluido — verificando saude..."
+            curl -sf http://localhost:8000/ > /dev/null && echo "OK API respondendo" || (tail -30 /tmp/backend.log; exit 1)
+
+      - name: Smoke test
+        run: |
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.latta.app.br/)
+          echo "API external status: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
