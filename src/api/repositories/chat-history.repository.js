@@ -53,6 +53,29 @@ const B2B_CONTACT_IDS_SUBQUERY = `(
   )
 )`;
 
+// Staging contacts: phones na whitelist staging_users (ADR-0007 Fatia 7).
+// Usado pra filtrar mensageria do admin web por environment:
+//   - environment='homolog': mostra APENAS contacts com cellphone em staging_users
+//   - environment='prod' (ou undefined): sem filtro (comportamento atual)
+// Helper centralizado pra evitar drift entre listing/count/search/detail.
+const STAGING_CONTACT_IDS_SUBQUERY = `(
+  SELECT DISTINCT c.id FROM contacts c
+  WHERE c.cellphone IN (SELECT phone FROM staging_users)
+)`;
+
+// Retorna a condicao Sequelize adequada pra adicionar em additionalConditions,
+// ou null pra deixar a query passar sem filtro de environment. Pra prod
+// (default), retorna null — preserva comportamento existente. Pra homolog,
+// retorna { id: { [Op.in]: STAGING_CONTACT_IDS_SUBQUERY } }.
+const buildStagingEnvironmentCondition = (Op, environment) => {
+  if (environment !== 'homolog') return null;
+  return {
+    id: {
+      [Op.in]: Sequelize.literal(STAGING_CONTACT_IDS_SUBQUERY),
+    },
+  };
+};
+
 const RECENT_ORDERS_LIMIT = 10;
 const ORDER_LIST_ATTRS = [
   'id',
@@ -116,6 +139,7 @@ const getAllContactsWithMessages = async ({
   filters = {},
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  environment = 'prod',
 }) => {
   try {
     const offset = (page - 1) * limit;
@@ -179,6 +203,14 @@ const getAllContactsWithMessages = async ({
           ),
         },
       });
+    }
+
+    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7.
+    // Quando user.environment='homolog', mostra APENAS contacts em staging_users.
+    // Pra 'prod' (default), retorna null = sem filtro (preserva comportamento).
+    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    if (stagingEnvCondition) {
+      additionalConditions.push(stagingEnvCondition);
     }
 
     // FILTRO DE TAGS - Condição OU entre as tags
@@ -440,6 +472,8 @@ const getAllContactsBeingAttended = async ({
   user_id,
   filters = {},
   testFilter = 'exclude',
+  b2bFilter = 'exclude',
+  environment = 'prod',
 }) => {
   try {
     const offset = (page - 1) * limit;
@@ -492,6 +526,12 @@ const getAllContactsBeingAttended = async ({
           ),
         },
       });
+    }
+
+    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7. Veja getAllContactsWithMessages.
+    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    if (stagingEnvCondition) {
+      additionalConditions.push(stagingEnvCondition);
     }
 
     // FILTRO DE TAGS - Condição OU entre as tags
@@ -747,6 +787,7 @@ const searchContacts = async ({
   role,
   user_id,
   filters = {},
+  environment = 'prod',
 }) => {
   try {
     const { Op } = Sequelize;
@@ -791,6 +832,12 @@ const searchContacts = async ({
 
     // Aplica os filtros adicionais (mesma lógica do getAllContacts)
     const additionalConditions = [];
+
+    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7. Veja getAllContactsWithMessages.
+    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    if (stagingEnvCondition) {
+      additionalConditions.push(stagingEnvCondition);
+    }
 
     // FILTRO DE TAGS - Condição OU entre as tags
     if (filters.tags && filters.tags.length > 0) {
@@ -1837,13 +1884,20 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
 
 // Conta contacts com is_being_attended=true (alimenta o badge da aba Luma).
 // Sem corte por clinic_id — visão unificada (refactor 2026-05-08).
-const getInAttendanceContactsCount = async () => {
+// environment (ADR-0007 Fatia 7): quando 'homolog', restringe a count a
+// contacts cujo cellphone esta em staging_users.
+const getInAttendanceContactsCount = async ({ environment = 'prod' } = {}) => {
   try {
+    const envFilter =
+      environment === 'homolog'
+        ? `AND c.cellphone IN (SELECT phone FROM staging_users)`
+        : '';
     const [result] = await Contact.sequelize.query(
       `
       SELECT COUNT(*)::int AS count
       FROM contacts c
       WHERE c.is_being_attended = true
+      ${envFilter}
       `,
       {
         type: Sequelize.QueryTypes.SELECT,
@@ -1856,9 +1910,13 @@ const getInAttendanceContactsCount = async () => {
   }
 };
 
-const getTestContactsCount = async ({ role }) => {
+const getTestContactsCount = async ({ role, environment = 'prod' }) => {
   try {
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+    const envFilter =
+      environment === 'homolog'
+        ? `AND c.cellphone IN (SELECT phone FROM staging_users)`
+        : '';
 
     // Conta contatos com ao menos 1 chat marcado como test-persona pela EF
     // chat-history-logger. Sem corte por clinic_id — visão unificada.
@@ -1872,6 +1930,7 @@ const getTestContactsCount = async ({ role }) => {
         AND ch.path LIKE 'test-persona|%'
         ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
       )
+      ${envFilter}
       `,
       {
         type: Sequelize.QueryTypes.SELECT,
@@ -1885,8 +1944,13 @@ const getTestContactsCount = async ({ role }) => {
   }
 };
 
-const getB2bContactsCount = async ({ role: _role }) => {
+const getB2bContactsCount = async ({ role: _role, environment = 'prod' }) => {
   try {
+    const envFilter =
+      environment === 'homolog'
+        ? `AND c.cellphone IN (SELECT phone FROM staging_users)`
+        : '';
+
     // Conta contatos cuja cellphone bate com algum clinics.phone_normalized
     // ou clinics.phone. Mesma source do B2B_CONTACT_IDS_SUBQUERY.
     const [result] = await Contact.sequelize.query(
@@ -1898,6 +1962,7 @@ const getB2bContactsCount = async ({ role: _role }) => {
         UNION
         SELECT phone FROM clinics WHERE phone IS NOT NULL
       )
+      ${envFilter}
       `,
       {
         type: Sequelize.QueryTypes.SELECT,

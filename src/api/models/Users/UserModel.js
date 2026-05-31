@@ -55,6 +55,14 @@ const User = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      environment: {
+        type: DataTypes.STRING(16),
+        allowNull: false,
+        defaultValue: 'prod',
+        validate: {
+          isIn: [['prod', 'homolog']],
+        },
+      },
       created_at: {
         type: DataTypes.DATE,
         allowNull: false,

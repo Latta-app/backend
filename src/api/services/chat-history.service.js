@@ -2,7 +2,20 @@ import ChatRepository from '../repositories/chat-history.repository.js';
 import S3ClientUtil from '../../utils/s3.js';
 import { normalizeQuery } from '../../utils/normalizeQuery.js';
 import { isValidUUID } from '../../utils/validate.js';
+import { isStagingPhone } from '../../utils/staging-users.helper.js';
 import { ChatHistory, Contact } from '../models/index.js';
+
+// ADR-0007 Fatia 7: guard de detail endpoints.
+// Operador em environment=homolog so pode acessar contacts cujo cellphone
+// esta na whitelist staging_users. Pra prod (default), passa sem check.
+// Retorna true se o operador tem permissao de ver o contact em questao.
+const canAccessContactInEnvironment = async (contact, environment) => {
+  if (environment !== 'homolog') return true;
+  if (!contact) return true; // null e' caso "not found", controller responde 404
+  const cellphone = contact.cellphone || contact.dataValues?.cellphone;
+  if (!cellphone) return false; // contact sem phone, blindar acesso em homolog
+  return isStagingPhone(cellphone);
+};
 
 const signMessagesMediaUrls = async (contacts) => {
   for (const contact of contacts) {
@@ -59,6 +72,7 @@ const getAllContactsWithMessages = async ({
   filters = {},
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  environment = 'prod',
 }) => {
   try {
     const result = await ChatRepository.getAllContactsWithMessages({
@@ -69,6 +83,7 @@ const getAllContactsWithMessages = async ({
       filters,
       testFilter,
       b2bFilter,
+      environment,
     });
     const contacts = result.contacts;
 
@@ -91,6 +106,7 @@ const getAllTestContacts = async ({
   limit = 15,
   user_id,
   filters = {},
+  environment = 'prod',
 }) => {
   return getAllContactsWithMessages({
     role,
@@ -100,6 +116,7 @@ const getAllTestContacts = async ({
     filters,
     testFilter: 'only',
     b2bFilter: 'none',
+    environment,
   });
 };
 
@@ -110,6 +127,7 @@ const getAllB2bContacts = async ({
   limit = 15,
   user_id,
   filters = {},
+  environment = 'prod',
 }) => {
   return getAllContactsWithMessages({
     role,
@@ -119,28 +137,29 @@ const getAllB2bContacts = async ({
     filters,
     testFilter: 'none',
     b2bFilter: 'only',
+    environment,
   });
 };
 
-const getTestContactsCount = async ({ role }) => {
+const getTestContactsCount = async ({ role, environment = 'prod' }) => {
   try {
-    return await ChatRepository.getTestContactsCount({ role });
+    return await ChatRepository.getTestContactsCount({ role, environment });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
 };
 
-const getB2bContactsCount = async ({ role }) => {
+const getB2bContactsCount = async ({ role, environment = 'prod' }) => {
   try {
-    return await ChatRepository.getB2bContactsCount({ role });
+    return await ChatRepository.getB2bContactsCount({ role, environment });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
 };
 
-const getInAttendanceContactsCount = async () => {
+const getInAttendanceContactsCount = async ({ environment = 'prod' } = {}) => {
   try {
-    return await ChatRepository.getInAttendanceContactsCount();
+    return await ChatRepository.getInAttendanceContactsCount({ environment });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -152,6 +171,7 @@ const getAllContactsBeingAttended = async ({
   limit = 15,
   user_id,
   filters = {},
+  environment = 'prod',
 }) => {
   try {
     const result = await ChatRepository.getAllContactsBeingAttended({
@@ -160,6 +180,7 @@ const getAllContactsBeingAttended = async ({
       limit,
       user_id,
       filters,
+      environment,
     });
     const contacts = result.contacts;
 
@@ -176,7 +197,7 @@ const getAllContactsBeingAttended = async ({
   }
 };
 
-const searchContacts = async ({ query, page, limit, role, user_id, filters = {} }) => {
+const searchContacts = async ({ query, page, limit, role, user_id, filters = {}, environment = 'prod' }) => {
   try {
     const cleanedQuery = normalizeQuery(query);
     const hasLetter = /[a-zA-Z]/.test(cleanedQuery);
@@ -192,6 +213,7 @@ const searchContacts = async ({ query, page, limit, role, user_id, filters = {} 
       role,
       user_id,
       filters,
+      environment,
     });
 
     await attachReplyMessages(contacts);
@@ -210,6 +232,7 @@ const getContactByPetOwnerId = async ({
   limit = 20,
   before = null,
   after = null,
+  environment = 'prod',
 }) => {
   try {
     const result = await ChatRepository.getContactByPetOwnerId({
@@ -222,6 +245,11 @@ const getContactByPetOwnerId = async ({
     });
 
     if (!result.contact) {
+      return null;
+    }
+
+    // ADR-0007 Fatia 7: guard de detail endpoints
+    if (!(await canAccessContactInEnvironment(result.contact, environment))) {
       return null;
     }
 
@@ -242,6 +270,7 @@ const getContactByContactId = async ({
   limit = 20,
   before = null,
   after = null,
+  environment = 'prod',
 }) => {
   try {
     const result = await ChatRepository.getContactByContactId({
@@ -257,6 +286,10 @@ const getContactByContactId = async ({
       return null;
     }
 
+    if (!(await canAccessContactInEnvironment(result.contact, environment))) {
+      return null;
+    }
+
     await attachReplyMessages([result.contact]);
     await signMessagesMediaUrls([result.contact]);
 
@@ -266,16 +299,47 @@ const getContactByContactId = async ({
   }
 };
 
-const getMessagesDaysSummary = async ({ pet_owner_id = null, contact_id = null, role }) => {
+const getMessagesDaysSummary = async ({
+  pet_owner_id = null,
+  contact_id = null,
+  role,
+  environment = 'prod',
+}) => {
   try {
+    // Pra homolog: garantir que pet_owner_id/contact_id pertencem a um contact
+    // staging antes de retornar dias. Caso contrario, retorna lista vazia
+    // (como se nao tivesse mensagens) pra nao vazar metadata.
+    if (environment === 'homolog') {
+      const lookupWhere = contact_id ? { id: contact_id } : { pet_owner_id };
+      const contact = await Contact.findOne({
+        where: lookupWhere,
+        attributes: ['id', 'cellphone'],
+      });
+      if (!(await canAccessContactInEnvironment(contact, environment))) {
+        return { days: [], totalDays: 0, totalMessages: 0 };
+      }
+    }
     return await ChatRepository.getMessagesDaysSummary({ pet_owner_id, contact_id, role });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
 };
 
-const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
+const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10, environment = 'prod' }) => {
   try {
+    // Pra homolog: validar acesso ao contact antes de retornar orders.
+    if (environment === 'homolog') {
+      const contact = await Contact.findOne({
+        where: { id: contact_id },
+        attributes: ['id', 'cellphone'],
+      });
+      if (!(await canAccessContactInEnvironment(contact, environment))) {
+        return {
+          orders: [],
+          pagination: { currentPage: page, limit, totalOrders: 0, hasMore: false, totalPages: 0 },
+        };
+      }
+    }
     return await ChatRepository.getOrdersByContactId({ contact_id, page, limit });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
@@ -288,6 +352,7 @@ const getContactByPetOwnerIdOrPhone = async ({
   role,
   page = 1,
   limit = 20,
+  environment = 'prod',
 }) => {
   try {
     const result = await ChatRepository.getContactByPetOwnerIdOrPhone({
@@ -299,6 +364,10 @@ const getContactByPetOwnerIdOrPhone = async ({
     });
 
     if (!result.contact) {
+      return null;
+    }
+
+    if (!(await canAccessContactInEnvironment(result.contact, environment))) {
       return null;
     }
 

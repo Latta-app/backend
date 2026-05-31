@@ -10,6 +10,10 @@ const generateToken = (user) => {
       role: user?.role,
       clinic: user.clinic,
       clinic_id: user?.clinic?.id,
+      // ADR-0007: ambiente do operador na mensageria. Fallback 'prod' garante
+      // backward compat — tokens emitidos antes da migration (sem campo no DB)
+      // continuam validos e caem no comportamento default.
+      environment: user?.environment || 'prod',
     },
     process.env.JWT_SECRET,
     { expiresIn: '7d' },

@@ -4,7 +4,7 @@ const getAllContactsWithMessages = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const { id, role } = req.user;
+    const { id, role, environment } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -22,6 +22,7 @@ const getAllContactsWithMessages = async (req, res) => {
       page,
       limit,
       filters,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -41,7 +42,7 @@ const getAllContactsBeingAttended = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const { id, role } = req.user;
+    const { id, role, environment } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -59,6 +60,7 @@ const getAllContactsBeingAttended = async (req, res) => {
       page,
       limit,
       filters,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -77,7 +79,7 @@ const getAllContactsBeingAttended = async (req, res) => {
 const searchContacts = async (req, res) => {
   try {
     const { query, page = 1, limit = 15 } = req.query;
-    const { id, role } = req.user;
+    const { id, role, environment } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -96,6 +98,7 @@ const searchContacts = async (req, res) => {
       role: role.role,
       user_id: id,
       filters,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -114,7 +117,7 @@ const searchContacts = async (req, res) => {
 const getContactByPetOwnerId = async (req, res) => {
   try {
     const { pet_owner_id } = req.params;
-    const { role } = req.user;
+    const { role, environment } = req.user;
     const { page = 1, limit = 20, before, after } = req.query;
 
     // Validação dos parâmetros
@@ -165,6 +168,7 @@ const getContactByPetOwnerId = async (req, res) => {
       limit: limitNum,
       before: before || null,
       after: after || null,
+      environment: environment || 'prod',
     });
 
     if (!result || !result.contact) {
@@ -191,7 +195,7 @@ const getContactByPetOwnerId = async (req, res) => {
 const getContactByContactId = async (req, res) => {
   try {
     const { contact_id } = req.params;
-    const { role } = req.user;
+    const { role, environment } = req.user;
     const { page = 1, limit = 20, before, after } = req.query;
 
     if (!contact_id) {
@@ -239,6 +243,7 @@ const getContactByContactId = async (req, res) => {
       limit: limitNum,
       before: before || null,
       after: after || null,
+      environment: environment || 'prod',
     });
 
     if (!result || !result.contact) {
@@ -265,6 +270,7 @@ const getContactByContactId = async (req, res) => {
 const getOrdersByContactId = async (req, res) => {
   try {
     const { contact_id } = req.params;
+    const { environment } = req.user;
     const { page = 1, limit = 10 } = req.query;
 
     if (!contact_id) {
@@ -288,6 +294,7 @@ const getOrdersByContactId = async (req, res) => {
       contact_id,
       page: pageNum,
       limit: limitNum,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -307,7 +314,7 @@ const getOrdersByContactId = async (req, res) => {
 const getContactByPetOwnerIdOrPhone = async (req, res) => {
   try {
     const { pet_owner_id, contact } = req.query;
-    const { role } = req.user;
+    const { role, environment } = req.user;
     const { page = 1, limit = 20 } = req.query;
 
     if (!pet_owner_id && !contact) {
@@ -342,6 +349,7 @@ const getContactByPetOwnerIdOrPhone = async (req, res) => {
       role: role.role,
       page: pageNum,
       limit: limitNum,
+      environment: environment || 'prod',
     });
 
     if (!result || !result.contact) {
@@ -369,7 +377,7 @@ const getAllTestContacts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
-    const { id, role } = req.user;
+    const { id, role, environment } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -383,6 +391,7 @@ const getAllTestContacts = async (req, res) => {
       page,
       limit,
       filters,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -400,10 +409,11 @@ const getAllTestContacts = async (req, res) => {
 
 const getTestContactsCount = async (req, res) => {
   try {
-    const { role } = req.user;
+    const { role, environment } = req.user;
 
     const result = await ChatService.getTestContactsCount({
       role: role.role,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -423,7 +433,7 @@ const getAllB2bContacts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
-    const { id, role } = req.user;
+    const { id, role, environment } = req.user;
 
     const responsibility = req.query.responsibility === 'true';
     const unread = req.query.unread === 'true';
@@ -437,6 +447,7 @@ const getAllB2bContacts = async (req, res) => {
       page,
       limit,
       filters,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -454,10 +465,11 @@ const getAllB2bContacts = async (req, res) => {
 
 const getB2bContactsCount = async (req, res) => {
   try {
-    const { role } = req.user;
+    const { role, environment } = req.user;
 
     const result = await ChatService.getB2bContactsCount({
       role: role.role,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({
@@ -473,9 +485,12 @@ const getB2bContactsCount = async (req, res) => {
   }
 };
 
-const getInAttendanceContactsCount = async (_req, res) => {
+const getInAttendanceContactsCount = async (req, res) => {
   try {
-    const result = await ChatService.getInAttendanceContactsCount();
+    const { environment } = req.user || {};
+    const result = await ChatService.getInAttendanceContactsCount({
+      environment: environment || 'prod',
+    });
     return res.status(200).json({
       code: 'IN_ATTENDANCE_CONTACTS_COUNT_RETRIEVED',
       data: { count: result.count },
@@ -524,7 +539,7 @@ const markAsAnswered = async (req, res) => {
 // usa America/Sao_Paulo pra bater com o que o operador vê na tela.
 const getMessagesDaysSummary = async (req, res) => {
   try {
-    const { role } = req.user;
+    const { role, environment } = req.user;
     const { pet_owner_id = null, contact_id = null } = req.query;
 
     if (!pet_owner_id && !contact_id) {
@@ -538,6 +553,7 @@ const getMessagesDaysSummary = async (req, res) => {
       pet_owner_id,
       contact_id,
       role: role.role,
+      environment: environment || 'prod',
     });
 
     return res.status(200).json({

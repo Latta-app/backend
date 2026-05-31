@@ -223,7 +223,7 @@ const getAllAttendants = async ({ clinic_id }) => {
 
 const getUserByEmail = async ({ email, password = false }) => {
   try {
-    const attributes = ['id', 'name', 'email', 'role_id', 'clinic_id', 'created_at'];
+    const attributes = ['id', 'name', 'email', 'role_id', 'clinic_id', 'environment', 'created_at'];
 
     if (password) {
       attributes.push('password');
