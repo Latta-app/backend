@@ -17,6 +17,23 @@ const canAccessContactInEnvironment = async (contact, environment) => {
   return isStagingPhone(cellphone);
 };
 
+// ADR-0007 Fatia 7: em environment=homolog, o filtro de staging_users ja
+// cobre o universo visivel. Os filtros testFilter/b2bFilter padroes ('exclude')
+// colidem com staging_users quando phones do range test personas
+// (5500000000XXX) estao na whitelist — o `id NOT IN (TEST_CONTACT_IDS)`
+// derruba TODOS os contacts de staging.
+// Solucao: pra homolog, neutralizar testFilter/b2bFilter ('none') a menos
+// que o caller tenha pedido explicitamente um valor diferente do default.
+const resolveTestB2bFiltersForEnvironment = (environment, testFilter, b2bFilter) => {
+  if (environment !== 'homolog') {
+    return { testFilter, b2bFilter };
+  }
+  return {
+    testFilter: testFilter === 'exclude' ? 'none' : testFilter,
+    b2bFilter: b2bFilter === 'exclude' ? 'none' : b2bFilter,
+  };
+};
+
 const signMessagesMediaUrls = async (contacts) => {
   for (const contact of contacts) {
     const chatHistory = contact.dataValues?.chatHistory || [];
@@ -75,14 +92,15 @@ const getAllContactsWithMessages = async ({
   environment = 'prod',
 }) => {
   try {
+    const filtersForEnv = resolveTestB2bFiltersForEnvironment(environment, testFilter, b2bFilter);
     const result = await ChatRepository.getAllContactsWithMessages({
       role,
       page,
       limit,
       user_id,
       filters,
-      testFilter,
-      b2bFilter,
+      testFilter: filtersForEnv.testFilter,
+      b2bFilter: filtersForEnv.b2bFilter,
       environment,
     });
     const contacts = result.contacts;
@@ -171,15 +189,20 @@ const getAllContactsBeingAttended = async ({
   limit = 15,
   user_id,
   filters = {},
+  testFilter = 'exclude',
+  b2bFilter = 'exclude',
   environment = 'prod',
 }) => {
   try {
+    const filtersForEnv = resolveTestB2bFiltersForEnvironment(environment, testFilter, b2bFilter);
     const result = await ChatRepository.getAllContactsBeingAttended({
       role,
       page,
       limit,
       user_id,
       filters,
+      testFilter: filtersForEnv.testFilter,
+      b2bFilter: filtersForEnv.b2bFilter,
       environment,
     });
     const contacts = result.contacts;
