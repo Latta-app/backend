@@ -17,6 +17,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
           script: |
+            export PATH=/home/ubuntu/.nvm/versions/node/v20.19.0/bin:$PATH
             cd ~/backend
             git pull origin main
             npm install --production=false
