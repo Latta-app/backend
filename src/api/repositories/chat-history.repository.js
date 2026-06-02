@@ -63,17 +63,33 @@ const STAGING_CONTACT_IDS_SUBQUERY = `(
   WHERE c.cellphone IN (SELECT phone FROM staging_users)
 )`;
 
-// Retorna a condicao Sequelize adequada pra adicionar em additionalConditions,
-// ou null pra deixar a query passar sem filtro de environment. Pra prod
-// (default), retorna null — preserva comportamento existente. Pra homolog,
-// retorna { id: { [Op.in]: STAGING_CONTACT_IDS_SUBQUERY } }.
+// Universo QA = whitelist (staging_users) UNION test personas (marcador
+// test-persona| no path OU cellphone do range 5500000000XXX). ADR-0007 Fatia 7
+// (refinado 2026-06-02): test + whitelist vivem SO no homolog; o prod nao
+// mostra nenhum dos dois (aba "Testes" do prod foi removida). Sem a uniao,
+// test personas que nao estao na whitelist (ex: usados em smoke) ficariam
+// orfaos — invisiveis no prod (excluidos) e no homolog (nao-whitelist).
+const QA_CONTACT_IDS_SUBQUERY = `(
+  SELECT c.id FROM contacts c WHERE c.cellphone IN (SELECT phone FROM staging_users)
+  UNION
+  SELECT DISTINCT ch.contact_id FROM chat_history ch
+  WHERE ch.path LIKE 'test-persona|%' AND ch.contact_id IS NOT NULL
+  UNION
+  SELECT c.id FROM contacts c WHERE c.cellphone ~ '^5500000000[0-9]{3}$'
+)`;
+
+// Filtro de environment (ADR-0007 Fatia 7 + refino 2026-06-02):
+//   - homolog: mostra APENAS o universo QA (whitelist ∪ test personas)
+//   - prod:    EXCLUI todo o universo QA (operador ve so cliente real).
+// Antes o prod retornava null (sem filtro) — o que vazava whitelist (ex: Lucas)
+// pro admin principal. Agora e o espelho exato do homolog. Dinamico via
+// staging_users (cache 30s no helper) — sai/entra da whitelist reflete sem
+// marcar nada por contato.
 const buildStagingEnvironmentCondition = (Op, environment) => {
-  if (environment !== 'homolog') return null;
-  return {
-    id: {
-      [Op.in]: Sequelize.literal(STAGING_CONTACT_IDS_SUBQUERY),
-    },
-  };
+  if (environment === 'homolog') {
+    return { id: { [Op.in]: Sequelize.literal(QA_CONTACT_IDS_SUBQUERY) } };
+  }
+  return { id: { [Op.notIn]: Sequelize.literal(QA_CONTACT_IDS_SUBQUERY) } };
 };
 
 const RECENT_ORDERS_LIMIT = 10;
