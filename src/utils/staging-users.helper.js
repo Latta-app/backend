@@ -63,3 +63,33 @@ export function buildEnvironmentFilter(environment) {
   if (environment === 'homolog') return { op: 'in' };
   return null;
 }
+
+// Normaliza phone BR pro formato canonico 13-dig (55 + DDD + 9 + 8 digitos).
+// Espelha normalizeBrPhone da EF chat-history-logger pra garantir match
+// consistente com staging_users (que guarda 13-dig). Sem isso, um payload
+// que chegue em 12-dig (sem o 9o digito) nao casaria a whitelist.
+function normalizeBrPhone(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('55')) {
+    return `${digits.slice(0, 4)}9${digits.slice(4)}`;
+  }
+  return digits;
+}
+
+const TEST_PERSONA_RANGE_RE = /^5500000000\d{3}$/;
+
+// Universo QA = whitelist (staging_users) OU range de test personas
+// (5500000000XXX). Espelha o QA_CONTACT_IDS_SUBQUERY do repository (ADR-0007
+// Fatia 7): o arm `path LIKE 'test-persona|%'` e' subconjunto do range
+// (o marcador test-persona so e' gravado pra phones desse range pela EF
+// chat-history-logger), entao checar range + whitelist cobre o mesmo universo.
+// Usado pelo push em tempo real (socket new_message) pra rotear msg de QA so
+// pro painel homolog e msg de cliente real so pro prod — espelhando o filtro
+// da listagem REST, que antes divergia (socket era broadcast global).
+export async function isQaPhone(phone) {
+  const norm = normalizeBrPhone(phone);
+  if (!norm) return false;
+  if (TEST_PERSONA_RANGE_RE.test(norm)) return true;
+  const list = await getStagingPhones();
+  return list.includes(norm);
+}
