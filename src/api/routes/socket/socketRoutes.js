@@ -2,7 +2,8 @@ import express from 'express';
 import S3ClientUtil from '../../../utils/s3.js';
 import ChatRepository from '../../repositories/chat-history.repository.js';
 import { isValidUUID } from '../../../utils/validate.js';
-import { MESSAGING_ROOM } from '../../../config/socket.js';
+import { MESSAGING_ROOM, messagingEnvRoom } from '../../../config/socket.js';
+import { isQaPhone } from '../../../utils/staging-users.helper.js';
 
 // Função para assinar URLs de mídia
 const signMessageMediaUrl = async (messageData) => {
@@ -129,22 +130,34 @@ function createSocketRoutes(io) {
       messageData = await signMessageMediaUrl(messageData);
       messageData = await attachReplyMessage(messageData);
 
-      // Visão unificada (refactor 2026-05-08): emite pra sala global única.
-      // Todos os usuários autenticados recebem todas as mensagens.
-      const room = io.sockets.adapter.rooms.get(MESSAGING_ROOM);
+      // ADR-0007 Fatia 7 (fix 2026-06-04): roteia o push pela sala do ambiente.
+      // QA (whitelist staging_users OU range test-persona) -> painel homolog;
+      // cliente real -> painel prod. Espelha o filtro da listagem REST, que
+      // antes divergia do socket (broadcast global vazava QA<->prod ao vivo,
+      // ate dar F5). Fallback: sem cell_phone, mantem broadcast global (raro —
+      // toda chat_history tem cell_phone; nao arriscar sumir msg de um painel).
+      let targetRoom = MESSAGING_ROOM;
+      if (cell_phone) {
+        const targetEnv = (await isQaPhone(cell_phone)) ? 'homolog' : 'prod';
+        targetRoom = messagingEnvRoom(targetEnv);
+      } else {
+        console.warn('⚠️ new_message sem cell_phone — broadcast global (fallback)');
+      }
+
+      const room = io.sockets.adapter.rooms.get(targetRoom);
       console.log(
         room
-          ? `✅ Sala '${MESSAGING_ROOM}' com ${room.size} sockets`
-          : `❌ Sala '${MESSAGING_ROOM}' vazia`,
+          ? `✅ Sala '${targetRoom}' com ${room.size} sockets`
+          : `❌ Sala '${targetRoom}' vazia`,
       );
 
-      io.to(MESSAGING_ROOM).emit('new_message', messageData);
-      console.log(`📤 new_message emitido para '${MESSAGING_ROOM}'`);
+      io.to(targetRoom).emit('new_message', messageData);
+      console.log(`📤 new_message emitido para '${targetRoom}' (phone=${cell_phone || 'n/a'})`);
 
       res.json({
         success: true,
         sent: true,
-        room: MESSAGING_ROOM,
+        room: targetRoom,
       });
 
       console.log('✅ Webhook finalizado com sucesso');

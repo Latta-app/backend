@@ -6,6 +6,16 @@ import jwt from 'jsonwebtoken';
 // Se voltar multi-clinic no futuro, reintroduzir clinic-specific rooms.
 const MESSAGING_ROOM = 'messaging_global';
 
+// ADR-0007 Fatia 7 (fix 2026-06-04): salas separadas por ambiente pro push em
+// tempo real. A listagem REST ja filtrava por environment (homolog=universo QA,
+// prod=cliente real), mas o socket new_message era broadcast pra MESSAGING_ROOM
+// global — entao msg de QA vazava pro painel prod e vice-versa, ate dar F5.
+// Cada socket entra na sala do seu environment; o emissor roteia a msg pela
+// classificacao QA do telefone (isQaPhone). MESSAGING_ROOM continua existindo
+// so pros eventos de presenca (attendant_connected/disconnected).
+const messagingEnvRoom = (environment) =>
+  environment === 'homolog' ? 'messaging:homolog' : 'messaging:prod';
+
 const userLastSeen = new Map();
 const userSockets = new Map();
 
@@ -88,7 +98,13 @@ function initializeSocket(httpServer) {
     userSockets.set(userId, socket.id);
 
     socket.join(MESSAGING_ROOM);
-    console.log(`✅ Usuário ${userName} adicionado à sala '${MESSAGING_ROOM}'`);
+    // Sala por ambiente: new_message e' roteado pra ca' (homolog vs prod),
+    // espelhando o filtro da listagem REST. environment vem do JWT (socket.user).
+    const envRoom = messagingEnvRoom(socket.user?.environment);
+    socket.join(envRoom);
+    console.log(
+      `✅ Usuário ${userName} nas salas '${MESSAGING_ROOM}' + '${envRoom}'`,
+    );
 
     // Notifica os outros conectados
     socket.to(MESSAGING_ROOM).emit('attendant_connected', {
@@ -213,4 +229,4 @@ function initializeSocket(httpServer) {
   return { io, MESSAGING_ROOM };
 }
 
-export { initializeSocket, MESSAGING_ROOM };
+export { initializeSocket, MESSAGING_ROOM, messagingEnvRoom };
