@@ -43,6 +43,24 @@ function requireEnv() {
   if (missing.length) { console.error(`[minter] faltam envs: ${missing.join(', ')}`); process.exit(1); }
 }
 
+// EGRESS CONSISTENTE (achado §11): o cookie só vale em chamada crua se sair pelo
+// MESMO IP que o mintou. Geramos uma sessão IProyal STICKY (`_session-X_lifetime`)
+// e usamos ela TANTO no mint (browser, via Browserbase external proxy) QUANTO no
+// health check / chamadas cruas da EF. Validado: sticky fixa o IP (sameIP=true).
+function buildStickyProxy() {
+  const sid = 'mint' + Date.now().toString(36) + Math.floor(performance.now()).toString(36);
+  const u = new URL(PETZ_PROXY);
+  const stickyPass = `${decodeURIComponent(u.password)}_session-${sid}_lifetime-30m`;
+  return {
+    sid,
+    server: `http://${u.host}`,
+    username: decodeURIComponent(u.username),
+    password: stickyPass,
+    // url completa pro https-proxy-agent (health check / EF cru)
+    url: `http://${encodeURIComponent(u.username)}:${encodeURIComponent(stickyPass)}@${u.host}`,
+  };
+}
+
 // 1) Minta cookie de sessão via browser STEALTH (Stagehand + Browserbase).
 //
 // Decisão (README §11, ADR-0008): mint headless "puro" é flaky contra o Akamai
@@ -59,7 +77,7 @@ function requireEnv() {
 //     reidratando o cookie numa sessão Browserbase nova no verify.
 // O health check abaixo (chamada crua /access) já exercita exatamente esse cenário
 // cross-IP — se passar (200/app), a arquitetura cookie→EF-cru está validada.
-export async function mintCookie() {
+export async function mintCookie(sticky) {
   const useCloud = process.env.USE_BROWSERBASE === 'true';
   const stagehand = new Stagehand({
     env: useCloud ? 'BROWSERBASE' : 'LOCAL',
@@ -67,13 +85,28 @@ export async function mintCookie() {
     projectId: process.env.BROWSERBASE_PROJECT_ID,
     enableCaching: false,
     ...(useCloud
-      ? { browserbaseSessionCreateParams: { keepAlive: false, timeout: 120 } }
+      ? {
+          browserbaseSessionCreateParams: {
+            keepAlive: false,
+            timeout: 120,
+            // ⚠️ BLOQUEIO ATUAL (diag 2026-06-05): este shape de external proxy foi
+            // IGNORADO por esta versão do Stagehand/Browserbase — o browser saiu pelo
+            // IP do Browserbase, não pelo IProyal sticky (browserUsedIProyal=false).
+            // Como o egress não bateu com o das chamadas cruas da EF (IProyal), o
+            // health check deu 403. CORRIGIR conforme a doc Browserbase/Stagehand da
+            // versão instalada (talvez `proxies: true` + geolocation BR, ou um campo
+            // diferente, ou setar o proxy no nível do Stagehand). Quando
+            // browserUsedIProyal=true, re-rodar → health deve dar OK e destrava o
+            // modelo raw barato (fatia #02). Ver issue §11.
+            proxies: [{ type: 'external', server: sticky.server, username: sticky.username, password: sticky.password }],
+          },
+        }
       : {
           localBrowserLaunchOptions: {
             headless: true,
             ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--lang=pt-BR'],
-            ...(process.env.PETZ_PROXY ? (() => { const u = new URL(PETZ_PROXY); return { proxy: { server: `http://${u.host}`, username: decodeURIComponent(u.username), password: decodeURIComponent(u.password) } }; })() : {}),
+            proxy: { server: sticky.server, username: sticky.username, password: sticky.password },
           },
         }),
   });
@@ -92,13 +125,14 @@ export async function mintCookie() {
   }
 }
 
-// 2) Health check: /access cru com CPF bogus. Healthy se NÃO for 403 do Akamai.
-export function healthCheck(cookieHeader) {
+// 2) Health check: /access cru (pelo MESMO sticky do mint) com CPF bogus.
+//    Healthy se NÃO for 403 do Akamai — é o teste real do egress cookie→EF-cru.
+export function healthCheck(cookieHeader, proxyUrl) {
   return new Promise((resolve) => {
     const data = JSON.stringify({ cpf: '00000000000', tipoToken: 'access_token' });
     const req = https.request(ACCESS_URL, {
       method: 'POST',
-      agent: new HttpsProxyAgent(PETZ_PROXY),
+      agent: new HttpsProxyAgent(proxyUrl),
       headers: {
         'content-type': 'application/json; charset=UTF-8', 'versionapi': '3', 'user-agent': UA,
         'origin': BASE, 'referer': LOGIN_URL, 'cookie': cookieHeader, 'content-length': Buffer.byteLength(data),
@@ -118,11 +152,12 @@ export function healthCheck(cookieHeader) {
 }
 
 // 3) Upsert do slot no pool via Supabase REST.
-async function storeSlot(slot, cookieHeader, healthy) {
+async function storeSlot(slot, cookieHeader, healthy, proxySession) {
   const now = new Date();
   const row = {
     slot,
     cookie_header: cookieHeader,
+    proxy_session: proxySession, // sticky id — a EF reusa o MESMO egress nas chamadas cruas
     minted_at: now.toISOString(),
     expires_at: new Date(now.getTime() + TTL_MIN * 60_000).toISOString(),
     healthy,
@@ -144,10 +179,11 @@ async function run() {
   let okCount = 0;
   for (let slot = 1; slot <= POOL_SIZE; slot++) {
     try {
-      const cookie = await mintCookie();
-      const hc = await healthCheck(cookie);
-      await storeSlot(slot, cookie, hc.ok);
-      console.log(`[minter] slot ${slot}: minted, health=${hc.ok ? 'OK' : 'FAIL'} (status ${hc.status}), stored`);
+      const sticky = buildStickyProxy();
+      const cookie = await mintCookie(sticky);
+      const hc = await healthCheck(cookie, sticky.url); // MESMO egress do mint
+      await storeSlot(slot, cookie, hc.ok, sticky.sid);
+      console.log(`[minter] slot ${slot}: minted (session ${sticky.sid}), health=${hc.ok ? 'OK' : 'FAIL'} (status ${hc.status}), stored`);
       if (hc.ok) okCount++;
     } catch (err) {
       console.error(`[minter] slot ${slot} falhou: ${err.message}`);
