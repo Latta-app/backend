@@ -87,7 +87,16 @@ const petzOtpVerify = async (req, res) => {
     });
 
     otpSessions.delete(sessionId); // worker se encerra após o verify
-    if (result?.status === 'success') return res.status(200).json({ success: true, cookies: result.cookies });
+    if (result?.status === 'success') {
+      return res.status(200).json({
+        success: true,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        petzClientId: result.petzClientId,
+        deviceId: result.deviceId,
+      });
+    }
     if (result?.status === 'invalid_code') return res.status(401).json({ success: false, code: 'INVALID_CODE', message: 'código inválido ou expirado' });
     return res.status(500).json({ success: false, code: 'OTP_VERIFY_ERROR', message: result?.message || 'falha no verify' });
   } catch (err) {

@@ -27,7 +27,14 @@ let active = null; // { stagehand, page }
         try {
           const res = await verifyPetzOtp({ page: active.page, cpf: data.cpf, code: msg.code });
           process.send(res.success
-            ? { status: 'success', cookies: res.cookies }
+            ? {
+                status: 'success',
+                accessToken: res.accessToken,
+                refreshToken: res.refreshToken,
+                expiresIn: res.expiresIn,
+                petzClientId: res.petzClientId,
+                deviceId: res.deviceId,
+              }
             : { status: 'invalid_code', httpStatus: res.status });
         } catch (err) {
           process.send({ status: 'error', message: err.message });

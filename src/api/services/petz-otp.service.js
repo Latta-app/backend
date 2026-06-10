@@ -109,16 +109,68 @@ export async function startPetzOtp({ cpf, channel = 'SMS' }) {
 }
 
 /**
- * Verifica o código NA MESMA sessão viva do startPetzOtp.
- * @returns {Promise<{success:boolean,status:number,cookies?:string,data:unknown}>}
+ * Verifica o código NA MESMA sessão viva do startPetzOtp e reconcilia os tokens
+ * que o cart/checkout usam. Protocolo validado 2026-06-05/10 (ver issue
+ * petz-connect-mandatory-onboarding/SMOKE-VALIDATED-2026-06-10.md):
+ *   1) POST /api/v4/auth/quick-access {customerKey, accessCode}
+ *      headers: X-Use-Otp-Validation:true + Device-Id (cookie device_id)
+ *      -> 200 {access_token, refresh_token, expires_in}
+ *   2) GET /api/v3/client/get_by_token
+ *      headers: X-Authorization: Bearer <access_token> + Authorization Basic (app) + Device-Id
+ *      -> result.client.id = petz_client_id
+ * O header X-Use-Otp-Validation é OBRIGATÓRIO no verify — sem ele o endpoint
+ * retorna 401 "Código não encontrado".
+ * @returns {Promise<{success:boolean,status:number,accessToken?:string,refreshToken?:string,expiresIn?:number,petzClientId?:string,deviceId?:string,data:unknown}>}
  */
 export async function verifyPetzOtp({ page, cpf, code }) {
-  const res = await browserPost(page, '/api/v4/auth/quick-access', { customerKey: cpf, accessCode: code });
-  let cookies;
-  if (res.status === 200) {
-    cookies = JSON.stringify(await page.context().cookies().catch(() => []));
+  const out = await page.evaluate(async ({ cpf, code }) => {
+    const deviceId = (document.cookie.match(/(?:^|;\s*)device_id=([^;]+)/) || [])[1] || '';
+    // 1) verify
+    const vr = await fetch('/api/v4/auth/quick-access', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=UTF-8',
+        'X-Use-Otp-Validation': 'true',
+        'Device-Id': deviceId,
+      },
+      body: JSON.stringify({ customerKey: cpf, accessCode: code }),
+    });
+    let vdata = null;
+    try { vdata = await vr.json(); } catch { /* ok */ }
+    if (vr.status !== 200 || !vdata?.access_token) {
+      return { status: vr.status, data: vdata, deviceId };
+    }
+    // 2) client id via token (mesmo Bearer que o cart usa)
+    let petzClientId = null;
+    try {
+      const cr = await fetch('/api/v3/client/get_by_token', {
+        headers: {
+          'X-Authorization': `Bearer ${vdata.access_token}`,
+          Authorization: 'Basic cGV0ejpwZXR6MTAxMA==',
+          'Device-Id': deviceId,
+          'content-type': 'application/json; charset=UTF-8',
+        },
+      });
+      const cdata = await cr.json().catch(() => null);
+      const client = cdata?.result?.client || cdata?.client || null;
+      if (client?.id != null) petzClientId = String(client.id);
+    } catch { /* enrichment é best-effort; cart resolve via fallback */ }
+    return { status: vr.status, data: vdata, deviceId, petzClientId };
+  }, { cpf, code });
+
+  if (out.status !== 200 || !out.data?.access_token) {
+    return { success: false, status: out.status, data: out.data };
   }
-  return { success: res.status === 200, status: res.status, cookies, data: res.data };
+  return {
+    success: true,
+    status: out.status,
+    accessToken: out.data.access_token,
+    refreshToken: out.data.refresh_token,
+    expiresIn: out.data.expires_in ?? 3600,
+    petzClientId: out.petzClientId ?? null,
+    deviceId: out.deviceId || null,
+    data: out.data,
+  };
 }
 
 export async function closePetzOtp(stagehand) {
