@@ -144,7 +144,10 @@ const getSchedulingsByPetOwner = async (req, res) => {
     const { petOwnerId } = req.params;
     const { date, status } = req.query;
 
-    if (req.user.role === 'petOwner' && req.user.id !== petOwnerId) {
+    // getRoleString: o role no JWT é objeto ({ role: 'petOwner' }), não string —
+    // `req.user.role === 'petOwner'` era sempre false e o guard não disparava
+    // (IDOR: tutor lia agendamentos + email de outro tutor).
+    if (getRoleString(req) === 'petOwner' && req.user.id !== petOwnerId) {
       return res.status(403).json({
         code: 'FORBIDDEN',
         message: 'Você não tem permissão para acessar agendamentos de outros donos de pets',
@@ -179,7 +182,7 @@ const getSchedulingsByPet = async (req, res) => {
     });
 
     if (
-      req.user.role === 'petOwner' &&
+      getRoleString(req) === 'petOwner' &&
       schedulings.length > 0 &&
       schedulings[0].pet_owner_id !== req.user.id
     ) {
