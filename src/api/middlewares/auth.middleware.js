@@ -57,36 +57,4 @@ const checkRole = (allowedRoles) => {
   };
 };
 
-const routeGuard = (allowedTypes) => {
-  return (req, res, next) => {
-    try {
-      const userRole = req.user.role?.toLowerCase();
-
-      if (
-        allowedTypes === 'veterinary' &&
-        !['veterinary', 'admin', 'superadmin'].includes(userRole)
-      ) {
-        return res.status(403).json({
-          code: 'ACCESS_DENIED',
-          message: 'Esta rota é exclusiva para veterinários',
-        });
-      }
-
-      if (allowedTypes === 'petowner' && userRole !== 'petowner') {
-        return res.status(403).json({
-          code: 'ACCESS_DENIED',
-          message: 'Esta rota é exclusiva para tutores',
-        });
-      }
-
-      next();
-    } catch (error) {
-      return res.status(500).json({
-        code: 'GUARD_ERROR',
-        message: 'Erro ao verificar permissões de rota',
-      });
-    }
-  };
-};
-
-export { verifyToken, checkRole, routeGuard };
+export { verifyToken, checkRole };
