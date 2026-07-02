@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 export const STATE_LABELS = {
   INITIATED: 'Iniciado',
   CONTACTING: 'Contatando clínica',
@@ -13,11 +15,16 @@ export const STATE_LABELS = {
   ESCALATED: 'Escalado',
 };
 
+// appointment_date é o "dia do serviço" na agenda — precisa ser o dia em
+// horário de Brasília, não UTC. Com toISOString (UTC), serviço 21h+ BRT
+// caía no dia seguinte no grid.
+const SCHEDULE_TZ = 'America/Sao_Paulo';
+
 const toISODate = (value) => {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return DateTime.fromJSDate(date).setZone(SCHEDULE_TZ).toISODate();
 };
 
 export function mapSessionToScheduling(row) {
