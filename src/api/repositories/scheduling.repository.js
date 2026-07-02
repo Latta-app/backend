@@ -165,14 +165,26 @@ const getSchedulingsByPetOwner = async ({ petOwnerId, date, status }) => {
   return mapRows(result.rows);
 };
 
-const getSchedulingsByPet = async ({ petId, date, status }) => {
-  const { filters, values } = buildDateAndStatusFilter({ date, status }, 's', 2);
-  values.unshift(petId);
-  const where = `WHERE (s.pet_id = $1 OR $1 = ANY(s.pet_ids))${
-    filters.length ? ` AND ${filters.join(' AND ')}` : ''
-  }`;
+const getSchedulingsByPet = async ({ petId, date, status, petOwnerId = null }) => {
+  const values = [petId];
+  const conditions = ['(s.pet_id = $1 OR $1 = ANY(s.pet_ids))'];
+  let idx = 2;
+
+  // Escopo por dono (role petOwner): só sessões onde o requester é o pet_owner_id.
+  // Sem isso, um pet co-tutelado (guardian) devolve sessões — e PII — de outro
+  // tutor. Admin/superAdmin chamam sem petOwnerId e continuam vendo tudo.
+  if (petOwnerId) {
+    values.push(petOwnerId);
+    conditions.push(`s.pet_owner_id = $${idx}`);
+    idx += 1;
+  }
+
+  const { filters, values: dsValues } = buildDateAndStatusFilter({ date, status }, 's', idx);
+  values.push(...dsValues);
+  conditions.push(...filters);
+
   const result = await pgQuery(
-    `${BASE_SELECT} ${where} ORDER BY s.scheduled_date ASC NULLS LAST`,
+    `${BASE_SELECT} WHERE ${conditions.join(' AND ')} ORDER BY s.scheduled_date ASC NULLS LAST`,
     values,
   );
   return mapRows(result.rows);

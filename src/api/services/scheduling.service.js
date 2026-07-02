@@ -144,8 +144,8 @@ const getSchedulingsByClinic = async ({ clinicId, date, status }) =>
 const getSchedulingsByPetOwner = async ({ petOwnerId, date, status }) =>
   SchedulingRepository.getSchedulingsByPetOwner({ petOwnerId, date, status });
 
-const getSchedulingsByPet = async ({ petId, date, status }) =>
-  SchedulingRepository.getSchedulingsByPet({ petId, date, status });
+const getSchedulingsByPet = async ({ petId, date, status, petOwnerId }) =>
+  SchedulingRepository.getSchedulingsByPet({ petId, date, status, petOwnerId });
 
 const getSchedulingById = async ({ id }) => SchedulingRepository.getSchedulingById({ id });
 

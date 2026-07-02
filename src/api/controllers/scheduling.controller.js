@@ -225,22 +225,19 @@ const getSchedulingsByPet = async (req, res) => {
   try {
     const { petId } = req.params;
     const { date, status } = req.query;
+
+    // Role petOwner: escopar no repo por pet_owner_id = req.user.id. O guard antigo
+    // só olhava schedulings[0].pet_owner_id — bastava a sessão mais antiga do pet
+    // ser do atacante (pet co-tutelado via guardian) pra passar e vazar user_phone
+    // + email das sessões de OUTROS tutores. Filtrar na query elimina o índice-0.
+    const petOwnerId = getRoleString(req) === 'petOwner' ? req.user.id : undefined;
+
     const schedulings = await SchedulingService.getSchedulingsByPet({
       petId,
       date,
       status,
+      petOwnerId,
     });
-
-    if (
-      getRoleString(req) === 'petOwner' &&
-      schedulings.length > 0 &&
-      schedulings[0].pet_owner_id !== req.user.id
-    ) {
-      return res.status(403).json({
-        code: 'FORBIDDEN',
-        message: 'Você não tem permissão para acessar agendamentos de pets que não são seus',
-      });
-    }
 
     return res.status(200).json({
       code: 'PET_SCHEDULINGS_FETCHED',
