@@ -19,6 +19,7 @@ vi.mock('../services/scheduling.service.js', () => ({
       })),
     ),
     petBelongsToOwner: vi.fn(async () => true),
+    getPetOwnerClinicId: vi.fn(async () => null),
   },
 }));
 vi.mock('../services/merchant-scheduling-agent.service.js', () => ({ default: {} }));
@@ -35,6 +36,7 @@ const OWNER_ID = '33333333-3333-3333-3333-333333333333';
 const VICTIM_OWNER_ID = '99999999-9999-9999-9999-999999999999';
 const PET_ID = '22222222-2222-2222-2222-222222222222';
 const CLINIC_ID = '11111111-1111-1111-1111-111111111111';
+const DERIVED_CLINIC_ID = '44444444-4444-4444-4444-444444444444';
 const VALID = {
   clinic_id: CLINIC_ID,
   appointment_date: '2026-08-01',
@@ -48,6 +50,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   ({ default: SchedulingService } = await import('../services/scheduling.service.js'));
   SchedulingService.petBelongsToOwner.mockResolvedValue(true);
+  SchedulingService.getPetOwnerClinicId.mockResolvedValue(DERIVED_CLINIC_ID);
   const { default: schedulingRoutes } = await import('../routes/private/scheduling.routes.js');
   app = express();
   app.use(express.json());
@@ -83,6 +86,32 @@ describe('#3 — createScheduling bind do petOwner', () => {
       petId: PET_ID,
       petOwnerId: OWNER_ID,
     });
+  });
+
+  it('deriva clinic_id do tutor e IGNORA o clinic_id do body', async () => {
+    const res = await httpRequest(app, {
+      method: 'POST',
+      path: '/api/scheduling',
+      token: petOwnerToken({ id: OWNER_ID }),
+      body: { ...VALID, clinic_id: CLINIC_ID },
+    });
+    expect(res.status).toBe(201);
+    const arg = SchedulingService.createScheduling.mock.calls[0][0].schedulingData;
+    expect(arg[0].clinic_id).toBe(DERIVED_CLINIC_ID);
+    expect(arg[0].clinic_id).not.toBe(CLINIC_ID);
+    expect(SchedulingService.getPetOwnerClinicId).toHaveBeenCalledWith({ petOwnerId: OWNER_ID });
+  });
+
+  it('403 quando o tutor não tem clínica associada', async () => {
+    SchedulingService.getPetOwnerClinicId.mockResolvedValueOnce(null);
+    const res = await httpRequest(app, {
+      method: 'POST',
+      path: '/api/scheduling',
+      token: petOwnerToken({ id: OWNER_ID }),
+      body: { ...VALID },
+    });
+    expect(res.status).toBe(403);
+    expect(SchedulingService.createScheduling).not.toHaveBeenCalled();
   });
 
   it('redige a resposta do petOwner (sem email/phone)', async () => {

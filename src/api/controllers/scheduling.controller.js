@@ -74,14 +74,25 @@ const createScheduling = async (req, res) => {
     } else if (isPetOwnerRole(req)) {
       // Anti-bypass: role petOwner só agenda pra SI mesmo. pet_owner_id é SEMPRE
       // o id do JWT (nunca do body — senão vira oráculo de PII: informar o id da
-      // vítima faz o JOIN devolver email/nome dela). pet_id precisa ser um pet do
-      // próprio tutor (M:M pet_owner_pets). user_phone e campos de clínica-externa
-      // são zerados. Valida o body com Joi antes de tocar o service.
+      // vítima faz o JOIN devolver email/nome dela). clinic_id é derivado do
+      // registro do tutor (NUNCA do body — senão o tutor pendura agendamento
+      // CONFIRMED em qualquer clínica). pet_id precisa ser um pet do próprio tutor
+      // (M:M pet_owner_pets). user_phone e campos de clínica-externa são zerados.
       const ownerId = req.user.id;
+      const ownerClinicId = await SchedulingService.getPetOwnerClinicId({
+        petOwnerId: ownerId,
+      });
+      if (!ownerClinicId) {
+        return res.status(403).json({
+          code: 'FORBIDDEN',
+          message: 'Tutor sem clínica associada não pode criar agendamento',
+        });
+      }
       const sanitized = [];
       for (const raw of body) {
         const candidate = {
           ...raw,
+          clinic_id: ownerClinicId,
           pet_owner_id: ownerId,
           user_phone: null,
           pet_ids: null,

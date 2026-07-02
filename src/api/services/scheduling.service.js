@@ -135,6 +135,9 @@ const createScheduling = async ({ schedulingData }) => {
 const petBelongsToOwner = async ({ petId, petOwnerId }) =>
   SchedulingRepository.petBelongsToOwner({ petId, petOwnerId });
 
+const getPetOwnerClinicId = async ({ petOwnerId }) =>
+  SchedulingRepository.getPetOwnerClinicId({ petOwnerId });
+
 const getAllSchedulings = async ({ date, status }) =>
   SchedulingRepository.getAllSchedulings({ date, status });
 
@@ -163,6 +166,7 @@ const deleteScheduling = async ({ id }) => SchedulingRepository.deleteScheduling
 export default {
   createScheduling,
   petBelongsToOwner,
+  getPetOwnerClinicId,
   getAllSchedulings,
   getSchedulingsByClinic,
   getSchedulingsByPetOwner,

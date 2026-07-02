@@ -120,6 +120,17 @@ const petBelongsToOwner = async ({ petId, petOwnerId }) => {
   return result.rowCount > 0;
 };
 
+// Clínica-casa do tutor. createScheduling do petOwner deriva o clinic_id daqui —
+// NUNCA do body — pra impedir que um tutor pendure agendamento (CONFIRMED) em
+// qualquer clínica. pet_owners.clinic_id é NOT NULL.
+const getPetOwnerClinicId = async ({ petOwnerId }) => {
+  if (!petOwnerId) return null;
+  const result = await pgQuery(`SELECT clinic_id FROM pet_owners WHERE id = $1 LIMIT 1`, [
+    petOwnerId,
+  ]);
+  return result.rows[0]?.clinic_id ?? null;
+};
+
 const getSchedulingById = async ({ id, client = null }) => {
   const runner = client ?? pgPool;
   const result = await runner.query(`${BASE_SELECT} WHERE s.id = $1 LIMIT 1`, [id]);
@@ -337,6 +348,7 @@ function resolveScheduledDate(appointmentDate, startTime) {
 export default {
   createScheduling,
   petBelongsToOwner,
+  getPetOwnerClinicId,
   getSchedulingById,
   getAllSchedulings,
   getSchedulingsByClinic,
