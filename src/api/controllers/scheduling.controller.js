@@ -241,7 +241,15 @@ const getSchedulingsByPet = async (req, res) => {
     // só olhava schedulings[0].pet_owner_id — bastava a sessão mais antiga do pet
     // ser do atacante (pet co-tutelado via guardian) pra passar e vazar user_phone
     // + email das sessões de OUTROS tutores. Filtrar na query elimina o índice-0.
-    const petOwnerId = getRoleString(req) === 'petOwner' ? req.user.id : undefined;
+    // Defesa em profundidade: petOwner sem id no token NÃO cai no caminho unscoped
+    // (que devolveria todas as sessões do pet) — nega.
+    if (isPetOwnerRole(req) && !req.user.id) {
+      return res.status(403).json({
+        code: 'FORBIDDEN',
+        message: 'Token de tutor sem identificação',
+      });
+    }
+    const petOwnerId = isPetOwnerRole(req) ? req.user.id : undefined;
 
     const schedulings = await SchedulingService.getSchedulingsByPet({
       petId,

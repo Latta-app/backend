@@ -56,6 +56,17 @@ describe('#4 — getSchedulingsByPet scoping', () => {
     expect(arg.petOwnerId).toBeUndefined();
   });
 
+  it('petOwner sem id no token → 403 (não cai no unscoped)', async () => {
+    // token de tutor forjado sem id: role petOwner mas id ausente
+    const res = await httpRequest(app, {
+      method: 'GET',
+      path: '/api/scheduling/pet/PET1',
+      token: petOwnerToken({ id: undefined }),
+    });
+    expect(res.status).toBe(403);
+    expect(SchedulingService.getSchedulingsByPet).not.toHaveBeenCalled();
+  });
+
   it('clinic nem alcança a rota (403 no checkRole)', async () => {
     const res = await httpRequest(app, {
       method: 'GET',
