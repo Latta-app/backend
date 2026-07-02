@@ -5,6 +5,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon --inspect -r sucrase/register src/app.js --ignore tmp/",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "eslint:fix": "eslint --fix src",
     "eslint:check": "eslint src",
     "prettier:format": "prettier --config .prettierrc 'src/**/*.js*' --loglevel=silent --write",
