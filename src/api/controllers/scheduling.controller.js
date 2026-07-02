@@ -45,11 +45,34 @@ const handleError = (res, error, fallback) => {
 
 const createScheduling = async (req, res) => {
   try {
-    const body = Array.isArray(req.body) ? req.body : [req.body];
+    let body = Array.isArray(req.body) ? req.body : [req.body];
+
+    // Anti-bypass: role clinic só cria agendamento na própria clínica
+    // (clinic_id vem do JWT) e só pra clientes próprios (external_*) —
+    // pet_id/pet_owner_id do body são descartados pra impedir agendamento
+    // falso pendurado num tutor Latta (e o JOIN devolveria PII dele).
+    if (isClinicRole(req)) {
+      const jwtClinicId = getClinicId(req);
+      if (!jwtClinicId) {
+        return res.status(403).json({
+          code: 'CLINIC_FORBIDDEN',
+          message: 'JWT sem clinic_id',
+        });
+      }
+      body = body.map((item) => ({
+        ...item,
+        clinic_id: jwtClinicId,
+        pet_id: null,
+        pet_ids: null,
+        pet_owner_id: null,
+        user_phone: null,
+      }));
+    }
+
     const created = await SchedulingService.createScheduling({ schedulingData: body });
     return res.status(201).json({
       code: 'SCHEDULING_CREATED',
-      data: created,
+      data: isClinicRole(req) ? redactAppointmentsForClinic(created) : created,
     });
   } catch (error) {
     return handleError(res, error, {
@@ -121,7 +144,10 @@ const getSchedulingsByPetOwner = async (req, res) => {
     const { petOwnerId } = req.params;
     const { date, status } = req.query;
 
-    if (req.user.role === 'petOwner' && req.user.id !== petOwnerId) {
+    // getRoleString: o role no JWT é objeto ({ role: 'petOwner' }), não string —
+    // `req.user.role === 'petOwner'` era sempre false e o guard não disparava
+    // (IDOR: tutor lia agendamentos + email de outro tutor).
+    if (getRoleString(req) === 'petOwner' && req.user.id !== petOwnerId) {
       return res.status(403).json({
         code: 'FORBIDDEN',
         message: 'Você não tem permissão para acessar agendamentos de outros donos de pets',
@@ -156,7 +182,7 @@ const getSchedulingsByPet = async (req, res) => {
     });
 
     if (
-      req.user.role === 'petOwner' &&
+      getRoleString(req) === 'petOwner' &&
       schedulings.length > 0 &&
       schedulings[0].pet_owner_id !== req.user.id
     ) {
@@ -349,10 +375,13 @@ const rescheduleScheduling = async (req, res) => {
         reason: reason || 'remarcado pela clinica via painel',
       });
     } else {
+      // External: o repo só grava a data via resolveScheduledDate(appointment_date,
+      // start_time) — `scheduled_date` direto é ignorado (UPDATABLE_COLUMNS pula a
+      // key). Passar como start_time (ISO 8601) pra data nova ser persistida.
       await SchedulingService.updateScheduling({
         id,
         schedulingData: {
-          scheduled_date: new_scheduled_date,
+          start_time: new_scheduled_date,
           ...(new_scheduled_service ? { scheduled_service: new_scheduled_service } : {}),
         },
       });
