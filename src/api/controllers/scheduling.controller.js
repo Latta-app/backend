@@ -1,6 +1,9 @@
 import SchedulingService from '../services/scheduling.service.js';
 import MerchantSchedulingAgentService from '../services/merchant-scheduling-agent.service.js';
-import { validateSchedulingUpdate } from '../validators/scheduling.validations.js';
+import {
+  validateSchedulingCreate,
+  validateSchedulingUpdate,
+} from '../validators/scheduling.validations.js';
 import {
   redactAppointmentForClinic,
   redactAppointmentsForClinic,
@@ -13,10 +16,11 @@ const getRoleString = (req) => {
   return raw?.role || raw?.name || null;
 };
 
-const getClinicId = (req) =>
-  req?.user?.clinic_id || req?.user?.role?.clinic_id || null;
+const getClinicId = (req) => req?.user?.clinic_id || req?.user?.role?.clinic_id || null;
 
 const isClinicRole = (req) => getRoleString(req) === 'clinic';
+
+const isPetOwnerRole = (req) => getRoleString(req) === 'petOwner';
 
 const actorOf = (req) => {
   if (!req?.user) return 'backend_admin';
@@ -67,12 +71,60 @@ const createScheduling = async (req, res) => {
         pet_owner_id: null,
         user_phone: null,
       }));
+    } else if (isPetOwnerRole(req)) {
+      // Anti-bypass: role petOwner só agenda pra SI mesmo. pet_owner_id é SEMPRE
+      // o id do JWT (nunca do body — senão vira oráculo de PII: informar o id da
+      // vítima faz o JOIN devolver email/nome dela). pet_id precisa ser um pet do
+      // próprio tutor (M:M pet_owner_pets). user_phone e campos de clínica-externa
+      // são zerados. Valida o body com Joi antes de tocar o service.
+      const ownerId = req.user.id;
+      const sanitized = [];
+      for (const raw of body) {
+        const candidate = {
+          ...raw,
+          pet_owner_id: ownerId,
+          user_phone: null,
+          pet_ids: null,
+          external_pet_id: null,
+          external_contact_id: null,
+        };
+        const { error, value } = validateSchedulingCreate(candidate);
+        if (error) {
+          return res.status(400).json({
+            code: 'VALIDATION_ERROR',
+            error: error.details.map((d) => d.message),
+          });
+        }
+        // Joi .or aceita external_pet_id:null como "presente" e não exige pet_id —
+        // por isso o check explícito aqui.
+        if (!value.pet_id) {
+          return res.status(400).json({
+            code: 'VALIDATION_ERROR',
+            message: 'pet_id é obrigatório',
+          });
+        }
+        const owns = await SchedulingService.petBelongsToOwner({
+          petId: value.pet_id,
+          petOwnerId: ownerId,
+        });
+        if (!owns) {
+          return res.status(403).json({
+            code: 'FORBIDDEN',
+            message: 'Você não tem permissão para agendar para este pet',
+          });
+        }
+        sanitized.push(value);
+      }
+      body = sanitized;
     }
 
     const created = await SchedulingService.createScheduling({ schedulingData: body });
+    // clinic e petOwner recebem payload redigido (sem user_phone/email). Pra
+    // petOwner é defesa em profundidade — o pet_owner_id já foi forçado pra ele.
+    const shouldRedact = isClinicRole(req) || isPetOwnerRole(req);
     return res.status(201).json({
       code: 'SCHEDULING_CREATED',
-      data: isClinicRole(req) ? redactAppointmentsForClinic(created) : created,
+      data: shouldRedact ? redactAppointmentsForClinic(created) : created,
     });
   } catch (error) {
     return handleError(res, error, {
@@ -123,9 +175,7 @@ const getSchedulingsByClinic = async (req, res) => {
       status,
     });
 
-    const payload = isClinicRole(req)
-      ? redactAppointmentsForClinic(schedulings)
-      : schedulings;
+    const payload = isClinicRole(req) ? redactAppointmentsForClinic(schedulings) : schedulings;
 
     return res.status(200).json({
       code: 'CLINIC_SCHEDULINGS_FETCHED',

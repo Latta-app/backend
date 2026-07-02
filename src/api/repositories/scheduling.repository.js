@@ -108,6 +108,18 @@ const createScheduling = async ({ schedulingData, client = null }) => {
   return getSchedulingById({ id: insertedId, client: runner });
 };
 
+// Ownership check pra role petOwner: o pet precisa estar vinculado ao tutor na
+// M:M pet_owner_pets. Usado por createScheduling pra impedir que um tutor agende
+// (e vaze PII) pendurando o agendamento num pet que não é dele.
+const petBelongsToOwner = async ({ petId, petOwnerId }) => {
+  if (!petId || !petOwnerId) return false;
+  const result = await pgQuery(
+    `SELECT 1 FROM pet_owner_pets WHERE pet_id = $1 AND pet_owner_id = $2 LIMIT 1`,
+    [petId, petOwnerId],
+  );
+  return result.rowCount > 0;
+};
+
 const getSchedulingById = async ({ id, client = null }) => {
   const runner = client ?? pgPool;
   const result = await runner.query(`${BASE_SELECT} WHERE s.id = $1 LIMIT 1`, [id]);
@@ -130,11 +142,7 @@ const getAllSchedulings = async ({ date, status } = {}) => {
 };
 
 const getSchedulingsByClinic = async ({ clinicId, date, status }) => {
-  const { filters, values, nextIndex } = buildDateAndStatusFilter(
-    { date, status },
-    's',
-    2,
-  );
+  const { filters, values, nextIndex } = buildDateAndStatusFilter({ date, status }, 's', 2);
   values.unshift(clinicId);
   const where = `WHERE s.clinic_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
   const result = await pgQuery(
@@ -160,7 +168,9 @@ const getSchedulingsByPetOwner = async ({ petOwnerId, date, status }) => {
 const getSchedulingsByPet = async ({ petId, date, status }) => {
   const { filters, values } = buildDateAndStatusFilter({ date, status }, 's', 2);
   values.unshift(petId);
-  const where = `WHERE (s.pet_id = $1 OR $1 = ANY(s.pet_ids))${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
+  const where = `WHERE (s.pet_id = $1 OR $1 = ANY(s.pet_ids))${
+    filters.length ? ` AND ${filters.join(' AND ')}` : ''
+  }`;
   const result = await pgQuery(
     `${BASE_SELECT} ${where} ORDER BY s.scheduled_date ASC NULLS LAST`,
     values,
@@ -266,10 +276,9 @@ const confirmScheduling = async ({ id, actor = 'backend_admin' }) => {
 };
 
 const deleteScheduling = async ({ id }) => {
-  const existing = await pgQuery(
-    `SELECT source FROM scheduling_sessions WHERE id = $1 LIMIT 1`,
-    [id],
-  );
+  const existing = await pgQuery(`SELECT source FROM scheduling_sessions WHERE id = $1 LIMIT 1`, [
+    id,
+  ]);
   if (existing.rowCount === 0) {
     const error = new Error('Scheduling not found');
     error.code = 'NOT_FOUND';
@@ -298,7 +307,9 @@ function resolveScheduledDate(appointmentDate, startTime) {
         appointmentDate instanceof Date
           ? appointmentDate.toISOString().slice(0, 10)
           : String(appointmentDate).slice(0, 10);
-      return new Date(`${datePart}T${startTime.length === 5 ? `${startTime}:00` : startTime}-03:00`);
+      return new Date(
+        `${datePart}T${startTime.length === 5 ? `${startTime}:00` : startTime}-03:00`,
+      );
     }
   }
 
@@ -313,6 +324,7 @@ function resolveScheduledDate(appointmentDate, startTime) {
 
 export default {
   createScheduling,
+  petBelongsToOwner,
   getSchedulingById,
   getAllSchedulings,
   getSchedulingsByClinic,

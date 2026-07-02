@@ -14,9 +14,7 @@ const generateRecurrentSchedulings = (scheduling) => {
   const { frequency, endCondition } = scheduling;
   const baseDate = DateTime.fromISO(scheduling.appointment_date);
   const baseStartTime = DateTime.fromSQL(scheduling.start_time);
-  const baseEndTime = scheduling.end_time
-    ? DateTime.fromSQL(scheduling.end_time)
-    : baseStartTime;
+  const baseEndTime = scheduling.end_time ? DateTime.fromSQL(scheduling.end_time) : baseStartTime;
 
   let endDate = baseDate;
   if (endCondition?.type === 'after') {
@@ -91,7 +89,9 @@ const createScheduling = async ({ schedulingData }) => {
   for (const item of allSchedulings) {
     if (!item.external_pet_id && !item.external_contact_id) continue;
     if (!item.clinic_id) {
-      throw new Error('clinic_id obrigatório quando external_pet_id ou external_contact_id presente');
+      throw new Error(
+        'clinic_id obrigatório quando external_pet_id ou external_contact_id presente',
+      );
     }
     if (item.external_pet_id) {
       await ClinicExternalRepository.assertExternalPetBelongsToClinic({
@@ -132,6 +132,9 @@ const createScheduling = async ({ schedulingData }) => {
   }
 };
 
+const petBelongsToOwner = async ({ petId, petOwnerId }) =>
+  SchedulingRepository.petBelongsToOwner({ petId, petOwnerId });
+
 const getAllSchedulings = async ({ date, status }) =>
   SchedulingRepository.getAllSchedulings({ date, status });
 
@@ -159,6 +162,7 @@ const deleteScheduling = async ({ id }) => SchedulingRepository.deleteScheduling
 
 export default {
   createScheduling,
+  petBelongsToOwner,
   getAllSchedulings,
   getSchedulingsByClinic,
   getSchedulingsByPetOwner,
