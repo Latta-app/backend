@@ -1,19 +1,28 @@
 import { Router } from 'express';
 import PetOwnerController from '../../controllers/pet-owner.controller.js';
-import { verifyToken } from '../../middlewares/auth.middleware.js';
+import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/', verifyToken, PetOwnerController.createPetOwner);
+// /pet-owner é superfície Latta (painel admin interno) — o repo devolve o
+// registro COMPLETO e NÃO redacted (name, email, cell_phone, cpf, rg,
+// date_of_birth, address_*, emergency_contact_*). Role 'clinic' NUNCA pode
+// entrar aqui: um token de clínica passa no verifyToken e leria/mutaria PII de
+// tutor em claro, furando o appointment-redactor. Clientes próprios da clínica
+// vivem em external_contacts via /clinic/external-* (rota corretamente guardada).
+// Convenção alinhada com as rotas irmãs /pet e /users (['admin','superAdmin']).
+const ADMIN_ONLY = checkRole(['admin', 'superAdmin']);
 
-router.get('/', verifyToken, PetOwnerController.getAllPetOwners);
+router.post('/', verifyToken, ADMIN_ONLY, PetOwnerController.createPetOwner);
 
-router.get('/:id', verifyToken, PetOwnerController.getPetOwnerById);
+router.get('/', verifyToken, ADMIN_ONLY, PetOwnerController.getAllPetOwners);
 
-router.put('/:id', verifyToken, PetOwnerController.updatePetOwner);
+router.get('/:id', verifyToken, ADMIN_ONLY, PetOwnerController.getPetOwnerById);
 
-router.delete('/:id', verifyToken, PetOwnerController.deletePetOwner);
+router.put('/:id', verifyToken, ADMIN_ONLY, PetOwnerController.updatePetOwner);
 
-router.get('/search/:term', verifyToken, PetOwnerController.searchPetOwners);
+router.delete('/:id', verifyToken, ADMIN_ONLY, PetOwnerController.deletePetOwner);
+
+router.get('/search/:term', verifyToken, ADMIN_ONLY, PetOwnerController.searchPetOwners);
 
 export default router;
