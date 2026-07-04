@@ -344,7 +344,7 @@ const cancelScheduling = async (req, res) => {
       }
     }
 
-    const reason = req.body?.reason || 'cancelado pela clinica via painel';
+    const reason = req.body?.reason || 'o estabelecimento cancelou pelo painel';
 
     // Latta (source=latta): chama EF merchant-scheduling-agent que dispara
     // template pro tutor + transita state. External (source=external): UPDATE
@@ -380,7 +380,7 @@ const noShowScheduling = async (req, res) => {
       }
     }
 
-    const reason = req.body?.reason || 'tutor nao compareceu';
+    const reason = req.body?.reason || 'você não compareceu';
 
     if (scheduling.source === 'latta') {
       await MerchantSchedulingAgentService.noShowByMerchant({ sessionId: id, reason });
@@ -438,7 +438,7 @@ const rescheduleScheduling = async (req, res) => {
         sessionId: id,
         newScheduledDate: new_scheduled_date,
         newScheduledService: new_scheduled_service,
-        reason: reason || 'remarcado pela clinica via painel',
+        reason: reason || 'o estabelecimento remarcou pelo painel',
       });
     } else {
       // External: o repo só grava a data via resolveScheduledDate(appointment_date,
