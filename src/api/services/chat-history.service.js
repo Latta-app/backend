@@ -221,7 +221,7 @@ const getTesterContactsCount = async ({ role, environment = 'prod' }) => {
 const getInAttendanceContactsCount = async ({
   role,
   testFilter = 'exclude',
-  b2bFilter = 'exclude',
+  b2bFilter = 'none',
   environment = 'prod',
 } = {}) => {
   try {
@@ -237,6 +237,8 @@ const getInAttendanceContactsCount = async ({
   }
 };
 
+// Aba Luma: recorte de ESTADO (em atendimento humano), nao de populacao —
+// por isso b2bFilter='none' (clinicas incluidas). Ver repository.
 const getAllContactsBeingAttended = async ({
   role,
   page = 1,
@@ -244,7 +246,7 @@ const getAllContactsBeingAttended = async ({
   user_id,
   filters = {},
   testFilter = 'exclude',
-  b2bFilter = 'exclude',
+  b2bFilter = 'none',
   environment = 'prod',
 }) => {
   try {

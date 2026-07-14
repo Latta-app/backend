@@ -558,6 +558,10 @@ const getAllContactsWithMessages = async ({
   }
 };
 
+// Aba Luma. b2bFilter='none' de proposito: a Luma e' um recorte de ESTADO
+// (quem esta em atendimento humano), nao de populacao. Excluir clinicas aqui
+// abria um buraco — a aba B2B ja exclui quem esta em atendimento, entao uma
+// clinica sendo atendida nao aparecia em lugar nenhum do painel.
 const getAllContactsBeingAttended = async ({
   role,
   page = 1,
@@ -565,7 +569,7 @@ const getAllContactsBeingAttended = async ({
   user_id,
   filters = {},
   testFilter = 'exclude',
-  b2bFilter = 'exclude',
+  b2bFilter = 'none',
   environment = 'prod',
 }) => {
   try {
@@ -1961,11 +1965,12 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
 
 
 // Badge da aba Luma: conta o MESMO conjunto que getAllContactsBeingAttended
-// lista (em atendimento humano, com chat_history, fora do universo QA em prod).
+// lista (em atendimento humano, com chat_history, fora do universo QA em prod,
+// clinicas incluidas).
 const getInAttendanceContactsCount = async ({
   role,
   testFilter = 'exclude',
-  b2bFilter = 'exclude',
+  b2bFilter = 'none',
   environment = 'prod',
 } = {}) => {
   try {
