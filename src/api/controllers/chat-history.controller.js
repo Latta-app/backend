@@ -487,8 +487,9 @@ const getB2bContactsCount = async (req, res) => {
 
 const getInAttendanceContactsCount = async (req, res) => {
   try {
-    const { environment } = req.user || {};
+    const { role, environment } = req.user || {};
     const result = await ChatService.getInAttendanceContactsCount({
+      role: role?.role,
       environment: environment || 'prod',
     });
     return res.status(200).json({

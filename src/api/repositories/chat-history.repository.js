@@ -147,6 +147,97 @@ const buildB2bChatFilter = (b2bFilter = 'exclude') => {
   return { op: 'notIn' };
 };
 
+// Escopo de uma aba da mensageria: os predicados que definem QUAIS contacts
+// pertencem a ela (tem conversa, estado de atendimento, universo QA, B2B).
+// Compartilhado entre a listagem e o badge de contagem.
+//
+// Antes cada count tinha SQL raw proprio, que foi driftando da listagem: o
+// badge do B2B contava clinica SEM nenhuma linha em chat_history e sem excluir
+// o universo QA, entao mostrava "1" numa aba que a listagem devolvia vazia
+// (incidente 2026-07-14, contact "Iris Clinica Teste"). Os badges da Luma e de
+// Testes tinham o mesmo defeito latente. Contagem e listagem agora derivam do
+// mesmo builder — divergir de novo exige mudar este bloco, que serve os dois.
+//
+// NAO cobre os filtros do operador (tags/responsibility/unread): esses sao
+// refinamentos por cima do escopo e nao entram no badge.
+const buildContactScopeWhere = ({
+  role,
+  testFilter = 'exclude',
+  b2bFilter = 'exclude',
+  environment = 'prod',
+  beingAttended = false,
+}) => {
+  const { Op } = Sequelize;
+  const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
+  const testChatFilter = buildTestChatFilter(testFilter);
+  const b2bChatFilter = buildB2bChatFilter(b2bFilter);
+
+  // Base: contatos que TEM pelo menos uma chat_history. Sem corte por
+  // clinic_id — visao unificada (refactor 2026-05-08): so dois socios usam o
+  // painel, ambos veem tudo. Se voltar multi-clinic, reintroduzir join aqui.
+  const baseSubquery = `(
+    SELECT DISTINCT c.id
+    FROM contacts c
+    WHERE ${beingAttended ? 'c.is_being_attended = true AND' : ''} EXISTS (
+      SELECT 1 FROM chat_history ch
+      WHERE ch.contact_id = c.id
+      ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+    )
+  )`;
+
+  const scope = { id: { [Op.in]: Sequelize.literal(baseSubquery) } };
+
+  if (beingAttended) {
+    scope.is_being_attended = true;
+  } else if (testFilter !== 'only') {
+    // Geral/B2B excluem conversas em atendimento humano (Luma assumiu) — essas
+    // so aparecem na aba "Luma". Sem isso, conversa atendida apareceria em duas
+    // abas. Nao vale pra aba Testes, que mostra a persona em qualquer estado.
+    scope.is_being_attended = { [Op.not]: true };
+  }
+
+  // Filtros aplicados como condicao AND separada (Op.in/notIn com literal de
+  // subquery) porque esse e o pattern que funciona confiavelmente com
+  // findAndCountAll + distinct.
+  const conditions = [];
+
+  if (testChatFilter) {
+    conditions.push({
+      id: {
+        [testChatFilter.op === 'in' ? Op.in : Op.notIn]:
+          Sequelize.literal(TEST_CONTACT_IDS_SUBQUERY),
+      },
+    });
+  }
+
+  if (b2bChatFilter) {
+    conditions.push({
+      id: {
+        [b2bChatFilter.op === 'in' ? Op.in : Op.notIn]:
+          Sequelize.literal(B2B_CONTACT_IDS_SUBQUERY),
+      },
+    });
+  }
+
+  const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+  if (stagingEnvCondition) {
+    conditions.push(stagingEnvCondition);
+  }
+
+  return { scope, conditions };
+};
+
+// Conta os contacts de uma aba usando exatamente o escopo que a listagem usa.
+// Alimenta os badges (Luma, B2B, Testes).
+const countContactsInScope = async (params) => {
+  const { Op } = Sequelize;
+  const { scope, conditions } = buildContactScopeWhere(params);
+  const where = conditions.length > 0 ? { ...scope, [Op.and]: conditions } : scope;
+
+  const count = await Contact.count({ where, distinct: true, col: 'id' });
+  return { count };
+};
+
 const getAllContactsWithMessages = async ({
   role,
   page = 1,
@@ -163,71 +254,17 @@ const getAllContactsWithMessages = async ({
 
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
-    const testChatFilter = buildTestChatFilter(testFilter);
-    const b2bChatFilter = buildB2bChatFilter(b2bFilter);
 
-    // Filtro base: contatos QUE TÊM pelo menos uma chat_history. Sem corte por
-    // clinic_id — visão unificada (refactor 2026-05-08): só dois sócios usam o
-    // painel, ambos veem tudo. Se voltar multi-clinic, reintroduzir join aqui.
-    const baseSubquery = `(
-      SELECT DISTINCT c.id
-      FROM contacts c
-      WHERE EXISTS (
-        SELECT 1 FROM chat_history ch
-        WHERE ch.contact_id = c.id
-        ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
-      )
-    )`;
+    // Escopo da aba (tem conversa + estado de atendimento + test/B2B/QA).
+    // Mesmo builder que alimenta o badge — ver buildContactScopeWhere.
+    const { scope, conditions: additionalConditions } = buildContactScopeWhere({
+      role,
+      testFilter,
+      b2bFilter,
+      environment,
+    });
 
-    let whereConditions = {
-      id: {
-        [Op.in]: Sequelize.literal(baseSubquery),
-      },
-    };
-
-    // Geral exclui conversas em atendimento humano (Luma assumiu) — essas
-    // só aparecem na aba "Luma" (getAllContactsBeingAttended). Sem isso,
-    // conversa atendida apareceria em duas abas. Aplicado só quando
-    // testFilter !== 'only' pra não interferir na aba Testes.
-    if (testFilter !== 'only') {
-      whereConditions.is_being_attended = { [Op.not]: true };
-    }
-
-    // Constrói os filtros condicionalmente
-    const additionalConditions = [];
-
-    // FILTRO DE TEST PERSONAS — exclui/inclui contatos que têm chats marcados
-    // como test-persona pela EF chat-history-logger. Aplicado como condição
-    // AND separada (Op.in/notIn com Sequelize.literal de subquery) porque
-    // esse é o pattern que funciona confiavelmente com findAndCountAll+distinct.
-    if (testChatFilter) {
-      additionalConditions.push({
-        id: {
-          [testChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
-            TEST_CONTACT_IDS_SUBQUERY,
-          ),
-        },
-      });
-    }
-
-    // FILTRO B2B (clinicas) — mesmo pattern do testFilter
-    if (b2bChatFilter) {
-      additionalConditions.push({
-        id: {
-          [b2bChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
-            B2B_CONTACT_IDS_SUBQUERY,
-          ),
-        },
-      });
-    }
-
-    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7.
-    // Quando user.environment='homolog', mostra APENAS contacts em staging_users.
-    // Pra 'prod' (default), retorna null = sem filtro (preserva comportamento).
-    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
-    if (stagingEnvCondition) {
-      additionalConditions.push(stagingEnvCondition);
-    }
+    let whereConditions = { ...scope };
 
     // FILTRO DE TAGS - Condição OU entre as tags
     if (filters.tags && filters.tags.length > 0) {
@@ -497,58 +534,18 @@ const getAllContactsBeingAttended = async ({
 
     const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
     const chatHistoryWhere = shouldFilterLatta ? { path: { [Op.ne]: 'latta' } } : {};
-    const testChatFilter = buildTestChatFilter(testFilter);
-    const b2bChatFilter = buildB2bChatFilter(b2bFilter);
 
-    // Filtro base: contatos em atendimento humano (Luma) com chat_history.
-    // Sem corte por clinic_id — visão unificada (refactor 2026-05-08).
-    let whereConditions = {
-      is_being_attended: true,
-      id: {
-        [Op.in]: Sequelize.literal(`(
-          SELECT DISTINCT c.id
-          FROM contacts c
-          WHERE c.is_being_attended = true
-          AND EXISTS (
-            SELECT 1 FROM chat_history ch
-            WHERE ch.contact_id = c.id
-            ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
-          )
-        )`),
-      },
-    };
+    // Escopo da aba Luma: contatos em atendimento humano com chat_history.
+    // Mesmo builder que alimenta o badge — ver buildContactScopeWhere.
+    const { scope, conditions: additionalConditions } = buildContactScopeWhere({
+      role,
+      testFilter,
+      b2bFilter,
+      environment,
+      beingAttended: true,
+    });
 
-
-    // Constrói os filtros condicionalmente
-    const additionalConditions = [];
-
-    // FILTRO DE TEST PERSONAS — mesma abordagem de getAllContactsWithMessages
-    if (testChatFilter) {
-      additionalConditions.push({
-        id: {
-          [testChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
-            TEST_CONTACT_IDS_SUBQUERY,
-          ),
-        },
-      });
-    }
-
-    // FILTRO B2B (clinicas) — mesmo pattern do testFilter
-    if (b2bChatFilter) {
-      additionalConditions.push({
-        id: {
-          [b2bChatFilter.op === 'in' ? Op.in : Op.notIn]: Sequelize.literal(
-            B2B_CONTACT_IDS_SUBQUERY,
-          ),
-        },
-      });
-    }
-
-    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7. Veja getAllContactsWithMessages.
-    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
-    if (stagingEnvCondition) {
-      additionalConditions.push(stagingEnvCondition);
-    }
+    let whereConditions = { ...scope };
 
     // FILTRO DE TAGS - Condição OU entre as tags
     if (filters.tags && filters.tags.length > 0) {
@@ -1922,94 +1919,52 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
 };
 
 
-// Conta contacts com is_being_attended=true (alimenta o badge da aba Luma).
-// Sem corte por clinic_id — visão unificada (refactor 2026-05-08).
-// environment (ADR-0007 Fatia 7): quando 'homolog', restringe a count a
-// contacts cujo cellphone esta em staging_users.
-const getInAttendanceContactsCount = async ({ environment = 'prod' } = {}) => {
+// Badge da aba Luma: conta o MESMO conjunto que getAllContactsBeingAttended
+// lista (em atendimento humano, com chat_history, fora do universo QA em prod).
+const getInAttendanceContactsCount = async ({
+  role,
+  testFilter = 'exclude',
+  b2bFilter = 'exclude',
+  environment = 'prod',
+} = {}) => {
   try {
-    const envFilter =
-      environment === 'homolog'
-        ? `AND c.cellphone IN (SELECT phone FROM staging_users)`
-        : '';
-    const [result] = await Contact.sequelize.query(
-      `
-      SELECT COUNT(*)::int AS count
-      FROM contacts c
-      WHERE c.is_being_attended = true
-      ${envFilter}
-      `,
-      {
-        type: Sequelize.QueryTypes.SELECT,
-      },
-    );
-    return { count: result?.count || 0 };
+    return await countContactsInScope({
+      role,
+      testFilter,
+      b2bFilter,
+      environment,
+      beingAttended: true,
+    });
   } catch (error) {
     console.error('❌ ERRO getInAttendanceContactsCount:', error.message);
     throw new Error(`Repository error: ${error.message}`);
   }
 };
 
+// Badge da aba Testes: conta o MESMO conjunto que getAllTestContacts lista.
 const getTestContactsCount = async ({ role, environment = 'prod' }) => {
   try {
-    const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
-    const envFilter =
-      environment === 'homolog'
-        ? `AND c.cellphone IN (SELECT phone FROM staging_users)`
-        : '';
-
-    // Conta contatos com ao menos 1 chat marcado como test-persona pela EF
-    // chat-history-logger. Sem corte por clinic_id — visão unificada.
-    const [result] = await Contact.sequelize.query(
-      `
-      SELECT COUNT(DISTINCT c.id)::int AS count
-      FROM contacts c
-      WHERE EXISTS (
-        SELECT 1 FROM chat_history ch
-        WHERE ch.contact_id = c.id
-        AND ch.path LIKE 'test-persona|%'
-        ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
-      )
-      ${envFilter}
-      `,
-      {
-        type: Sequelize.QueryTypes.SELECT,
-      },
-    );
-
-    return { count: result?.count || 0 };
+    return await countContactsInScope({
+      role,
+      testFilter: 'only',
+      b2bFilter: 'none',
+      environment,
+    });
   } catch (error) {
     console.error('❌ ERRO getTestContactsCount:', error.message);
     throw new Error(`Repository error: ${error.message}`);
   }
 };
 
-const getB2bContactsCount = async ({ role: _role, environment = 'prod' }) => {
+// Badge da aba B2B: conta o MESMO conjunto que getAllB2bContacts lista.
+const getB2bContactsCount = async ({ role, environment = 'prod' }) => {
   try {
-    const envFilter =
-      environment === 'homolog'
-        ? `AND c.cellphone IN (SELECT phone FROM staging_users)`
-        : '';
-
-    // Conta contatos cuja cellphone bate com algum clinics.phone_normalized
-    // ou clinics.phone. Mesma source do B2B_CONTACT_IDS_SUBQUERY.
-    const [result] = await Contact.sequelize.query(
-      `
-      SELECT COUNT(DISTINCT c.id)::int AS count
-      FROM contacts c
-      WHERE c.cellphone IN (
-        SELECT phone_normalized FROM clinics WHERE phone_normalized IS NOT NULL
-        UNION
-        SELECT phone FROM clinics WHERE phone IS NOT NULL
-      )
-      ${envFilter}
-      `,
-      {
-        type: Sequelize.QueryTypes.SELECT,
-      },
-    );
-
-    return { count: result?.count || 0 };
+    return await countContactsInScope({
+      role,
+      testFilter: 'none',
+      b2bFilter: 'only',
+      environment,
+    });
   } catch (error) {
     console.error('❌ ERRO getB2bContactsCount:', error.message);
     throw new Error(`Repository error: ${error.message}`);
