@@ -175,9 +175,23 @@ const getB2bContactsCount = async ({ role, environment = 'prod' }) => {
   }
 };
 
-const getInAttendanceContactsCount = async ({ environment = 'prod' } = {}) => {
+// Badge da Luma. Espelha getAllContactsBeingAttended — inclusive o
+// resolveTestB2bFiltersForEnvironment, senao em homolog o badge excluiria as
+// test personas que a listagem mostra.
+const getInAttendanceContactsCount = async ({
+  role,
+  testFilter = 'exclude',
+  b2bFilter = 'exclude',
+  environment = 'prod',
+} = {}) => {
   try {
-    return await ChatRepository.getInAttendanceContactsCount({ environment });
+    const filtersForEnv = resolveTestB2bFiltersForEnvironment(environment, testFilter, b2bFilter);
+    return await ChatRepository.getInAttendanceContactsCount({
+      role,
+      testFilter: filtersForEnv.testFilter,
+      b2bFilter: filtersForEnv.b2bFilter,
+      environment,
+    });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
