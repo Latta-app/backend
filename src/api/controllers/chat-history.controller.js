@@ -463,6 +463,62 @@ const getAllB2bContacts = async (req, res) => {
   }
 };
 
+const getAllTesterContacts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const { id, role, environment } = req.user;
+
+    const responsibility = req.query.responsibility === 'true';
+    const unread = req.query.unread === 'true';
+    const tags = req?.query?.tags ? req.query.tags.split(',').filter((tag) => tag.trim()) : [];
+
+    const filters = { responsibility, unread, tags };
+
+    const result = await ChatService.getAllTesterContacts({
+      user_id: id,
+      role: role.role,
+      page,
+      limit,
+      filters,
+      environment: environment || 'prod',
+    });
+
+    return res.status(200).json({
+      code: 'TESTER_CONTACTS_RETRIEVED',
+      data: result.contacts,
+    });
+  } catch (error) {
+    console.error('Error retrieving tester contacts:', error);
+    return res.status(500).json({
+      code: 'TESTER_CONTACTS_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+const getTesterContactsCount = async (req, res) => {
+  try {
+    const { role, environment } = req.user;
+
+    const result = await ChatService.getTesterContactsCount({
+      role: role.role,
+      environment: environment || 'prod',
+    });
+
+    return res.status(200).json({
+      code: 'TESTER_CONTACTS_COUNT_RETRIEVED',
+      data: { count: result.count },
+    });
+  } catch (error) {
+    console.error('Error retrieving tester contacts count:', error);
+    return res.status(500).json({
+      code: 'TESTER_CONTACTS_COUNT_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getB2bContactsCount = async (req, res) => {
   try {
     const { role, environment } = req.user;
@@ -580,8 +636,10 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getAllB2bContacts,
+  getAllTesterContacts,
   getTestContactsCount,
   getB2bContactsCount,
+  getTesterContactsCount,
   getInAttendanceContactsCount,
   markAsAnswered,
   getMessagesDaysSummary,

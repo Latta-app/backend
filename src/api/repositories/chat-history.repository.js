@@ -164,6 +164,7 @@ const buildContactScopeWhere = ({
   role,
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  stagingFilter = 'none',
   environment = 'prod',
   beingAttended = false,
 }) => {
@@ -171,6 +172,14 @@ const buildContactScopeWhere = ({
   const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
   const testChatFilter = buildTestChatFilter(testFilter);
   const b2bChatFilter = buildB2bChatFilter(b2bFilter);
+
+  // Aba "Testers" (stagingFilter='only'): mostra os humanos reais da whitelist
+  // staging_users — hoje os socios testando em prod com o proprio numero.
+  // Eles sao invisiveis nas outras abas porque o universo QA e' excluido do
+  // prod, e ate agora so o Debug Mode os alcancava. Aqui a aba e' um recorte
+  // deliberado desse universo, entao NAO aplica o filtro de environment (que
+  // e' justamente quem os esconde) — ver mais abaixo.
+  const stagingOnly = stagingFilter === 'only';
 
   // Base: contatos que TEM pelo menos uma chat_history. Sem corte por
   // clinic_id — visao unificada (refactor 2026-05-08): so dois socios usam o
@@ -189,10 +198,11 @@ const buildContactScopeWhere = ({
 
   if (beingAttended) {
     scope.is_being_attended = true;
-  } else if (testFilter !== 'only') {
+  } else if (testFilter !== 'only' && !stagingOnly) {
     // Geral/B2B excluem conversas em atendimento humano (Luma assumiu) — essas
     // so aparecem na aba "Luma". Sem isso, conversa atendida apareceria em duas
-    // abas. Nao vale pra aba Testes, que mostra a persona em qualquer estado.
+    // abas. Nao vale pras abas Testes/Testers, que sao recortes de populacao
+    // (quem e' a pessoa), nao de estado — mostram o contato atendido ou nao.
     scope.is_being_attended = { [Op.not]: true };
   }
 
@@ -219,9 +229,20 @@ const buildContactScopeWhere = ({
     });
   }
 
-  const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
-  if (stagingEnvCondition) {
-    conditions.push(stagingEnvCondition);
+  if (stagingOnly) {
+    // A aba Testers E' a whitelist. Aplicar buildStagingEnvironmentCondition
+    // aqui a esvaziaria em prod (o filtro exclui exatamente esse universo) e
+    // seria redundante em homolog (que ja mostra so o universo QA). Combinado
+    // com testFilter='exclude' do caller, sobram os humanos reais: whitelist
+    // MENOS as personas sinteticas (range 5500000000XXX / path test-persona|).
+    conditions.push({
+      id: { [Op.in]: Sequelize.literal(STAGING_CONTACT_IDS_SUBQUERY) },
+    });
+  } else {
+    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    if (stagingEnvCondition) {
+      conditions.push(stagingEnvCondition);
+    }
   }
 
   return { scope, conditions };
@@ -246,6 +267,7 @@ const getAllContactsWithMessages = async ({
   filters = {},
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  stagingFilter = 'none',
   environment = 'prod',
 }) => {
   try {
@@ -261,6 +283,7 @@ const getAllContactsWithMessages = async ({
       role,
       testFilter,
       b2bFilter,
+      stagingFilter,
       environment,
     });
 
@@ -1971,6 +1994,22 @@ const getB2bContactsCount = async ({ role, environment = 'prod' }) => {
   }
 };
 
+// Badge da aba Testers: conta o MESMO conjunto que getAllTesterContacts lista.
+const getTesterContactsCount = async ({ role, environment = 'prod' }) => {
+  try {
+    return await countContactsInScope({
+      role,
+      testFilter: 'exclude',
+      b2bFilter: 'none',
+      stagingFilter: 'only',
+      environment,
+    });
+  } catch (error) {
+    console.error('❌ ERRO getTesterContactsCount:', error.message);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 // Resumo de dias com mensagens pra um contato — alimenta o date picker da
 // mensageria. Agrupa por dia em America/Sao_Paulo (timezone do operador) e
 // aplica o mesmo filtro de role usado em getContactByPetOwnerId/getContactByContactId.
@@ -2046,6 +2085,7 @@ export default {
   getOrdersByContactId,
   getTestContactsCount,
   getB2bContactsCount,
+  getTesterContactsCount,
   getInAttendanceContactsCount,
   getMessagesDaysSummary,
 };
