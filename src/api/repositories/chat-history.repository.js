@@ -92,6 +92,23 @@ const buildStagingEnvironmentCondition = (Op, environment) => {
   return { id: { [Op.notIn]: Sequelize.literal(QA_CONTACT_IDS_SUBQUERY) } };
 };
 
+// Environment na BUSCA — mais permissivo que o das abas, de proposito.
+// As abas sao listagens passivas: o operador nao pediu por ninguem, entao o
+// prod nao deve empurrar contato de QA pra ele. A busca e' o oposto — ele
+// digitou um nome/telefone especifico. Excluir a whitelist ali fazia buscar
+// "matheus" devolver "Nenhuma conversa encontrada" mesmo com a conversa
+// existindo, e a unica saida era o Debug Mode.
+//   - homolog: mostra APENAS o universo QA (igual as abas)
+//   - prod:    exclui so as personas SINTETICAS (range 5500000000XXX / marker
+//              test-persona|). A whitelist staging_users volta a ser
+//              encontravel — e' gente real, com conversa real.
+const buildSearchEnvironmentCondition = (Op, environment) => {
+  if (environment === 'homolog') {
+    return { id: { [Op.in]: Sequelize.literal(QA_CONTACT_IDS_SUBQUERY) } };
+  }
+  return { id: { [Op.notIn]: Sequelize.literal(TEST_CONTACT_IDS_SUBQUERY) } };
+};
+
 const RECENT_ORDERS_LIMIT = 10;
 const ORDER_LIST_ATTRS = [
   'id',
@@ -869,8 +886,9 @@ const searchContacts = async ({
     // Aplica os filtros adicionais (mesma lógica do getAllContacts)
     const additionalConditions = [];
 
-    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7. Veja getAllContactsWithMessages.
-    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    // FILTRO DE ENVIRONMENT — na busca, a whitelist E' encontravel em prod.
+    // Ver buildSearchEnvironmentCondition.
+    const stagingEnvCondition = buildSearchEnvironmentCondition(Op, environment);
     if (stagingEnvCondition) {
       additionalConditions.push(stagingEnvCondition);
     }
