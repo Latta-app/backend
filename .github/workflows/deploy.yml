@@ -22,9 +22,28 @@ jobs:
             git pull origin main
             npm install --production=false
             pm2 restart all 2>/dev/null || (pkill -f 'node.*app.js' || true; nohup npm start > /tmp/backend.log 2>&1 &)
-            sleep 3
-            echo "Deploy concluido — verificando saude..."
-            curl -sf http://localhost:8000/ > /dev/null && echo "OK API respondendo" || (tail -30 /tmp/backend.log; exit 1)
+
+            # Health check com retry. Antes era um curl unico apos `sleep 3`, que
+            # corria contra o boot do app: o pm2 reinicia em ~0s mas o Express so
+            # escuta na 8000 alguns segundos depois (conecta no banco, sincroniza
+            # models). O curl dava connection refused e o deploy era marcado como
+            # falha mesmo tendo funcionado — 4 runs seguidos em julho/2026. Pior:
+            # o fallback dumpava /tmp/backend.log, que so existe quando o pm2
+            # falha, entao o erro real ficava invisivel ("cannot open ... log").
+            echo "Deploy concluido — aguardando a API subir..."
+            for i in $(seq 1 20); do
+              if curl -sf http://localhost:8000/ > /dev/null; then
+                echo "OK API respondendo (${i}a tentativa, ~$((i * 2))s)"
+                exit 0
+              fi
+              sleep 2
+            done
+
+            echo "API nao respondeu em 40s. Diagnostico:"
+            pm2 list || true
+            pm2 logs --lines 40 --nostream || true
+            [ -f /tmp/backend.log ] && tail -30 /tmp/backend.log
+            exit 1
 
       - name: Smoke test
         run: |
