@@ -92,6 +92,23 @@ const buildStagingEnvironmentCondition = (Op, environment) => {
   return { id: { [Op.notIn]: Sequelize.literal(QA_CONTACT_IDS_SUBQUERY) } };
 };
 
+// Environment na BUSCA — mais permissivo que o das abas, de proposito.
+// As abas sao listagens passivas: o operador nao pediu por ninguem, entao o
+// prod nao deve empurrar contato de QA pra ele. A busca e' o oposto — ele
+// digitou um nome/telefone especifico. Excluir a whitelist ali fazia buscar
+// "matheus" devolver "Nenhuma conversa encontrada" mesmo com a conversa
+// existindo, e a unica saida era o Debug Mode.
+//   - homolog: mostra APENAS o universo QA (igual as abas)
+//   - prod:    exclui so as personas SINTETICAS (range 5500000000XXX / marker
+//              test-persona|). A whitelist staging_users volta a ser
+//              encontravel — e' gente real, com conversa real.
+const buildSearchEnvironmentCondition = (Op, environment) => {
+  if (environment === 'homolog') {
+    return { id: { [Op.in]: Sequelize.literal(QA_CONTACT_IDS_SUBQUERY) } };
+  }
+  return { id: { [Op.notIn]: Sequelize.literal(TEST_CONTACT_IDS_SUBQUERY) } };
+};
+
 const RECENT_ORDERS_LIMIT = 10;
 const ORDER_LIST_ATTRS = [
   'id',
@@ -164,6 +181,7 @@ const buildContactScopeWhere = ({
   role,
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  stagingFilter = 'none',
   environment = 'prod',
   beingAttended = false,
 }) => {
@@ -171,6 +189,14 @@ const buildContactScopeWhere = ({
   const shouldFilterLatta = role !== 'admin' && role !== 'superAdmin';
   const testChatFilter = buildTestChatFilter(testFilter);
   const b2bChatFilter = buildB2bChatFilter(b2bFilter);
+
+  // Aba "Testers" (stagingFilter='only'): mostra os humanos reais da whitelist
+  // staging_users — hoje os socios testando em prod com o proprio numero.
+  // Eles sao invisiveis nas outras abas porque o universo QA e' excluido do
+  // prod, e ate agora so o Debug Mode os alcancava. Aqui a aba e' um recorte
+  // deliberado desse universo, entao NAO aplica o filtro de environment (que
+  // e' justamente quem os esconde) — ver mais abaixo.
+  const stagingOnly = stagingFilter === 'only';
 
   // Base: contatos que TEM pelo menos uma chat_history. Sem corte por
   // clinic_id — visao unificada (refactor 2026-05-08): so dois socios usam o
@@ -189,10 +215,11 @@ const buildContactScopeWhere = ({
 
   if (beingAttended) {
     scope.is_being_attended = true;
-  } else if (testFilter !== 'only') {
+  } else if (testFilter !== 'only' && !stagingOnly) {
     // Geral/B2B excluem conversas em atendimento humano (Luma assumiu) — essas
     // so aparecem na aba "Luma". Sem isso, conversa atendida apareceria em duas
-    // abas. Nao vale pra aba Testes, que mostra a persona em qualquer estado.
+    // abas. Nao vale pras abas Testes/Testers, que sao recortes de populacao
+    // (quem e' a pessoa), nao de estado — mostram o contato atendido ou nao.
     scope.is_being_attended = { [Op.not]: true };
   }
 
@@ -219,9 +246,20 @@ const buildContactScopeWhere = ({
     });
   }
 
-  const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
-  if (stagingEnvCondition) {
-    conditions.push(stagingEnvCondition);
+  if (stagingOnly) {
+    // A aba Testers E' a whitelist. Aplicar buildStagingEnvironmentCondition
+    // aqui a esvaziaria em prod (o filtro exclui exatamente esse universo) e
+    // seria redundante em homolog (que ja mostra so o universo QA). Combinado
+    // com testFilter='exclude' do caller, sobram os humanos reais: whitelist
+    // MENOS as personas sinteticas (range 5500000000XXX / path test-persona|).
+    conditions.push({
+      id: { [Op.in]: Sequelize.literal(STAGING_CONTACT_IDS_SUBQUERY) },
+    });
+  } else {
+    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    if (stagingEnvCondition) {
+      conditions.push(stagingEnvCondition);
+    }
   }
 
   return { scope, conditions };
@@ -246,6 +284,7 @@ const getAllContactsWithMessages = async ({
   filters = {},
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  stagingFilter = 'none',
   environment = 'prod',
 }) => {
   try {
@@ -261,6 +300,7 @@ const getAllContactsWithMessages = async ({
       role,
       testFilter,
       b2bFilter,
+      stagingFilter,
       environment,
     });
 
@@ -518,6 +558,10 @@ const getAllContactsWithMessages = async ({
   }
 };
 
+// Aba Luma. b2bFilter='none' de proposito: a Luma e' um recorte de ESTADO
+// (quem esta em atendimento humano), nao de populacao. Excluir clinicas aqui
+// abria um buraco — a aba B2B ja exclui quem esta em atendimento, entao uma
+// clinica sendo atendida nao aparecia em lugar nenhum do painel.
 const getAllContactsBeingAttended = async ({
   role,
   page = 1,
@@ -525,7 +569,7 @@ const getAllContactsBeingAttended = async ({
   user_id,
   filters = {},
   testFilter = 'exclude',
-  b2bFilter = 'exclude',
+  b2bFilter = 'none',
   environment = 'prod',
 }) => {
   try {
@@ -846,8 +890,9 @@ const searchContacts = async ({
     // Aplica os filtros adicionais (mesma lógica do getAllContacts)
     const additionalConditions = [];
 
-    // FILTRO DE ENVIRONMENT — ADR-0007 Fatia 7. Veja getAllContactsWithMessages.
-    const stagingEnvCondition = buildStagingEnvironmentCondition(Op, environment);
+    // FILTRO DE ENVIRONMENT — na busca, a whitelist E' encontravel em prod.
+    // Ver buildSearchEnvironmentCondition.
+    const stagingEnvCondition = buildSearchEnvironmentCondition(Op, environment);
     if (stagingEnvCondition) {
       additionalConditions.push(stagingEnvCondition);
     }
@@ -1920,11 +1965,12 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
 
 
 // Badge da aba Luma: conta o MESMO conjunto que getAllContactsBeingAttended
-// lista (em atendimento humano, com chat_history, fora do universo QA em prod).
+// lista (em atendimento humano, com chat_history, fora do universo QA em prod,
+// clinicas incluidas).
 const getInAttendanceContactsCount = async ({
   role,
   testFilter = 'exclude',
-  b2bFilter = 'exclude',
+  b2bFilter = 'none',
   environment = 'prod',
 } = {}) => {
   try {
@@ -1967,6 +2013,22 @@ const getB2bContactsCount = async ({ role, environment = 'prod' }) => {
     });
   } catch (error) {
     console.error('❌ ERRO getB2bContactsCount:', error.message);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
+// Badge da aba Testers: conta o MESMO conjunto que getAllTesterContacts lista.
+const getTesterContactsCount = async ({ role, environment = 'prod' }) => {
+  try {
+    return await countContactsInScope({
+      role,
+      testFilter: 'exclude',
+      b2bFilter: 'none',
+      stagingFilter: 'only',
+      environment,
+    });
+  } catch (error) {
+    console.error('❌ ERRO getTesterContactsCount:', error.message);
     throw new Error(`Repository error: ${error.message}`);
   }
 };
@@ -2046,6 +2108,7 @@ export default {
   getOrdersByContactId,
   getTestContactsCount,
   getB2bContactsCount,
+  getTesterContactsCount,
   getInAttendanceContactsCount,
   getMessagesDaysSummary,
 };

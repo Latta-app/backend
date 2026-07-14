@@ -47,6 +47,23 @@ router.get(
   ChatController.getB2bContactsCount,
 );
 
+// Aba Testers: humanos reais na whitelist staging_users (sócios testando em
+// prod com o próprio número). São excluídos das outras abas pelo filtro de
+// environment — até então só o Debug Mode os alcançava.
+router.get(
+  '/messages/getAllTesterContacts',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getAllTesterContacts,
+);
+
+router.get(
+  '/messages/getTesterContactsCount',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getTesterContactsCount,
+);
+
 // Badge da aba "Luma" no painel — conta contacts.is_being_attended=true.
 router.get(
   '/messages/getInAttendanceContactsCount',
