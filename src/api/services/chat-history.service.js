@@ -89,10 +89,17 @@ const getAllContactsWithMessages = async ({
   filters = {},
   testFilter = 'exclude',
   b2bFilter = 'exclude',
+  stagingFilter = 'none',
   environment = 'prod',
 }) => {
   try {
-    const filtersForEnv = resolveTestB2bFiltersForEnvironment(environment, testFilter, b2bFilter);
+    // A aba Testers ja define seu universo explicitamente (whitelist menos
+    // personas sinteticas) e nao pode ser reescrita pelo ajuste de homolog —
+    // senao em homolog o 'exclude' viraria 'none' e as personas voltariam.
+    const filtersForEnv =
+      stagingFilter === 'only'
+        ? { testFilter, b2bFilter }
+        : resolveTestB2bFiltersForEnvironment(environment, testFilter, b2bFilter);
     const result = await ChatRepository.getAllContactsWithMessages({
       role,
       page,
@@ -101,6 +108,7 @@ const getAllContactsWithMessages = async ({
       filters,
       testFilter: filtersForEnv.testFilter,
       b2bFilter: filtersForEnv.b2bFilter,
+      stagingFilter,
       environment,
     });
     const contacts = result.contacts;
@@ -159,6 +167,30 @@ const getAllB2bContacts = async ({
   });
 };
 
+// Aba Testers: humanos reais na whitelist staging_users (socios testando em
+// prod com o proprio numero). testFilter='exclude' tira as personas sinteticas
+// que tambem vivem na whitelist — sobra so gente de verdade.
+const getAllTesterContacts = async ({
+  role,
+  page = 1,
+  limit = 15,
+  user_id,
+  filters = {},
+  environment = 'prod',
+}) => {
+  return getAllContactsWithMessages({
+    role,
+    page,
+    limit,
+    user_id,
+    filters,
+    testFilter: 'exclude',
+    b2bFilter: 'none',
+    stagingFilter: 'only',
+    environment,
+  });
+};
+
 const getTestContactsCount = async ({ role, environment = 'prod' }) => {
   try {
     return await ChatRepository.getTestContactsCount({ role, environment });
@@ -170,6 +202,14 @@ const getTestContactsCount = async ({ role, environment = 'prod' }) => {
 const getB2bContactsCount = async ({ role, environment = 'prod' }) => {
   try {
     return await ChatRepository.getB2bContactsCount({ role, environment });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
+const getTesterContactsCount = async ({ role, environment = 'prod' }) => {
+  try {
+    return await ChatRepository.getTesterContactsCount({ role, environment });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -473,8 +513,10 @@ export default {
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getAllB2bContacts,
+  getAllTesterContacts,
   getTestContactsCount,
   getB2bContactsCount,
+  getTesterContactsCount,
   getInAttendanceContactsCount,
   markAsAnswered,
   getMessagesDaysSummary,
