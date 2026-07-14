@@ -959,15 +959,39 @@ const searchContacts = async ({
           'DESC',
         ],
         ['updated_at', 'DESC'],
-        [{ model: ChatHistory, as: 'chatHistory' }, 'timestamp', 'DESC'],
+        // NAO ordenar por coluna do include (era `[{model: ChatHistory}, 'timestamp']`):
+        // como ha `limit` no parent, o Sequelize move os contatos pra uma subconsulta e o
+        // ORDER BY externo passa a referenciar "chatHistory", que nao existe naquele
+        // escopo -> o Postgres derruba a query inteira com
+        // `missing FROM-clause entry for table "chatHistory"`. A busca por nome/telefone
+        // NUNCA retornou nada por causa disso: o controller devolvia erro e o frontend,
+        // que trata falha como lista vazia, mostrava "Nenhuma conversa encontrada".
+        // getAllContactsWithMessages ja tinha caido nessa armadilha e ordena so por
+        // subquery correlacionada — aqui seguimos o mesmo padrao. A ordem das mensagens
+        // dentro de cada contato e resolvida no cliente (sortChatHistory).
       ],
       include: [
         {
           model: ChatHistory,
           as: 'chatHistory',
-          where: chatHistoryWhere,
           required: false,
-          limit: 20,
+          // Limite por contato via subquery correlacionada, e nao pelo `limit` do
+          // Sequelize: `limit` dentro de include hasMany so funciona com
+          // `separate: true` (N+1 queries) e conflita com o limit do parent. Mesmo
+          // padrao de getAllContactsWithMessages.
+          where: {
+            ...chatHistoryWhere,
+            id: {
+              [Op.in]: Sequelize.literal(`(
+                SELECT ch.id
+                FROM chat_history ch
+                WHERE ch.contact_id = "Contact".id
+                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ORDER BY ch.timestamp DESC
+                LIMIT 20
+              )`),
+            },
+          },
           attributes: [
             'id',
             [Sequelize.fn('LEFT', Sequelize.col('chatHistory.message'), 8000), 'message'],
