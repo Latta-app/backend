@@ -261,6 +261,31 @@ const getTimeToEvent = async (req, res) => {
   }
 };
 
+// Ranking global de clientes e itens (seção do cockpit — issue 06 de
+// docs/issues/mensageria-metricas-e-moods/ no monorepo).
+const getClientRanking = async (req, res) => {
+  try {
+    const rawLimit = req.query.limit != null ? parseInt(req.query.limit, 10) : undefined;
+    const result = await DashboardService.getClientRanking({
+      window: req.query.window,
+      limit: Number.isInteger(rawLimit) ? rawLimit : undefined,
+      includeTest: parseIncludeTest(req.query),
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_CLIENT_RANKING_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard client ranking:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_CLIENT_RANKING_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
@@ -272,4 +297,5 @@ export default {
   getCohortRetention,
   getTimeToEvent,
   searchPhone,
+  getClientRanking,
 };

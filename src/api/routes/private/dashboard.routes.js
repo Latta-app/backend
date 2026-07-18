@@ -75,4 +75,13 @@ router.get(
   DashboardController.getContactDrilldown,
 );
 
+// Ranking global de clientes e itens (seção do cockpit — issue 06 de
+// docs/issues/mensageria-metricas-e-moods/ no monorepo).
+router.get(
+  '/client-ranking',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getClientRanking,
+);
+
 export default router;
