@@ -100,6 +100,16 @@ router.get(
   ChatController.getOrdersByContactId,
 );
 
+// Retrato de valor do cliente (visão Métricas do painel direito) — RPC
+// get_client_metrics no Supabase. Issues 04/05 de
+// docs/issues/mensageria-metricas-e-moods/ (monorepo).
+router.get(
+  '/messages/metrics/by-contact/:contact_id',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  ChatController.getClientMetricsByContactId,
+);
+
 router.get(
   '/messages/getContactByPetOwnerIdOrPhone',
   verifyToken,

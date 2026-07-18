@@ -311,6 +311,46 @@ const getOrdersByContactId = async (req, res) => {
   }
 };
 
+// Retrato de valor do cliente (visão Métricas do painel direito da
+// mensageria). Contato sem pet_owner → 200 com shape vazio (found=false);
+// gate de homolog negado → 404 (não vaza existência do contact).
+const getClientMetricsByContactId = async (req, res) => {
+  try {
+    const { contact_id } = req.params;
+    const { environment } = req.user;
+
+    if (!contact_id) {
+      return res.status(400).json({
+        code: 'MISSING_CONTACT_ID',
+        message: 'contact_id is required',
+      });
+    }
+
+    const result = await ChatService.getClientMetricsByContactId({
+      contact_id,
+      environment: environment || 'prod',
+    });
+
+    if (result === null) {
+      return res.status(404).json({
+        code: 'CONTACT_NOT_FOUND',
+        message: 'Contact not found',
+      });
+    }
+
+    return res.status(200).json({
+      code: 'CLIENT_METRICS_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error retrieving client metrics by contact id:', error);
+    return res.status(500).json({
+      code: 'CLIENT_METRICS_RETRIEVAL_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getContactByPetOwnerIdOrPhone = async (req, res) => {
   try {
     const { pet_owner_id, contact } = req.query;
@@ -633,6 +673,7 @@ export default {
   getContactByPetOwnerId,
   getContactByContactId,
   getOrdersByContactId,
+  getClientMetricsByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getAllB2bContacts,

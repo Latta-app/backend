@@ -425,6 +425,26 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10, environm
   }
 };
 
+// Retrato de valor do cliente (visão Métricas). Mesmo gate de homolog do
+// getOrdersByContactId: operador em environment=homolog só vê contacts da
+// whitelist staging_users — fora dela, null (controller responde 404).
+const getClientMetricsByContactId = async ({ contact_id, environment = 'prod' }) => {
+  try {
+    if (environment === 'homolog') {
+      const contact = await Contact.findOne({
+        where: { id: contact_id },
+        attributes: ['id', 'cellphone'],
+      });
+      if (!(await canAccessContactInEnvironment(contact, environment))) {
+        return null;
+      }
+    }
+    return await ChatRepository.getClientMetricsByContactId({ contact_id });
+  } catch (error) {
+    throw new Error(`Service error: ${error.message}`);
+  }
+};
+
 const getContactByPetOwnerIdOrPhone = async ({
   pet_owner_id,
   contact,
@@ -512,6 +532,7 @@ export default {
   getContactByPetOwnerId,
   getContactByContactId,
   getOrdersByContactId,
+  getClientMetricsByContactId,
   getContactByPetOwnerIdOrPhone,
   getAllTestContacts,
   getAllB2bContacts,
