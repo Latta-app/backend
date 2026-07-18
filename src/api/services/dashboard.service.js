@@ -15,7 +15,12 @@ const ALLOWED_ACTIONS = new Set([
   'cohort_retention',
   'time_to_event',
   'search',
+  'client_ranking',
 ]);
+
+// Janelas próprias do ranking de clientes/itens (issue 06 de
+// docs/issues/mensageria-metricas-e-moods/ no monorepo) — inclui lifetime.
+const ALLOWED_RANKING_WINDOWS = new Set(['30d', '90d', 'lifetime']);
 
 const ALLOWED_TIME_TO_EVENT = new Set(['first_purchase', 'first_pro', 'first_utilization']);
 const ALLOWED_FUNNEL_STEPS = new Set([
@@ -45,6 +50,7 @@ const buildUrl = ({
   isPro,
   lookbackDays,
   event,
+  limit,
   includeTest,
   refresh,
 }) => {
@@ -59,6 +65,7 @@ const buildUrl = ({
   else if (isPro === false) params.set('is_pro', 'false');
   if (lookbackDays != null) params.set('lookback_days', String(lookbackDays));
   if (event) params.set('event', event);
+  if (limit != null) params.set('limit', String(limit));
   if (includeTest === true) params.set('include_test', 'true');
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
@@ -75,6 +82,7 @@ const callDashboardMetrics = async ({
   isPro,
   lookbackDays,
   event,
+  limit,
   includeTest,
   refresh = false,
 } = {}) => {
@@ -84,7 +92,16 @@ const callDashboardMetrics = async ({
   if (!ALLOWED_ACTIONS.has(action)) {
     throw new Error(`action inválida: ${action}`);
   }
-  if (window && !ALLOWED_WINDOWS.has(window)) {
+  // client_ranking tem janelas próprias (30d/90d/lifetime); as demais actions
+  // seguem as janelas padrão do dashboard.
+  if (action === 'client_ranking') {
+    if (window && !ALLOWED_RANKING_WINDOWS.has(window)) {
+      throw new Error(`window inválida para client_ranking: ${window}`);
+    }
+    if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > 50)) {
+      throw new Error('limit deve ser inteiro entre 1 e 50');
+    }
+  } else if (window && !ALLOWED_WINDOWS.has(window)) {
     throw new Error(`window inválida: ${window}`);
   }
   if (action === 'drilldown' && !phone) {
@@ -117,7 +134,7 @@ const callDashboardMetrics = async ({
     throw new Error(`event inválido: ${event}`);
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, includeTest, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, limit, includeTest, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -164,6 +181,10 @@ const getTimeToEvent = async ({ window, event, includeTest, refresh } = {}) =>
 const searchPhone = async ({ q } = {}) =>
   callDashboardMetrics({ action: 'search', q });
 
+// Ranking global de clientes e itens (seção do cockpit — issue 06).
+const getClientRanking = async ({ window, limit, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'client_ranking', window, limit, includeTest, refresh });
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
@@ -175,4 +196,5 @@ export default {
   getCohortRetention,
   getTimeToEvent,
   searchPhone,
+  getClientRanking,
 };

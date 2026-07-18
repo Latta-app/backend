@@ -1963,6 +1963,47 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
   }
 };
 
+// Retrato de valor do cliente (visão Métricas do painel direito) — issues
+// 04/05 de docs/issues/mensageria-metricas-e-moods/ (monorepo). Resolve
+// contact_id → pet_owner_id (mesmo padrão de getOrdersByContactId) e delega
+// a agregação pra RPC get_client_metrics (SECURITY DEFINER, predicados
+// canônicos do cockpit: _is_latta_revenue, status pago, test personas).
+// Raw query porque o model Sequelize Order não conhece orders.source.
+const getClientMetricsByContactId = async ({ contact_id }) => {
+  try {
+    const contact = await Contact.findOne({
+      where: { id: contact_id },
+      attributes: ['id', 'pet_owner_id'],
+    });
+
+    if (!contact?.pet_owner_id) {
+      // Contato sem pet_owner → resposta vazia válida (mesma shape da RPC).
+      return {
+        pet_owner_id: null,
+        found: false,
+        latta: { total_spent: 0, paid_orders: 0, avg_ticket: null, last_order_at: null },
+        petz_legacy: { orders_count: 0, total_spent: 0, oldest_at: null, newest_at: null },
+        top_items: [],
+        gmv_filter: 'latta_only',
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    const sequelize = ChatHistory.sequelize;
+    const rows = await sequelize.query(
+      `SELECT get_client_metrics(CAST(:pet_owner_id AS uuid)) AS metrics`,
+      {
+        replacements: { pet_owner_id: contact.pet_owner_id },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+    return rows[0]?.metrics ?? null;
+  } catch (error) {
+    console.error('❌ ERRO getClientMetricsByContactId:', error.message);
+    throw new Error(`Repository error: ${error.message}`);
+  }
+};
+
 
 // Badge da aba Luma: conta o MESMO conjunto que getAllContactsBeingAttended
 // lista (em atendimento humano, com chat_history, fora do universo QA em prod,
@@ -2106,6 +2147,7 @@ export default {
   getContactByContactId,
   getContactByPetOwnerIdOrPhone,
   getOrdersByContactId,
+  getClientMetricsByContactId,
   getTestContactsCount,
   getB2bContactsCount,
   getTesterContactsCount,
