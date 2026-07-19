@@ -113,6 +113,18 @@ const Pet = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      happy_photo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      hungry_photo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      angry_photo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       latest_weight: {
         type: DataTypes.STRING(7),
         allowNull: true,

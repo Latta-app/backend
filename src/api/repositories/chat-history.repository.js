@@ -1345,7 +1345,7 @@ const getContactByPetOwnerIdOrPhone = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id', 'happy_photo', 'hungry_photo', 'angry_photo'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
@@ -1584,7 +1584,7 @@ const getContactByPetOwnerId = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id', 'happy_photo', 'hungry_photo', 'angry_photo'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
@@ -1824,7 +1824,7 @@ const getContactByContactId = async ({
             {
               model: Pet,
               as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
+              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id', 'happy_photo', 'hungry_photo', 'angry_photo'],
               through: { attributes: [] },
               where: { is_active: true },
               required: false,
