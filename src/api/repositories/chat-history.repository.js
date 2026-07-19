@@ -1963,12 +1963,32 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
   }
 };
 
-// Retrato de valor do cliente (visão Métricas do painel direito) — issues
-// 04/05 de docs/issues/mensageria-metricas-e-moods/ (monorepo). Resolve
-// contact_id → pet_owner_id (mesmo padrão de getOrdersByContactId) e delega
-// a agregação pra RPC get_client_metrics (SECURITY DEFINER, predicados
+// Retrato de valor do cliente (visão Métricas do painel direito). v2: 3 recortes
+// (Latta / Pré-Latta / Consolidado) em `scopes`, cada um com o mesmo shape rico
+// — PRD docs/issues/mensageria-metricas-3-visoes/ (issues 01/02/03). Mantém as
+// chaves de topo legadas (latta/petz_legacy/top_items) como espelho da v1.
+// Resolve contact_id → pet_owner_id (mesmo padrão de getOrdersByContactId) e
+// delega a agregação pra RPC get_client_metrics (SECURITY DEFINER, predicados
 // canônicos do cockpit: _is_latta_revenue, status pago, test personas).
 // Raw query porque o model Sequelize Order não conhece orders.source.
+const CLIENT_METRICS_TOP_ITEMS_LIMIT = 3;
+
+// Recorte zerado — mesma shape que o helper _client_scope_snapshot da RPC.
+const emptyClientMetricsScope = () => ({
+  orders: 0,
+  total_spent: 0,
+  avg_ticket: null,
+  in_progress_orders: 0,
+  in_progress_value: 0,
+  cancelled_orders: 0,
+  first_order_at: null,
+  last_order_at: null,
+  cadence_days: null,
+  days_since_last: null,
+  top_items: [],
+  last_order: null,
+});
+
 const getClientMetricsByContactId = async ({ contact_id }) => {
   try {
     const contact = await Contact.findOne({
@@ -1977,10 +1997,15 @@ const getClientMetricsByContactId = async ({ contact_id }) => {
     });
 
     if (!contact?.pet_owner_id) {
-      // Contato sem pet_owner → resposta vazia válida (mesma shape da RPC).
+      // Contato sem pet_owner → resposta vazia válida (mesma shape da RPC v2).
       return {
         pet_owner_id: null,
         found: false,
+        scopes: {
+          latta: emptyClientMetricsScope(),
+          pre_latta: emptyClientMetricsScope(),
+          consolidado: { ...emptyClientMetricsScope(), share_latta_pct: 0 },
+        },
         latta: { total_spent: 0, paid_orders: 0, avg_ticket: null, last_order_at: null },
         petz_legacy: { orders_count: 0, total_spent: 0, oldest_at: null, newest_at: null },
         top_items: [],
@@ -1991,9 +2016,12 @@ const getClientMetricsByContactId = async ({ contact_id }) => {
 
     const sequelize = ChatHistory.sequelize;
     const rows = await sequelize.query(
-      `SELECT get_client_metrics(CAST(:pet_owner_id AS uuid)) AS metrics`,
+      `SELECT get_client_metrics(CAST(:pet_owner_id AS uuid), :top_items_limit) AS metrics`,
       {
-        replacements: { pet_owner_id: contact.pet_owner_id },
+        replacements: {
+          pet_owner_id: contact.pet_owner_id,
+          top_items_limit: CLIENT_METRICS_TOP_ITEMS_LIMIT,
+        },
         type: Sequelize.QueryTypes.SELECT,
       },
     );
