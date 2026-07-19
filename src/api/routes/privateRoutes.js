@@ -13,6 +13,7 @@ import ClinicNotificationsRoutes from './private/clinic-notifications.routes.js'
 import ClinicRoutes from './private/clinic.routes.js';
 import ContactRoutes from './private/contact.routes.js';
 import MessagingRoutes from './private/messaging.routes.js';
+import MarketplaceConnectionRoutes from './private/marketplace-connection.routes.js';
 import DashboardRoutes from './private/dashboard.routes.js';
 import PetOwnerRoutes from './private/pet-owners.routes.js';
 import PetRoutes from './private/pet.routes.js';
@@ -44,6 +45,7 @@ router.use('/clinic/notifications', ClinicNotificationsRoutes);
 router.use('/clinic/activity', ClinicActivityRoutes);
 router.use('/contacts', ContactRoutes);
 router.use('/messaging', MessagingRoutes);
+router.use('/marketplace-connection', MarketplaceConnectionRoutes);
 router.use('/admin/dashboard', DashboardRoutes);
 router.use('/pet-owner', PetOwnerRoutes);
 router.use('/pet', PetRoutes);
