@@ -124,6 +124,23 @@ const ChatHistory = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      // Status de entrega do WhatsApp, gravado pela EF chat-history-logger
+      // (modo delivery_update) a partir do webhook do Meta. Precedencia
+      // sent(1) < failed(2) < delivered(3) < read(4) — nunca rebaixa.
+      // So rows de saida (journey='enviada') recebem valor.
+      delivery_status: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      // So preenchido quando delivery_status='failed': "wa_<code>: <title>".
+      delivery_error: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      delivery_updated_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'chat_history',
