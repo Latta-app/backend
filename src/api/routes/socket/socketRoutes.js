@@ -169,6 +169,64 @@ function createSocketRoutes(io) {
   });
 
   // ==========================================
+  // 📬 WEBHOOK STATUS DE ENTREGA (delivered / read / failed)
+  // ==========================================
+  // O status do WhatsApp chega DEPOIS do envio (delivered em segundos, read
+  // quando o tutor abre) e é gravado com UPDATE na row que já existe. Como o
+  // `new_message` acima só sai no INSERT, sem esta rota o tick da bolha ficava
+  // congelado no estado do último fetch — o operador via "enviada" numa
+  // mensagem já entregue até dar F5. Aqui o patch vira um evento próprio,
+  // roteado pela MESMA sala do `new_message` (QA não vaza pro painel de prod).
+  router.post('/webhook/delivery-status', express.json(), async (req, res) => {
+    try {
+      const {
+        id,
+        contact_id,
+        cell_phone,
+        message_id,
+        delivery_status,
+        delivery_error,
+        delivery_updated_at,
+      } = req.body;
+
+      // `id` é o que o front usa pra achar a bolha (as msgs no state são keyed
+      // por id da row, não por wamid). Sem ele o evento não tem onde pousar.
+      if (!id || !contact_id) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'id e contact_id são obrigatórios' });
+      }
+      if (!delivery_status) {
+        return res.status(400).json({ success: false, error: 'delivery_status é obrigatório' });
+      }
+
+      let targetRoom = MESSAGING_ROOM;
+      if (cell_phone) {
+        const targetEnv = (await isQaPhone(cell_phone)) ? 'homolog' : 'prod';
+        targetRoom = messagingEnvRoom(targetEnv);
+      }
+
+      io.to(targetRoom).emit('delivery_status_update', {
+        id,
+        contact_id,
+        message_id,
+        delivery_status,
+        delivery_error: delivery_error ?? null,
+        delivery_updated_at: delivery_updated_at ?? new Date().toISOString(),
+      });
+
+      console.log(
+        `📬 delivery_status_update '${delivery_status}' emitido para '${targetRoom}' (msg=${id})`,
+      );
+
+      res.json({ success: true, sent: true, room: targetRoom });
+    } catch (error) {
+      console.error('❌ Erro ao processar status de entrega:', error);
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
+  });
+
+  // ==========================================
   // TESTE SOCKET
   // ==========================================
   router.post('/test-socket', express.json(), async (_req, res) => {
