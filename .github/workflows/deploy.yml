@@ -3,6 +3,13 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+  # Sem este gatilho o workflow so roda DEPOIS do merge, e um PR do backend nao
+  # tem check nenhum: `gh pr checks` responde "no checks reported" — o que ja
+  # fez uma sessao concluir que o repo "nao tem CI". Com ele, o job `test` vira
+  # um check de verdade no PR e o teste vermelho aparece ANTES de entrar na
+  # main, em vez de so travar o deploy depois.
+  pull_request:
+    branches: [main]
   workflow_dispatch: # permite trigger manual via UI
 
 jobs:
@@ -34,6 +41,11 @@ jobs:
 
   deploy:
     needs: test
+    # PR NAO deploya. O gatilho `pull_request` existe so pra rodar o teste; sem
+    # esta guarda, abrir um PR mandaria a main pro EC2 (o script faz `git pull
+    # origin main` no servidor, entao nem seria o codigo do PR — seria um
+    # redeploy fantasma que ninguem pediu).
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: SSH and deploy
