@@ -115,7 +115,17 @@ export function mapSessionToScheduling(row) {
     paymentStatus: null,
     user: null,
     clinic: row.clinic_id
-      ? { id: row.clinic_id, name: row.clinic_name ?? null }
+      ? {
+          id: row.clinic_id,
+          name: row.clinic_name ?? null,
+          // String única com o endereço completo, como a clínica foi cadastrada.
+          // Sem tratamento: quebrar em partes exigiria as colunas que estão
+          // vazias no banco (ver o comentário do BASE_SELECT no repositório).
+          address: row.clinic_address ?? null,
+          // Normalizado (55DDNNNNNNNNN). O painel usa pra exibir formatado E pra
+          // achar o contato da clínica — os dois esperam esta forma.
+          phone: row.clinic_phone ?? null,
+        }
       : null,
     pet: petId
       ? { id: petId, name: row.pet_name ?? null }
