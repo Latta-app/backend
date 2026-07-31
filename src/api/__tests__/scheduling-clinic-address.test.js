@@ -21,18 +21,29 @@ const lastSql = () => pgQuery.mock.calls[pgQuery.mock.calls.length - 1][0];
 beforeEach(() => vi.clearAllMocks());
 
 describe('endereço da clínica no agendamento', () => {
-  it('o BASE_SELECT traz c.address — e chega em TODAS as consultas de lista', async () => {
+  it('o BASE_SELECT traz endereço e telefone — em TODAS as consultas de lista', async () => {
     // As três listas compartilham o BASE_SELECT. Verificar as três impede que
     // alguém "otimize" uma delas com um SELECT próprio e deixe o painel do
     // tutor sem endereço só naquele caminho.
     await SchedulingRepository.getSchedulingsByPetOwner({ petOwnerId: 'OWNER1' });
     expect(lastSql()).toContain('c.address AS clinic_address');
+    expect(lastSql()).toContain('c.phone_normalized AS clinic_phone');
 
     await SchedulingRepository.getSchedulingsByClinic({ clinicId: 'CLINIC1' });
     expect(lastSql()).toContain('c.address AS clinic_address');
+    expect(lastSql()).toContain('c.phone_normalized AS clinic_phone');
 
     await SchedulingRepository.getSchedulingsByPet({ petId: 'PET1' });
     expect(lastSql()).toContain('c.address AS clinic_address');
+    expect(lastSql()).toContain('c.phone_normalized AS clinic_phone');
+  });
+
+  it('o telefone vem NORMALIZADO, não a coluna crua', async () => {
+    // `clinics.phone` guarda "4133508484" (sem DDI). O painel formata e busca
+    // o contato com 55DDNNNNNNNNN — pegar a coluna errada faria o telefone
+    // aparecer sem máscara e a conversa da clínica nunca ser encontrada.
+    await SchedulingRepository.getSchedulingsByPetOwner({ petOwnerId: 'OWNER1' });
+    expect(lastSql()).not.toContain('c.phone AS clinic_phone');
   });
 
   it('o mapper entrega o endereço dentro de `clinic`', () => {
@@ -41,6 +52,7 @@ describe('endereço da clínica no agendamento', () => {
       clinic_id: 'CLINIC1',
       clinic_name: 'Centro Veterinário Seres',
       clinic_address: 'Av. Nossa Sra. do Carmo, 1448 - São Pedro, Belo Horizonte - MG, 30330-000',
+      clinic_phone: '5531986974851',
       state: 'CONFIRMED',
     });
 
@@ -48,22 +60,26 @@ describe('endereço da clínica no agendamento', () => {
       id: 'CLINIC1',
       name: 'Centro Veterinário Seres',
       address: 'Av. Nossa Sra. do Carmo, 1448 - São Pedro, Belo Horizonte - MG, 30330-000',
+      phone: '5531986974851',
     });
   });
 
-  it('clínica sem endereço cadastrado vira null, não undefined', () => {
-    // O card decide "mostro a linha do endereço?" por falsy, e `undefined`
-    // some do JSON da resposta — o front não conseguiria distinguir "clínica
-    // sem endereço" de "o backend parou de mandar esse campo".
+  it('clínica sem endereço/telefone cadastrado vira null, não undefined', () => {
+    // O card decide "mostro essa linha?" por falsy, e `undefined` some do JSON
+    // da resposta — o front não conseguiria distinguir "clínica sem endereço"
+    // de "o backend parou de mandar esse campo".
     const mapped = mapSessionToScheduling({
       id: 'S1',
       clinic_id: 'CLINIC1',
       clinic_name: 'Íris Teste S',
       clinic_address: null,
+      clinic_phone: null,
       state: 'CONFIRMED',
     });
 
     expect(mapped.clinic.address).toBeNull();
+    expect(mapped.clinic.phone).toBeNull();
     expect('address' in mapped.clinic).toBe(true);
+    expect('phone' in mapped.clinic).toBe(true);
   });
 });

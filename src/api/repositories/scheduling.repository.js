@@ -45,6 +45,10 @@ const BASE_SELECT = `
     -- devolveria vazio.
     -- (Sem crase neste bloco: o BASE_SELECT é template literal e ela o fecha.)
     c.address AS clinic_address,
+    -- phone_normalized (55DDNNNNNNNNN), nao a coluna phone crua ("4133508484",
+    -- sem DDI): e o formato que o painel usa pros DOIS usos do numero — exibir
+    -- formatado e achar o contato da clinica pra abrir a conversa dela.
+    c.phone_normalized AS clinic_phone,
     p.name AS pet_name,
     po.email AS pet_owner_email,
     po.name AS pet_owner_name

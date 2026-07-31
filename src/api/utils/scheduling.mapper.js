@@ -122,6 +122,9 @@ export function mapSessionToScheduling(row) {
           // Sem tratamento: quebrar em partes exigiria as colunas que estão
           // vazias no banco (ver o comentário do BASE_SELECT no repositório).
           address: row.clinic_address ?? null,
+          // Normalizado (55DDNNNNNNNNN). O painel usa pra exibir formatado E pra
+          // achar o contato da clínica — os dois esperam esta forma.
+          phone: row.clinic_phone ?? null,
         }
       : null,
     pet: petId
