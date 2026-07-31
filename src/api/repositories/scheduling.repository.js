@@ -36,6 +36,15 @@ const BASE_SELECT = `
     s.escalation_reason,
     s.rating,
     c.name AS clinic_name,
+    -- Endereço da clínica: no painel do TUTOR o nome sozinho não responde
+    -- "onde ele vai" — rede com várias unidades repete o mesmo nome em
+    -- endereços diferentes. clinics.address é UMA string com o endereço
+    -- completo ("R. X, 123 - Bairro, Cidade - UF, CEP"); as colunas
+    -- neighbourhood/city/state/zip_code existem mas estão NULL até nas
+    -- clínicas reais (medido em prod, 31/07/26), então compor a partir delas
+    -- devolveria vazio.
+    -- (Sem crase neste bloco: o BASE_SELECT é template literal e ela o fecha.)
+    c.address AS clinic_address,
     p.name AS pet_name,
     po.email AS pet_owner_email,
     po.name AS pet_owner_name
