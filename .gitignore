@@ -81,6 +81,18 @@ yarn.lock
 .env.local
 .env.dev
 .env.prod
+# Backups de .env feitos na mao no servidor (.env.bak.<epoch>, .env.save). Os
+# tres que existem hoje em ~/backend nao eram cobertos por nenhum padrao acima:
+# bastava um `git add -A` de alguem debugando no servidor pra um .env de
+# PRODUCAO inteiro entrar no historico.
+.env.bak*
+.env.save
+.env.*.bak
+
+# Estado de runtime, NUNCA versionado. session.json guarda cookies +
+# localStorage de uma sessao de navegador (src/utils/sessionStore.js) — e
+# sessao de navegador e credencial, nao configuracao.
+session.json
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
