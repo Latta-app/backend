@@ -18,12 +18,22 @@ const redactNested = (obj) => {
   return cleaned;
 };
 
+// Campos que existem pro PAINEL DO OPERADOR e não são da conta da clínica:
+//   - escalation_reason: texto livre que o agente escreve ao escalar; pode
+//     carregar contexto do tutor e é diagnóstico interno.
+//   - rating: a nota que o TUTOR deu pra esta clínica. Mostrar isso pra ela é
+//     decisão de produto, não efeito colateral de um campo novo no SELECT.
+const OPERATOR_ONLY_KEYS = ['escalation_reason', 'rating'];
+
 export const redactAppointmentForClinic = (appointment) => {
   if (!appointment) return appointment;
   const redacted = { ...appointment };
 
   // top-level
   if ('user_phone' in redacted) redacted.user_phone = null;
+  for (const key of OPERATOR_ONLY_KEYS) {
+    if (key in redacted) redacted[key] = null;
+  }
 
   // nested
   if (redacted.petOwner) redacted.petOwner = redactNested(redacted.petOwner);

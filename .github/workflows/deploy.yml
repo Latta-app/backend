@@ -3,10 +3,49 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+  # Sem este gatilho o workflow so roda DEPOIS do merge, e um PR do backend nao
+  # tem check nenhum: `gh pr checks` responde "no checks reported" — o que ja
+  # fez uma sessao concluir que o repo "nao tem CI". Com ele, o job `test` vira
+  # um check de verdade no PR e o teste vermelho aparece ANTES de entrar na
+  # main, em vez de so travar o deploy depois.
+  pull_request:
+    branches: [main]
   workflow_dispatch: # permite trigger manual via UI
 
 jobs:
+  # Merge na main JA e deploy: nao existe passo manual entre um e outro. Sem
+  # este job, um merge quebrado ia direto pra producao e a suite (32 testes, 7
+  # arquivos) nao rodava em lugar nenhum automatico — `npx vitest run` so
+  # acontecia se alguem lembrasse de rodar na maquina. O `needs: test` la
+  # embaixo e o que transforma teste vermelho em deploy que NAO acontece, em
+  # vez de aviso depois do estrago.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A MESMA versao que roda no EC2 (o script de deploy exporta
+      # /home/ubuntu/.nvm/versions/node/v20.19.0/bin). Testar noutra runtime
+      # valida um ambiente que nao existe em producao.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: npm
+
+      # `npm ci` (nao `npm install`): respeita o package-lock e falha se ele
+      # divergir do package.json, em vez de resolver silenciosamente pra outra
+      # arvore de dependencia.
+      - run: npm ci
+
+      - run: npx vitest run
+
   deploy:
+    needs: test
+    # PR NAO deploya. O gatilho `pull_request` existe so pra rodar o teste; sem
+    # esta guarda, abrir um PR mandaria a main pro EC2 (o script faz `git pull
+    # origin main` no servidor, entao nem seria o codigo do PR — seria um
+    # redeploy fantasma que ninguem pediu).
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: SSH and deploy

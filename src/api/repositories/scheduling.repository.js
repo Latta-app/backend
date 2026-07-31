@@ -22,7 +22,33 @@ const BASE_SELECT = `
     s.confirmed_at,
     s.created_at,
     s.updated_at,
+    -- Dinheiro pendurado no agendamento: o painel precisa mostrar sinal
+    -- exigido/pago e o preço que a clínica combinou por escrito no WhatsApp.
+    s.requires_deposit,
+    s.deposit_amount,
+    s.deposit_paid_at,
+    s.quoted_price_text,
+    -- Quem está esperando quem. É o que transforma a lista em fila de trabalho:
+    -- "aguardando a clínica há 3h" sai da diferença entre estes dois.
+    s.last_outbound_at,
+    s.last_clinic_inbound_at,
+    s.last_user_inbound_at,
+    s.escalation_reason,
+    s.rating,
     c.name AS clinic_name,
+    -- Endereço da clínica: no painel do TUTOR o nome sozinho não responde
+    -- "onde ele vai" — rede com várias unidades repete o mesmo nome em
+    -- endereços diferentes. clinics.address é UMA string com o endereço
+    -- completo ("R. X, 123 - Bairro, Cidade - UF, CEP"); as colunas
+    -- neighbourhood/city/state/zip_code existem mas estão NULL até nas
+    -- clínicas reais (medido em prod, 31/07/26), então compor a partir delas
+    -- devolveria vazio.
+    -- (Sem crase neste bloco: o BASE_SELECT é template literal e ela o fecha.)
+    c.address AS clinic_address,
+    -- phone_normalized (55DDNNNNNNNNN), nao a coluna phone crua ("4133508484",
+    -- sem DDI): e o formato que o painel usa pros DOIS usos do numero — exibir
+    -- formatado e achar o contato da clinica pra abrir a conversa dela.
+    c.phone_normalized AS clinic_phone,
     p.name AS pet_name,
     po.email AS pet_owner_email,
     po.name AS pet_owner_name
