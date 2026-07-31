@@ -50,16 +50,51 @@ jobs:
     steps:
       - name: SSH and deploy
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          # Chaves GERENCIADAS pelo deploy. Ver o bloco `upsert_env` no script.
+          SCHEDULING_INTERNAL_SECRET: ${{ secrets.SCHEDULING_INTERNAL_SECRET }}
         with:
           host: 54.207.77.45
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          # `envs` leva as vars do step acima pro shell remoto. Só os NOMES vão
+          # aqui; os valores viajam pelo canal SSH, nunca pelo `script`.
+          envs: SCHEDULING_INTERNAL_SECRET
           script_stop: true
           script: |
             export PATH=/home/ubuntu/.nvm/versions/node/v20.19.0/bin:$PATH
             cd ~/backend
             git pull origin main
             npm install --production=false
+
+            # ── env gerenciada pelo deploy ────────────────────────────────────
+            # Antes deste bloco o `.env` da instância era mantido 100% À MÃO: o
+            # deploy nunca o tocava, então toda variável nova exigia um SSH que
+            # alguém precisava lembrar de fazer. Foi assim que o painel da clínica
+            # ficou tomando 401 — o backend nunca teve SCHEDULING_INTERNAL_SECRET.
+            #
+            # 🚨 UPSERT, não reescrita. O `.env` tem variáveis que NÃO estão nos
+            # secrets do GitHub; reescrevê-lo inteiro subiria backend quebrado. Só
+            # as chaves listadas aqui são gerenciadas — o resto fica intocado, e a
+            # migração pode ser incremental.
+            upsert_env() {
+              key="$1"; val="$2"
+              if [ -z "$val" ]; then
+                echo "  aviso: $key ausente nos secrets do GitHub — .env intocado"
+                return 0
+              fi
+              touch .env
+              # grep -v + append em vez de `sed -i s|…|…|`: o valor não passa por
+              # interpretação de regex nem por escolha de delimitador.
+              grep -v "^${key}=" .env > .env.deploy.tmp 2>/dev/null || true
+              printf '%s=%s\n' "$key" "$val" >> .env.deploy.tmp
+              mv .env.deploy.tmp .env
+              chmod 600 .env
+              echo "  $key sincronizado"
+            }
+            echo "Sincronizando env gerenciada..."
+            upsert_env SCHEDULING_INTERNAL_SECRET "$SCHEDULING_INTERNAL_SECRET"
+
             pm2 restart all 2>/dev/null || (pkill -f 'node.*app.js' || true; nohup npm start > /tmp/backend.log 2>&1 &)
 
             # Health check com retry. Antes era um curl unico apos `sleep 3`, que
