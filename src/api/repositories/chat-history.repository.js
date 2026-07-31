@@ -40,16 +40,24 @@ const TEST_CONTACT_IDS_SUBQUERY = `(
 )`;
 
 // B2B contacts (clínicas): contacts cujo cellphone bate com algum
-// clinics.phone_normalized OU clinics.phone. Source of truth eh a tabela
-// clinics, NAO o path do chat_history — antes filtrávamos por
-// path LIKE 'merchant-scheduling-agent|%' mas isso incluia o tutor (o
-// agent loga inbound do user com esse mesmo prefixo).
+// clinics.phone_normalized, clinics.phone OU clinics.alt_phone_normalized.
+// Source of truth eh a tabela clinics, NAO o path do chat_history — antes
+// filtrávamos por path LIKE 'merchant-scheduling-agent|%' mas isso incluia o
+// tutor (o agent loga inbound do user com esse mesmo prefixo).
+//
+// alt_phone_normalized entrou junto do fix que faz o chat-history-logger CRIAR
+// o contato da clínica: é o número alternativo de onde a clínica responde,
+// associado pelo chat-engine (routes/merchant-scheduling.ts). Sem ele, a
+// conversa que chega por esse número vira contato de clínica e cai na aba
+// Geral, no meio dos tutores.
 const B2B_CONTACT_IDS_SUBQUERY = `(
   SELECT DISTINCT c.id FROM contacts c
   WHERE c.cellphone IN (
     SELECT phone_normalized FROM clinics WHERE phone_normalized IS NOT NULL
     UNION
     SELECT phone FROM clinics WHERE phone IS NOT NULL
+    UNION
+    SELECT alt_phone_normalized FROM clinics WHERE alt_phone_normalized IS NOT NULL
   )
 )`;
 
