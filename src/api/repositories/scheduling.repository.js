@@ -28,11 +28,42 @@ const BASE_SELECT = `
     s.deposit_amount,
     s.deposit_paid_at,
     s.quoted_price_text,
-    -- Quem está esperando quem. É o que transforma a lista em fila de trabalho:
-    -- "aguardando a clínica há 3h" sai da diferença entre estes dois.
+    -- Quem está esperando quem, segundo os contadores da SESSÃO. Só o
+    -- merchant-scheduling-agent escreve nestas colunas, então elas congelam no
+    -- instante em que um humano assume a conversa — que é justamente o desfecho
+    -- que a escalação existe pra produzir. Ficam aqui porque ainda são o melhor
+    -- sinal quando a clínica nunca teve conversa registrada (ver o coalesce
+    -- abaixo), mas NÃO decidem mais sozinhas o "aguardando".
     s.last_outbound_at,
     s.last_clinic_inbound_at,
     s.last_user_inbound_at,
+    -- A mesma pergunta, medida na CONVERSA em vez do contador. É a fonte:
+    -- "aguardando a clínica" é uma afirmação sobre quem falou por último no
+    -- WhatsApp, e lá estão TAMBÉM as mensagens do operador humano (journey
+    -- 'enviada', path 'petshop') e as respostas que chegaram fora do agente
+    -- (path 'chat-engine|inbound', 'lattinha|inbound|attended').
+    --
+    -- Medido em prod 01/08/26: das 5 sessões que exibiam espera, 2 eram
+    -- mentira. No caso reportado (clínica 5531986974851) os contadores pararam
+    -- às 13:02:32 e 13:02:28, 3s de diferença na ordem errada, enquanto a
+    -- clínica de fato respondeu "agendado!" e "Nada!" às 13:08 pela mão do
+    -- operador. O card dizia "aguardando a clínica há 1 dia" sobre uma conversa
+    -- encerrada.
+    --
+    -- journey é o discriminador (medido: 'enviada' 12625 + 58, 'recebida'
+    -- 11706, e 2 linhas nulas) — sent_by não serve, porque na conversa da
+    -- clínica o inbound dela vem rotulado 'pet owner'.
+    -- Custa um index scan cada: idx_chat_history_phone_ts (cell_phone, timestamp DESC).
+    (
+      SELECT max(ch.timestamp) FROM chat_history ch
+      WHERE ch.cell_phone = coalesce(s.clinic_phone_normalized, c.phone_normalized)
+        AND ch.journey = 'enviada'
+    ) AS thread_outbound_at,
+    (
+      SELECT max(ch.timestamp) FROM chat_history ch
+      WHERE ch.cell_phone = coalesce(s.clinic_phone_normalized, c.phone_normalized)
+        AND ch.journey = 'recebida'
+    ) AS thread_clinic_inbound_at,
     s.escalation_reason,
     s.rating,
     c.name AS clinic_name,
