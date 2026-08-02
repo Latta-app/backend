@@ -49,6 +49,52 @@ const toISODate = (value) => {
   return DateTime.fromJSDate(date).setZone(SCHEDULE_TZ).toISODate();
 };
 
+// Estados em que a bola NÃO está mais com a clínica, aconteça o que acontecer
+// na conversa. Não é o grupo 'closed': FAILED mora em 'needs_attention' (chama
+// um humano) mas o pedido morreu — ninguém está esperando resposta dela.
+// Sem isto, um agendamento concluído em maio exibiria "aguardando a clínica há
+// 90 dias" só porque a última mensagem da thread foi nossa.
+const SETTLED_STATES = new Set([
+  'COMPLETED',
+  'CANCELLED_BY_USER',
+  'CANCELLED_BY_MERCHANT',
+  'NO_SHOW',
+  'FAILED',
+]);
+
+const ts = (value) => {
+  if (!value) return null;
+  const t = new Date(value).getTime();
+  return Number.isFinite(t) ? t : null;
+};
+
+/**
+ * Desde quando a clínica está devendo resposta, ou `null` quando não está.
+ *
+ * Mora aqui, e não no card, por ser a MESMA pergunta que o painel usa pra pintar
+ * urgência: duas cópias divergiriam e o operador veria a cor discordar do texto.
+ * O card só formata a duração.
+ *
+ * Prefere o que aconteceu na CONVERSA (`thread_*`, que enxerga o operador humano)
+ * e cai nos contadores da sessão só quando a clínica não tem thread registrada —
+ * clínica sem conversa nenhuma existe na base, e aí o contador é tudo que há.
+ */
+const waitingOnClinicSince = (row) => {
+  if (SETTLED_STATES.has(row.state)) return null;
+
+  const outbound = row.thread_outbound_at ?? row.last_outbound_at ?? null;
+  const out = ts(outbound);
+  if (!out) return null;
+
+  const inbound = row.thread_clinic_inbound_at ?? row.last_clinic_inbound_at ?? null;
+  const back = ts(inbound);
+  // Empate conta como respondida: a clínica falar no mesmo instante em que
+  // falamos não é ela nos devendo nada.
+  if (back !== null && back >= out) return null;
+
+  return outbound;
+};
+
 export function mapSessionToScheduling(row) {
   if (!row) return null;
 
@@ -103,11 +149,17 @@ export function mapSessionToScheduling(row) {
       amount: row.deposit_amount ?? null,
       paid_at: row.deposit_paid_at ?? null,
     },
-    // Quem falou por último de cada lado. O painel deriva daqui o "aguardando
-    // a clínica há Xh" sem precisar de outra consulta.
+    // Quem falou por último de cada lado, segundo os contadores da sessão.
+    // Continuam expostos por serem dado bruto útil, mas quem responde
+    // "a clínica está devendo resposta?" é o waiting_on_clinic_since abaixo —
+    // estes dois congelam quando um humano assume a conversa.
     last_outbound_at: row.last_outbound_at ?? null,
     last_clinic_inbound_at: row.last_clinic_inbound_at ?? null,
     last_user_inbound_at: row.last_user_inbound_at ?? null,
+    // Desde quando a clínica deve resposta, já considerando a conversa real e o
+    // estado do pedido. `null` = não há espera pra mostrar. O card só formata a
+    // duração; a regra é uma só e é esta.
+    waiting_on_clinic_since: waitingOnClinicSince(row),
     escalation_reason: row.escalation_reason ?? null,
     rating: row.rating ?? null,
     plan: null,
