@@ -99,8 +99,84 @@ const petOwnerExists = async (petOwnerId) => {
   return rows.length > 0;
 };
 
+/**
+ * Crédito duplicado: a assinatura de um retry que creditou duas vezes.
+ *
+ * 🚨 O agrupamento inclui `pet_owner_id`, e isso NÃO é detalhe. A primeira
+ * versão desta regra agrupava só por (`action_key`, `reference_id`) — medindo
+ * contra prod, ela acusava 16 "duplicados" de `admin_grant` que eram **16
+ * tutores diferentes** com o mesmo `reference_id` de CAMPANHA
+ * (`entry_floor_60_2026_07_22`), e 3 de `streak_milestone_7d` com o literal
+ * `streak_7`.
+ *
+ * Ou seja: `reference_id` nem sempre identifica uma transação — às vezes é
+ * rótulo de lote. Duplicidade só existe DENTRO do mesmo tutor.
+ *
+ * Medido em 03/08 com a regra correta: zero duplicados em 485 lançamentos.
+ */
+const getDuplicateGroupsByPetOwner = async (petOwnerId) => {
+  const { rows } = await pgQuery(
+    `SELECT
+       l.action_key,
+       COALESCE(NULLIF(a.description_pt, ''), $2) AS action_label,
+       l.reference_id,
+       COUNT(*)::int AS count,
+       SUM(l.coins_earned)::int AS coins_total
+     FROM latta_coins_ledger l
+     LEFT JOIN coin_actions a ON a.action_key = l.action_key
+     WHERE l.pet_owner_id = $1
+       AND l.status = 'available'
+       AND l.reference_id IS NOT NULL
+     GROUP BY l.action_key, a.description_pt, l.reference_id
+     HAVING COUNT(*) > 1
+     ORDER BY COUNT(*) DESC`,
+    [petOwnerId, ACTION_LABEL_FALLBACK],
+  );
+  return rows;
+};
+
+/**
+ * Pendente que o cron devia ter liberado e não liberou.
+ *
+ * 🚨 A janela de 24h existe porque `available_at` no passado é ESTADO NORMAL: o
+ * `Release_Pending_Coins` roda **uma vez por dia, às 03h**. Um cashback que
+ * amadurece às 18h43 fica legitimamente pendente até a madrugada seguinte.
+ *
+ * A primeira versão da regra era `available_at < NOW()`, e medindo contra prod
+ * ela acusava exatamente esse caso — um alarme que tocaria todo santo dia, pra
+ * quase todo pendente. Alarme que toca sempre treina o olho a ignorar, e aí o
+ * dia que aparecer o de verdade ninguém vê.
+ *
+ * 24h = o cron teve ao menos uma chance completa e não pegou.
+ * Medido em 03/08: zero pendentes nessa situação.
+ */
+const STALE_PENDING_HOURS = 24;
+
+const getStalePendingByPetOwner = async (petOwnerId) => {
+  const { rows } = await pgQuery(
+    `SELECT
+       l.id,
+       l.action_key,
+       COALESCE(NULLIF(a.description_pt, ''), $2) AS action_label,
+       l.coins_earned,
+       l.available_at
+     FROM latta_coins_ledger l
+     LEFT JOIN coin_actions a ON a.action_key = l.action_key
+     WHERE l.pet_owner_id = $1
+       AND l.status = 'pending'
+       AND l.available_at IS NOT NULL
+       AND l.available_at < NOW() - ($3 || ' hours')::interval
+     ORDER BY l.available_at ASC`,
+    [petOwnerId, ACTION_LABEL_FALLBACK, String(STALE_PENDING_HOURS)],
+  );
+  return rows;
+};
+
 export default {
   ACTION_LABEL_FALLBACK,
+  STALE_PENDING_HOURS,
+  getDuplicateGroupsByPetOwner,
+  getStalePendingByPetOwner,
   getEntriesByPetOwner,
   countEntriesByPetOwner,
   getBalanceByPetOwner,

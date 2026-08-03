@@ -40,6 +40,34 @@ export const reconcile = (balance, ledgerAvailableSum) => {
   };
 };
 
+/**
+ * O que está ERRADO com este tutor — a parte que separa instrumento de vitrine.
+ *
+ * Sem isto, o painel entrega um extrato bonito que exige o operador somar de
+ * cabeça pra descobrir que algo não fecha. E ninguém soma.
+ *
+ * 🚨 `has_any` false = **nenhum aviso na tela**. Nem um "tudo certo ✓" verde:
+ * ruído constante treina o olho a ignorar, e aí o dia que aparecer vermelho
+ * ninguém vê. As duas regras abaixo já nasceram calibradas por medição contra
+ * prod justamente pra não tocar à toa (ver comentários no repository).
+ *
+ * Descreve, nunca corrige. Ajustar saldo é decisão com dono, em issue própria,
+ * depois de medir quantos tutores estão nessa situação.
+ */
+export const buildAnomalies = (reconciliation, duplicates, stalePending) => {
+  const balanceMismatch = reconciliation?.matches === false
+    ? { delta: reconciliation.delta }
+    : null;
+  const dup = duplicates ?? [];
+  const stale = stalePending ?? [];
+  return {
+    balance_mismatch: balanceMismatch,
+    duplicates: dup,
+    stale_pending: stale,
+    has_any: Boolean(balanceMismatch) || dup.length > 0 || stale.length > 0,
+  };
+};
+
 /** `limit`/`offset` do cliente nunca entram crus na query. */
 export const normalizePaging = ({ limit, offset } = {}) => {
   const parsedLimit = Number.parseInt(limit, 10);
@@ -70,12 +98,16 @@ const getByPetOwner = async (petOwnerId, paging) => {
 
   const { limit, offset } = normalizePaging(paging);
 
-  const [balanceRow, entries, total, availableSum] = await Promise.all([
+  const [balanceRow, entries, total, availableSum, duplicates, stalePending] = await Promise.all([
     CoinsRepository.getBalanceByPetOwner(petOwnerId),
     CoinsRepository.getEntriesByPetOwner(petOwnerId, { limit, offset }),
     CoinsRepository.countEntriesByPetOwner(petOwnerId),
     CoinsRepository.getAvailableSumByPetOwner(petOwnerId),
+    CoinsRepository.getDuplicateGroupsByPetOwner(petOwnerId),
+    CoinsRepository.getStalePendingByPetOwner(petOwnerId),
   ]);
+
+  const reconciliation = reconcile(balanceRow, availableSum);
 
   return {
     // Sem linha de saldo devolve zeros, não `null`: a tela não deveria precisar
@@ -91,9 +123,12 @@ const getByPetOwner = async (petOwnerId, paging) => {
     entries,
     // 🚨 A reconciliação usa a soma da BASE INTEIRA, não a da página. Somar a
     // página faria todo tutor com mais de 50 lançamentos aparecer divergente.
-    reconciliation: reconcile(balanceRow, availableSum),
+    reconciliation,
+    // Idem: anomalia é da base inteira. Um duplicado na página 3 continua sendo
+    // um duplicado quando o operador está olhando a página 1.
+    anomalies: buildAnomalies(reconciliation, duplicates, stalePending),
     page: { limit, offset, total },
   };
 };
 
-export default { getByPetOwner, reconcile, normalizePaging };
+export default { getByPetOwner, reconcile, normalizePaging, buildAnomalies };
