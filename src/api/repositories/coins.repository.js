@@ -14,6 +14,21 @@ import { pgQuery } from '../../config/postgres.js';
 // `TEMPLATE_LABELS` da mensageria pagou caro pra aprender.
 const ACTION_LABEL_FALLBACK = 'Ação registrada';
 
+// O pedido que originou o cashback, quando a linha é de compra.
+//
+// 🚨 A junção é por `marketplace_order_number`, NÃO por `marketplace_order_id`.
+// As duas colunas existem na MESMA linha de `orders` e carregam números
+// diferentes (o pedido da Valeria é number=493363734 / id=1354253258). O ledger
+// grava o `number` em `reference_id` — juntar pelo `id` acha zero linhas e o
+// painel conclui, calado, que nenhum cashback tem pedido.
+//
+// Vai `LEFT`: crédito sem pedido correspondente existe (tutor purgado leva o
+// pedido junto — 3 casos medidos em 04/08) e não pode sumir do extrato por
+// causa disso.
+//
+// Os campos são os que respondem "pontuou certo?": a base do cálculo
+// (`subtotal` − `discount`), o que o tutor pagou (`total`), e a origem, que é o
+// que diz se aquele pedido PODIA pontuar.
 const ENTRIES_SELECT = `
   SELECT
     l.id,
@@ -26,9 +41,30 @@ const ENTRIES_SELECT = `
     l.reference_id,
     l.note,
     l.created_at,
-    l.available_at
+    l.available_at,
+    CASE WHEN l.action_key = 'purchase' AND ord.id IS NOT NULL THEN
+      jsonb_build_object(
+        'order_number',      ord.marketplace_order_number,
+        'marketplace_id',    ord.marketplace_order_id,
+        'source',            ord.source,
+        'status',            ord.status,
+        'status_label',      ord.current_status_name,
+        'subtotal',          ord.subtotal,
+        'discount',          ord.discount,
+        'shipping_cost',     ord.shipping_cost,
+        'service_fee',       ord.service_fee,
+        'total',             ord.total,
+        'items_count',       ord.items_count,
+        'payment_method',    ord.payment_method,
+        'created_at',        ord.created_at
+      )
+    END AS order_ref
   FROM latta_coins_ledger l
   LEFT JOIN coin_actions a ON a.action_key = l.action_key
+  LEFT JOIN orders ord
+         ON l.action_key = 'purchase'
+        AND ord.marketplace_order_number = l.reference_id
+        AND ord.pet_owner_id = l.pet_owner_id
   WHERE l.pet_owner_id = $1
   ORDER BY l.created_at DESC, l.id DESC
   LIMIT $3 OFFSET $4
