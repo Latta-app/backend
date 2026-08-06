@@ -118,9 +118,18 @@ const buildSearchEnvironmentCondition = (Op, environment) => {
 };
 
 const RECENT_ORDERS_LIMIT = 10;
+// 🚨 `marketplace_order_id` e `marketplace_order_number` são colunas DIFERENTES
+// da mesma linha, com números diferentes: o pedido da Valeria é
+// `id=1354253258` / `number=493363734`. Quem aparece pro tutor e pra Petz é o
+// NUMBER, e é ele que o ledger de lattinhas grava em `reference_id`.
+//
+// Sem o number aqui, a lista de Pedidos não tem como ser cruzada com o extrato
+// de lattinhas — e a tela dizia dois números pro MESMO pedido: o card do
+// cashback mostrava #493363734 e a lista, #1354253258.
 const ORDER_LIST_ATTRS = [
   'id',
   'marketplace_order_id',
+  'marketplace_order_number',
   'created_at',
   'total',
   'current_status_name',
@@ -1843,20 +1852,17 @@ const getOrdersByContactId = async ({ contact_id, page = 1, limit = 10 }) => {
 
     const { count, rows } = await Order.findAndCountAll({
       where: { pet_owner_id: contact.pet_owner_id },
-      attributes: [
-        'id',
-        'marketplace_order_id',
-        'created_at',
-        'total',
-        'current_status_name',
-        'payment_method',
-        'delivery_estimate',
-      ],
+      // 🚨 A MESMA lista da página 1 (`ORDER_LIST_ATTRS`), não uma cópia. Esta
+      // era uma segunda cópia idêntica, e é a paginação da mesma lista que a
+      // página 1 preenche: campo novo em um lado só faz a lista mudar de forma
+      // no scroll — os 10 primeiros pedidos com o campo, o 11º sem. É o mesmo
+      // pedágio que o comentário do `chat_history` logo acima já registra.
+      attributes: ORDER_LIST_ATTRS,
       include: [
         {
           model: OrderItem,
           as: 'items',
-          attributes: ['id', 'name', 'brand', 'category', 'sku', 'thumbnail_url'],
+          attributes: ORDER_ITEM_LIST_ATTRS,
           required: false,
         },
       ],
