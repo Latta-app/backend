@@ -42,6 +42,25 @@ const ENTRIES_SELECT = `
     l.note,
     l.created_at,
     l.available_at,
+    -- A mensagem que ORIGINOU o lançamento (issue 05). É o chat_history.id, e vai
+    -- cru: quem decide o que fazer com ele é a tela, que ancora por esse mesmo id.
+    --
+    -- 🚨 NULL é estado NORMAL, não pendência — e a tela não pode desenhar erro por
+    -- causa disso. Fica nulo em todo lançamento anterior a 06/08/2026 (o vínculo
+    -- nunca foi gravado, e backfill por proximidade seria inventar a causalidade
+    -- que a fatia existe pra parar de inventar), e fica nulo PRA SEMPRE nos
+    -- caminhos que não nascem de mensagem: subscribe_pro e renew_pro vêm de
+    -- webhook de pagamento, admin_grant vem do operador, e marcos vêm de cron.
+    --
+    -- Sem JOIN com chat_history de propósito. A linha pode não existir (o logger
+    -- é fire-and-forget e o chat_history é reconhecidamente incompleto), e um
+    -- JOIN aqui só transformaria isso num campo a menos — a tela já trata
+    -- "não achei a mensagem" igual a "não há mensagem", que é o mesmo desfecho.
+    --
+    -- 🚨 Nada de crase neste bloco: ele vive DENTRO de um template literal, e uma
+    -- crase aqui termina a string. Foi assim que a primeira versão quebrou os 3
+    -- testes de coins de uma vez.
+    l.source_message_id,
     CASE WHEN l.action_key = 'purchase' AND ord.id IS NOT NULL THEN
       jsonb_build_object(
         'order_number',      ord.marketplace_order_number,
