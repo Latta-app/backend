@@ -2092,10 +2092,71 @@ const getMessagesDaysSummary = async ({ pet_owner_id = null, contact_id = null, 
   }
 };
 
+// Braço do teste A/B do onboarding (A ou B) + se aquele tutor já concluiu, pra
+// os telefones de UMA página do listing. Alimenta a tag do painel da esquerda.
+//
+// Por que uma query solta e não um include/literal correlacionado:
+// `onboarding_flow_assignments` não tem model Sequelize (nem FK — a chave é o
+// telefone, não um id), e literal no `attributes` deste arquivo tem histórico
+// de quebrar quando o Sequelize embrulha o parent numa subquery por causa do
+// `limit` (ver o comentário do ORDER BY em searchContacts). Uma query por
+// página de 15 é barata e não depende de como o Sequelize monta a de cima.
+//
+// 🚨 A normalização acontece SÓ no SQL, dos dois lados da comparação, com a
+// régua única de `public.nudge_normalize_phone` — que é o espelho do
+// `normalizeBrPhone` das EFs, quem grava a atribuição. O backend já tem DOIS
+// normalizadores em JS com regras diferentes (`utils/normalize-br-phone.js`
+// converte também 11 e 10 dígitos; o de `staging-users.helper.js` não), e ler
+// com régua mais larga do que a da escrita casaria telefone que a EF nunca
+// atribuiu. Por isso a query recebe o `cellphone` CRU e devolve `raw`: o
+// mapeamento de volta é por igualdade de string, sem normalizar em JS.
+//
+// Isso importa de verdade: a atribuição é sempre gravada com 13 dígitos e
+// alguns `contacts.cellphone` antigos têm 12 (medido: 3 em 08/08/2026).
+// Comparar cru perderia esses.
+//
+// 🚨 `EXISTS` e não JOIN em pet_owners: há telefone normalizado repetido em
+// `pet_owners` (medido: 1 em 08/08/2026), e um JOIN duplicaria a linha do
+// contato — a tag apareceria duas vezes pro mesmo tutor.
+//
+// Quem NÃO tem linha em `onboarding_flow_assignments` sai daqui ausente, de
+// propósito: são os tutores anteriores a 07/08/2026, quando o A era o único
+// Flow que existia. Decisão do Lucas em 09/08/2026: esses ficam SEM tag, e
+// nada é escrito no banco pra inventar atribuição retroativa.
+const findOnboardingArmsByPhones = async (phones) => {
+  if (!phones?.length) return [];
+  try {
+    const rows = await Contact.sequelize.query(
+      `SELECT r.raw,
+              a.variant,
+              EXISTS (
+                SELECT 1
+                FROM pet_owners po
+                WHERE public.nudge_normalize_phone(po.cell_phone) = a.phone
+                  AND po.onboarding_completed_at IS NOT NULL
+              ) AS completed
+       FROM unnest(ARRAY[:phones]::text[]) AS r(raw)
+       JOIN onboarding_flow_assignments a
+         ON a.phone = public.nudge_normalize_phone(r.raw)`,
+      {
+        replacements: { phones },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+    return rows;
+  } catch (error) {
+    // Degrada pra "sem tag" em vez de derrubar o listing: a conversa é o
+    // produto, a tag é diagnóstico do A/B.
+    console.error('❌ ERRO findOnboardingArmsByPhones:', error.message);
+    return [];
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
   searchContacts,
+  findOnboardingArmsByPhones,
   getReplyMessageById,
   getContactByPetOwnerId,
   getContactByContactId,
