@@ -68,6 +68,45 @@ const signMessagesMediaUrls = async (contacts) => {
   return contacts;
 };
 
+// Carimba em cada contato o braço do teste A/B do onboarding, pra tag do painel
+// da esquerda: { arm: 'A' | 'B', completed: boolean }.
+//
+// Contato SEM atribuição fica sem a chave `onboardingAb` — o frontend não
+// renderiza tag nenhuma. São os tutores anteriores a 07/08/2026, quando só
+// existia um Flow (decisão do Lucas em 09/08/2026: sem tag, sem backfill).
+//
+// Uma query por página de 15 contatos, no mesmo ponto onde attachReplyMessages
+// e signMessagesMediaUrls já enriquecem. Vive aqui e não no repository porque
+// TRÊS builders diferentes alimentam a mesma lista da esquerda
+// (getAllContactsWithMessages, getAllContactsBeingAttended e searchContacts) —
+// enriquecer no service cobre os três com uma chamada cada, e as abas Testers,
+// B2B e Test herdam de graça (todas delegam pro primeiro).
+const attachOnboardingAb = async (contacts) => {
+  if (!contacts?.length) return;
+
+  // O CRU, sem normalizar: a régua única mora no SQL (ver
+  // findOnboardingArmsByPhones). O mapa de volta é por igualdade de string.
+  const phones = [...new Set(contacts.map((c) => c.cellphone).filter(Boolean))];
+  if (!phones.length) return;
+
+  const rows = await ChatRepository.findOnboardingArmsByPhones(phones);
+  if (!rows.length) return;
+
+  const porTelefone = new Map(rows.map((r) => [r.raw, r]));
+  for (const contact of contacts) {
+    const row = porTelefone.get(contact.cellphone);
+    // `dataValues` porque o contato e' instancia Sequelize (mesmo padrao do
+    // attachReplyMessages). O guard existe porque a tag e' diagnostico do A/B:
+    // se algum caminho passar objeto cru por aqui, ela some — nao derruba a
+    // listagem inteira, que e' o produto.
+    if (!row || !contact?.dataValues) continue;
+    contact.dataValues.onboardingAb = {
+      arm: row.variant,
+      completed: Boolean(row.completed),
+    };
+  }
+};
+
 const attachReplyMessages = async (contacts) => {
   for (const contact of contacts) {
     for (const message of contact.chatHistory) {
@@ -115,6 +154,7 @@ const getAllContactsWithMessages = async ({
 
     await attachReplyMessages(contacts);
     await signMessagesMediaUrls(contacts);
+    await attachOnboardingAb(contacts);
 
     return {
       contacts,
@@ -265,6 +305,7 @@ const getAllContactsBeingAttended = async ({
 
     await attachReplyMessages(contacts);
     await signMessagesMediaUrls(contacts);
+    await attachOnboardingAb(contacts);
 
     return {
       contacts,
@@ -297,6 +338,9 @@ const searchContacts = async ({ query, page, limit, role, user_id, filters = {},
 
     await attachReplyMessages(contacts);
     await signMessagesMediaUrls(contacts);
+    // Sem isto a tag some assim que o operador digita na busca: este é um
+    // builder SEPARADO do getAllContactsWithMessages, alimentando a MESMA lista.
+    await attachOnboardingAb(contacts);
 
     return contacts;
   } catch (error) {
