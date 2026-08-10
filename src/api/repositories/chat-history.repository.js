@@ -869,17 +869,34 @@ const searchContacts = async ({
     let finalConditions = [];
 
     if (phone) {
-      finalConditions.push({ cellphone: { [Op.iLike]: `%${phone}%` } });
+      // `contacts.cellphone` guarda SÓ dígitos (`5531984096462`). O operador
+      // digita como lê na tela — `(31) 99816-4444`, `31 99816 4444` — e o
+      // `normalizeQuery` do service tira a pontuação mas MANTÉM o espaço, então
+      // um `iLike %31 998164444%` nunca casava com nada. Compara dígito a
+      // dígito nos dois lados.
+      const phoneDigits = String(phone).replace(/\D/g, '');
+      if (phoneDigits) {
+        finalConditions.push({ cellphone: { [Op.iLike]: `%${phoneDigits}%` } });
+      }
     }
 
     if (name) {
+      // Busca sem acento nos DOIS lados. O `normalizeQuery` já tira o acento da
+      // consulta, mas o banco guarda o nome como o tutor escreveu ("Nínive",
+      // "Thaíza") — comparar um contra o outro fazia a busca por "ninive"
+      // devolver zero. `unaccent` está instalado no schema `public` deste banco.
+      const unaccentILike = (column) =>
+        Sequelize.where(Sequelize.fn('unaccent', Sequelize.col(column)), {
+          [Op.iLike]: Sequelize.fn('unaccent', `%${name}%`),
+        });
+
       const contactsWithPetOwner = await Contact.findAll({
         attributes: ['id'],
         include: [
           {
             model: PetOwner,
             as: 'petOwner',
-            where: { name: { [Op.iLike]: `%${name}%` } },
+            where: unaccentILike('petOwner.name'),
             attributes: ['id'],
             required: true,
           },
@@ -888,7 +905,7 @@ const searchContacts = async ({
 
       const contactIds = contactsWithPetOwner.map((c) => c.id);
 
-      const nameConditions = [{ profile_name: { [Op.iLike]: `%${name}%` } }];
+      const nameConditions = [unaccentILike('Contact.profile_name')];
 
       if (contactIds.length > 0) {
         nameConditions.push({ id: { [Op.in]: contactIds } });
@@ -1101,6 +1118,14 @@ const searchContacts = async ({
         {
           model: PetOwner,
           as: 'petOwner',
+          // 🚨 `required: false` nos DOIS níveis. Um include com `where` e sem
+          // `required` vira INNER JOIN, e um include obrigatório PROPAGA a
+          // obrigatoriedade pro pai: com o `pets` em INNER, todo contato sem
+          // pet ativo (ou sem pet_owner) sumia da BUSCA — 75 dos 166 contatos
+          // de prod, 45%, incluindo quem ainda não terminou o cadastro. A
+          // listagem paginada nunca teve isso porque os outros builders deste
+          // arquivo já passam `required: false`; só o da busca ficou de fora.
+          required: false,
           attributes: [
             'id',
             'name',
@@ -1118,6 +1143,7 @@ const searchContacts = async ({
               attributes: ['id', 'name', 'date_of_birthday', 'photo'],
               through: { attributes: [] },
               where: { is_active: true },
+              required: false,
               include: [
                 { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
                 { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
