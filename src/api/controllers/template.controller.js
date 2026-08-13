@@ -1,4 +1,5 @@
 import TemplateService from '../services/template.service.js';
+import TemplateCatalogService from '../services/template-catalog.service.js';
 
 const getAllTemplates = async (req, res) => {
   try {
@@ -78,8 +79,30 @@ const searchTemplates = async (req, res) => {
   }
 };
 
+// Catálogo cru pra mensageria reidratar o corpo dos templates já enviados.
+// NÃO reusa `getAllTemplates`: aquele é o seletor do atendente e filtra por
+// `template_preview LIKE '*Luma%'` (só os assinados pela Luma) além de
+// paginar. Aqui precisamos de TODOS os aprovados, porque a linha do histórico
+// pode ser de qualquer um deles.
+const getTemplateCatalog = async (req, res) => {
+  try {
+    const templates = await TemplateCatalogService.getTemplateCatalog();
+    return res.status(200).json({
+      code: 'TEMPLATE_CATALOG',
+      data: { templates, count: Object.keys(templates).length },
+    });
+  } catch (error) {
+    console.error('Error retrieving template catalog:', error);
+    return res.status(500).json({
+      code: 'TEMPLATE_CATALOG_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getAllTemplates,
   getTemplateById,
   searchTemplates,
+  getTemplateCatalog,
 };
