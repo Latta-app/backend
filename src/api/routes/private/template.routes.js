@@ -18,6 +18,15 @@ router.get(
   TemplateController.searchTemplates,
 );
 
+// ANTES do `/:id`: Express casa na ordem de declaração, e um `/catalog`
+// declarado depois cairia no parâmetro, buscando um template de id "catalog".
+router.get(
+  '/catalog',
+  verifyToken,
+  checkRole(['admin', 'superAdmin', 'attendant']),
+  TemplateController.getTemplateCatalog,
+);
+
 router.get(
   '/:id',
   verifyToken,
