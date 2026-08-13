@@ -11,24 +11,13 @@
 // lógica por dois repositórios sem ganho.
 
 import { pgQuery } from '../../config/postgres.js';
+import { excludeSynthetic, isWhitelistedQa } from './qa-filter.js';
 
-// Personas de teste vivem em 5500000000001..099 (DDI 55 + DDD 00 inválido).
-// Elas fazem check-in igual a gente de verdade, e sem filtrar isso a tela
-// mede o QA, não a base. O filtro é opt-out (`include_test=1`) pra quando o
-// operador estiver justamente conferindo uma persona.
-const TEST_PHONE_PREFIX = '5500000000';
-
-const clampDays = (raw, fallback = 30) => {
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 1) return fallback;
-  return Math.min(Math.max(Math.round(n), 1), 365);
-};
-
-// Cláusula reaproveitada: mantém o filtro de persona idêntico em todas as
-// consultas. Duas telas medindo denominadores diferentes é como um número
-// certo vira conclusão errada.
-const testFilter = (includeTest, alias = 'o') =>
-  includeTest ? '' : `AND coalesce(${alias}.cell_phone,'') NOT LIKE '${TEST_PHONE_PREFIX}%'`;
+// Persona sintética NUNCA aparece; quem está na whitelist de QA aparece
+// MARCADO. O porquê da distinção está em qa-filter.js — o resumo é que
+// sintética é dado inventado e whitelist é gente real validando o produto.
+const NO_SYNTHETIC = excludeSynthetic('o.cell_phone');
+const QA_FLAG = isWhitelistedQa('o.cell_phone');
 
 /**
  * Faixa 1 — "está rodando?". Hoje, ontem, e o funil de entrega das últimas
@@ -39,19 +28,19 @@ const testFilter = (includeTest, alias = 'o') =>
  * não entrega nada, e contar resumo como entrega já inflou "1.956 cutucadas"
  * que eram 10 envios reais.
  */
-export const getPulse = async ({ includeTest = false } = {}) => {
+export const getPulse = async ({} = {}) => {
   const { rows } = await pgQuery(
     `
     SELECT
       (SELECT count(*) FROM daily_checkins d
          JOIN pet_owners o ON o.id = d.pet_owner_id
-        WHERE d.checkin_date = CURRENT_DATE ${testFilter(includeTest)}) AS checkins_hoje,
+        WHERE d.checkin_date = CURRENT_DATE ${NO_SYNTHETIC}) AS checkins_hoje,
       (SELECT count(DISTINCT d.pet_owner_id) FROM daily_checkins d
          JOIN pet_owners o ON o.id = d.pet_owner_id
-        WHERE d.checkin_date = CURRENT_DATE ${testFilter(includeTest)}) AS tutores_hoje,
+        WHERE d.checkin_date = CURRENT_DATE ${NO_SYNTHETIC}) AS tutores_hoje,
       (SELECT count(*) FROM daily_checkins d
          JOIN pet_owners o ON o.id = d.pet_owner_id
-        WHERE d.checkin_date = CURRENT_DATE - 1 ${testFilter(includeTest)}) AS checkins_ontem,
+        WHERE d.checkin_date = CURRENT_DATE - 1 ${NO_SYNTHETIC}) AS checkins_ontem,
       (SELECT count(*) FROM proactive_nudges_log
         WHERE event = 'nudge_sent' AND tick LIKE '%checkin%'
           AND created_at >= now() - interval '24 hours') AS convites_24h,
@@ -69,7 +58,7 @@ export const getPulse = async ({ includeTest = false } = {}) => {
 };
 
 /** Faixa 1 — série diária pra dar contexto ao número de hoje. */
-export const getDailySeries = async ({ days = 30, includeTest = false } = {}) => {
+export const getDailySeries = async ({ days = 30 } = {}) => {
   const d = clampDays(days);
   const { rows } = await pgQuery(
     `
@@ -83,7 +72,7 @@ export const getDailySeries = async ({ days = 30, includeTest = false } = {}) =>
              count(*) FILTER (WHERE d.source = 'quick_reply') AS por_atalho
         FROM daily_checkins d
         JOIN pet_owners o ON o.id = d.pet_owner_id
-       WHERE d.checkin_date >= CURRENT_DATE - ($1::int - 1) ${testFilter(includeTest)}
+       WHERE d.checkin_date >= CURRENT_DATE - ($1::int - 1) ${NO_SYNTHETIC}
        GROUP BY 1
     ),
     envios AS (
@@ -114,7 +103,7 @@ export const getDailySeries = async ({ days = 30, includeTest = false } = {}) =>
  * `pets` sai do junction `pet_owner_pets` (a tabela `pets` não tem owner_id),
  * filtrando `is_active` e `removed_at`, senão pet apagado volta pra tela.
  */
-export const getTutors = async ({ days = 30, includeTest = false } = {}) => {
+export const getTutors = async ({ days = 30 } = {}) => {
   const d = clampDays(days);
   const { rows } = await pgQuery(
     `
@@ -122,6 +111,7 @@ export const getTutors = async ({ days = 30, includeTest = false } = {}) => {
       s.pet_owner_id,
       o.name AS tutor,
       o.cell_phone,
+      ${QA_FLAG} AS qa_whitelist,
       s.current_streak,
       s.longest_streak,
       s.last_checkin_date,
@@ -144,7 +134,7 @@ export const getTutors = async ({ days = 30, includeTest = false } = {}) => {
     FROM streak_state s
     JOIN pet_owners o ON o.id = s.pet_owner_id
     LEFT JOIN checkin_config cfg ON cfg.pet_owner_id = s.pet_owner_id
-    WHERE true ${testFilter(includeTest)}
+    WHERE true ${NO_SYNTHETIC}
     ORDER BY s.current_streak DESC NULLS LAST, s.last_checkin_date DESC NULLS LAST
     LIMIT 300
     `,
@@ -161,7 +151,7 @@ export const getTutors = async ({ days = 30, includeTest = false } = {}) => {
  * tutor renomeia o eixo e o histórico continua legível. Por isso agrupo pelo
  * label gravado, não por uma lista fixa de eixos que envelheceria.
  */
-export const getRings = async ({ days = 30, includeTest = false } = {}) => {
+export const getRings = async ({ days = 30 } = {}) => {
   const d = clampDays(days);
   const { rows } = await pgQuery(
     `
@@ -179,7 +169,7 @@ export const getRings = async ({ days = 30, includeTest = false } = {}) => {
     CROSS JOIN LATERAL jsonb_array_elements(d.ring_levels) AS r
     WHERE d.ring_levels IS NOT NULL
       AND d.checkin_date >= CURRENT_DATE - ($1::int - 1)
-      ${testFilter(includeTest)}
+      ${NO_SYNTHETIC}
     GROUP BY 1, 2
     ORDER BY 1, total DESC
     `,
@@ -196,7 +186,7 @@ export const getRings = async ({ days = 30, includeTest = false } = {}) => {
  * presente inflaria de 4x a 12x: medido em 13/08, `nao_comeu` aparece em 37
  * linhas e foi marcado em ZERO.
  */
-export const getHealthSignals = async ({ days = 30, includeTest = false } = {}) => {
+export const getHealthSignals = async ({ days = 30 } = {}) => {
   const d = clampDays(days);
   const { rows } = await pgQuery(
     `
@@ -209,7 +199,7 @@ export const getHealthSignals = async ({ days = 30, includeTest = false } = {}) 
       CROSS JOIN LATERAL jsonb_each(coalesce(d.health_signals, '{}'::jsonb)) AS e(k, v)
      WHERE e.v = 'true'::jsonb
        AND d.checkin_date >= CURRENT_DATE - ($1::int - 1)
-       ${testFilter(includeTest)}
+       ${NO_SYNTHETIC}
      GROUP BY 1
      ORDER BY marcado DESC
      LIMIT 30
@@ -220,7 +210,7 @@ export const getHealthSignals = async ({ days = 30, includeTest = false } = {}) 
 };
 
 /** Faixa 3c — missões do período por status. */
-export const getMissions = async ({ days = 30, includeTest = false } = {}) => {
+export const getMissions = async ({ days = 30 } = {}) => {
   const d = clampDays(days);
   const { rows } = await pgQuery(
     `
@@ -233,7 +223,7 @@ export const getMissions = async ({ days = 30, includeTest = false } = {}) => {
       JOIN pet_owners o ON o.id = m.pet_owner_id
       LEFT JOIN mission_catalog c ON c.id = m.mission_id
      WHERE m.mission_date >= CURRENT_DATE - ($1::int - 1)
-       ${testFilter(includeTest)}
+       ${NO_SYNTHETIC}
      GROUP BY 1, 2
      ORDER BY total DESC
     `,
@@ -250,7 +240,7 @@ export const getMissions = async ({ days = 30, includeTest = false } = {}) => {
  * (gerado em 10/08) e o mensal parado no período de junho, gerado em 01/07.
  * Um ranking sem data ao lado mente calado.
  */
-export const getRankings = async ({ includeTest = false } = {}) => {
+export const getRankings = async ({} = {}) => {
   const { rows } = await pgQuery(
     `
     WITH ultimo AS (
@@ -274,7 +264,7 @@ export const getRankings = async ({ includeTest = false } = {}) => {
        AND u.period_start = l.period_start
       LEFT JOIN pet_owners o ON o.id = l.pet_owner_id
       LEFT JOIN pets p ON p.id = l.pet_id
-     WHERE true ${testFilter(includeTest)}
+     WHERE true ${NO_SYNTHETIC}
      ORDER BY l.period_type, l.granularity, l.scope_key, l.rank
      LIMIT 500
     `,

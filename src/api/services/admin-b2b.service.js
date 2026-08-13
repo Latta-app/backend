@@ -6,33 +6,29 @@
 // ACIONAMENTO, não só de agendamento: o CHECK de `category` em prod aceita as
 // oito categorias (veterinaria, petshop, banho_tosa, hotel, adestramento,
 // dog_walker, funeraria, farmacia) e o de `purpose` aceita agendamento,
-// pergunta e pedido. `clinics.category` tem o mesmo CHECK de oito. Ambos
-// vieram da migration 20260515110000_scheduling_b2b_foundations.sql, que é
-// explicitamente aditiva. Criar tabela paralela aqui seria duplicar um
-// desenho que já existe e dividir a verdade em dois lugares.
+// pergunta e pedido. `clinics.category` tem o mesmo CHECK. Ambos vieram da
+// migration 20260515110000_scheduling_b2b_foundations.sql, que é aditiva.
 //
-// O que ESTÁ faltando não é schema, é escrita (medido em 13/08/2026):
-//   - nenhuma EF escreve `purpose`; as 8 linhas estão no DEFAULT 'agendamento'
-//   - a busca local (as 8 categorias no chat-engine) guarda estado só no Redis
-//     com TTL de 5min e não grava acionamento nenhum
-// Por isso esta tela nasce com sete categorias zeradas. Elas aparecem MESMO
-// ASSIM, nomeadas e em zero: categoria que some da tela vira categoria que
-// ninguém lembra de ligar.
+// VOCABULÁRIO, porque os dois se confundem na tela e o operador precisa da
+// diferença:
+//   ACIONAMENTO = a Latta abriu conversa com um estabelecimento em nome de um
+//                 tutor. É uma linha em `scheduling_sessions`. Toda linha é um
+//                 acionamento, tenha dado em algo ou não.
+//   AGENDAMENTO = o acionamento virou compromisso com data marcada
+//                 (`scheduled_date` preenchido e não cancelado).
+// Por isso a tela mostra X/Y, nunca só um número: 8 acionamentos com 3
+// agendamentos é uma operação; 8 com 8 é outra.
+//
+// O que NÃO está gravado, e a tela declara em vez de esconder: nenhuma EF
+// escreve `purpose` (tudo entra no DEFAULT 'agendamento'), e a busca local das
+// oito categorias guarda estado só no Redis por 5min, sem gravar acionamento.
 
 import { pgQuery } from '../../config/postgres.js';
+import { excludeSynthetic, isWhitelistedQa } from './qa-filter.js';
 
-// Rótulos PT-BR das oito categorias do CHECK em prod. Existe porque a tela
-// precisa desenhar a categoria que ainda NÃO aconteceu, e um GROUP BY só
-// devolve o que existe.
-//
-// 🚨 Isto é um dicionário de RÓTULO, não a lista de categorias válidas. Uma
-// lista escrita à mão envelhece calada: no dia em que o CHECK ganhar uma nona
-// categoria, ela ficaria curta e a tela esconderia justamente a novidade. Não
-// dá pra derivar o CHECK aqui (os testes do backend são herméticos, sem
-// Postgres), então o desenho se protege por outro caminho:
-// `mergeCategories()` UNE este dicionário com as categorias que de fato
-// aparecem no banco. Categoria nova entra na tela sozinha, sem rótulo bonito
-// mas visível — que é infinitamente melhor que sumir.
+// Rótulos PT-BR das oito categorias do CHECK em prod. É dicionário de RÓTULO,
+// não a lista de categorias válidas: `mergeCategories` une com o que o banco
+// devolveu, então categoria nova aparece na tela mesmo sem tradução.
 export const B2B_CATEGORY_LABELS = [
   { id: 'veterinaria', label: 'Veterinária' },
   { id: 'banho_tosa', label: 'Banho & tosa' },
@@ -50,14 +46,6 @@ export const B2B_PURPOSES = [
   { id: 'pedido', label: 'Pedido' },
 ];
 
-/**
- * Une o dicionário de rótulos com as categorias observadas no banco.
- *
- * Categoria conhecida sai com rótulo PT-BR; categoria que apareceu no dado sem
- * estar no dicionário sai com o próprio id como rótulo e `unlabeled: true`,
- * pra tela poder sinalizar "isto é novo, ninguém traduziu ainda". Nenhuma das
- * duas some.
- */
 export const mergeCategories = (observed = []) => {
   const known = new Map(B2B_CATEGORY_LABELS.map((c) => [c.id, { ...c, unlabeled: false }]));
   for (const id of observed) {
@@ -68,33 +56,28 @@ export const mergeCategories = (observed = []) => {
   return [...known.values()];
 };
 
-// Estados que contam como desfecho positivo. `NO_SHOW` fica de fora de
-// propósito: fechou e não aconteceu não é fechado.
+// Desfecho positivo. `NO_SHOW` fica de fora: fechou e não aconteceu não fechou.
 const CLOSED_STATES = "('CONFIRMED','COMPLETED')";
+// Um acionamento vira AGENDAMENTO quando tem data marcada e não foi cancelado.
+const IS_SCHEDULED = `(s.scheduled_date IS NOT NULL AND s.state NOT LIKE 'CANCELLED%')`;
 
-const clampDays = (raw, fallback = 90) => {
+const NO_SYNTHETIC = excludeSynthetic('s.user_phone');
+const QA_FLAG = isWhitelistedQa('s.user_phone');
+
+const clampDays = (raw, fallback = 30) => {
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 1) return fallback;
   return Math.min(Math.max(Math.round(n), 1), 730);
 };
 
-const TEST_PHONE_PREFIX = '5500000000';
-const testFilter = (includeTest) =>
-  includeTest ? '' : `AND coalesce(s.user_phone,'') NOT LIKE '${TEST_PHONE_PREFIX}%'`;
-
-/**
- * Por categoria e propósito, com as oito sempre presentes.
- *
- * O volume real é pequeno (8 sessões no total em 13/08/2026), então esta
- * agregação é contexto — quem responde "o que aconteceu" é a linha do tempo.
- */
-export const getByCategory = async ({ days = 90, includeTest = false } = {}) => {
-  const d = clampDays(days);
+/** Acionamentos e agendamentos por categoria e propósito. */
+export const getByCategory = async ({ days = 30 } = {}) => {
   const { rows } = await pgQuery(
     `
     SELECT s.category,
            s.purpose,
            count(*) AS acionamentos,
+           count(*) FILTER (WHERE ${IS_SCHEDULED}) AS agendamentos,
            count(*) FILTER (WHERE s.state IN ${CLOSED_STATES}) AS fechados,
            count(*) FILTER (WHERE s.state = 'ESCALATED') AS escalados,
            count(*) FILTER (WHERE s.state LIKE 'CANCELLED%') AS cancelados,
@@ -105,22 +88,58 @@ export const getByCategory = async ({ days = 90, includeTest = false } = {}) => 
            max(s.created_at) AS ultimo_em
       FROM scheduling_sessions s
      WHERE s.created_at >= now() - ($1 || ' days')::interval
-       ${testFilter(includeTest)}
+       ${NO_SYNTHETIC}
      GROUP BY 1, 2
     `,
-    [String(d)],
+    [String(clampDays(days))],
   );
   return rows;
 };
 
 /**
- * A linha do tempo: um acionamento por linha, legível.
+ * Quem mais aciona, e o que pede.
  *
- * Com o volume de hoje esta é a visão PRINCIPAL. Média de 8 casos não
- * descreve nada; o caso descreve.
+ * `servicos` é a lista real do que aquele tutor pediu, agregada — é a resposta
+ * pra "o que ele agenda", que nenhum número sozinho dá. Vem de
+ * `service_requested`, que é o texto que o intake capturou.
  */
-export const getTimeline = async ({ days = 90, includeTest = false, limit = 200 } = {}) => {
-  const d = clampDays(days);
+export const getTutors = async ({ days = 30 } = {}) => {
+  const { rows } = await pgQuery(
+    `
+    SELECT s.pet_owner_id,
+           o.name AS tutor,
+           o.cell_phone,
+           ${QA_FLAG} AS qa_whitelist,
+           count(*) AS acionamentos,
+           count(*) FILTER (WHERE ${IS_SCHEDULED}) AS agendamentos,
+           count(*) FILTER (WHERE s.state IN ${CLOSED_STATES}) AS fechados,
+           count(DISTINCT s.clinic_id) AS estabelecimentos,
+           count(DISTINCT s.category) AS categorias,
+           string_agg(DISTINCT s.category, ',') AS categorias_lista,
+           string_agg(DISTINCT nullif(trim(s.service_requested), ''), ' · ') AS servicos,
+           avg(s.rating) FILTER (WHERE s.rating IS NOT NULL) AS nota_media,
+           max(s.created_at) AS ultimo_em
+      FROM scheduling_sessions s
+      LEFT JOIN pet_owners o ON o.id = s.pet_owner_id
+     WHERE s.created_at >= now() - ($1 || ' days')::interval
+       ${NO_SYNTHETIC}
+     GROUP BY 1, 2, 3, 4
+     ORDER BY acionamentos DESC, agendamentos DESC
+     LIMIT 100
+    `,
+    [String(clampDays(days))],
+  );
+  return rows;
+};
+
+/**
+ * A linha do tempo: um acionamento por linha.
+ *
+ * Carrega `pet_owner_id` e `cell_phone` porque a tela precisa levar o operador
+ * pra CONVERSA daquele tutor — ver o acionamento sem poder ler o que foi dito
+ * deixa a análise pela metade.
+ */
+export const getTimeline = async ({ days = 30, limit = 300 } = {}) => {
   const { rows } = await pgQuery(
     `
     SELECT s.id,
@@ -141,34 +160,40 @@ export const getTimeline = async ({ days = 90, includeTest = false, limit = 200 
            s.requires_deposit,
            s.deposit_amount,
            s.attendance_confirmed_at,
+           ${IS_SCHEDULED} AS agendado,
+           ${QA_FLAG} AS qa_whitelist,
            s.clinic_id,
            c.name AS estabelecimento,
            c.city AS estabelecimento_cidade,
            c.neighbourhood AS estabelecimento_bairro,
+           c.phone_normalized AS estabelecimento_telefone,
+           s.pet_owner_id,
            o.name AS tutor,
+           o.cell_phone AS tutor_telefone,
            p.name AS pet
       FROM scheduling_sessions s
       LEFT JOIN clinics c ON c.id = s.clinic_id
       LEFT JOIN pet_owners o ON o.id = s.pet_owner_id
       LEFT JOIN pets p ON p.id = s.pet_id
      WHERE s.created_at >= now() - ($1 || ' days')::interval
-       ${testFilter(includeTest)}
+       ${NO_SYNTHETIC}
      ORDER BY s.created_at DESC
      LIMIT $2
     `,
-    [String(d), Math.min(Math.max(Number(limit) || 200, 1), 500)],
+    [String(clampDays(days)), Math.min(Math.max(Number(limit) || 300, 1), 500)],
   );
   return rows;
 };
 
 /**
- * Agenda consolidada: o que está marcado daqui pra frente, mais o passado
- * recente.
+ * Agenda pro calendário.
  *
- * Só entra sessão com `scheduled_date`. Sessão escalada sem data não é
- * compromisso e não pode ocupar linha de agenda.
+ * A janela NÃO é a mesma do resto da tela: um calendário mensal precisa do mês
+ * inteiro, inclusive o que já passou e o que ainda vai acontecer. Por isso
+ * recebe `from`/`to` explícitos em vez de herdar o `days` dos outros painéis —
+ * herdar faria o mês aparecer pela metade sem nada explicando.
  */
-export const getAgenda = async ({ includeTest = false, pastDays = 30 } = {}) => {
+export const getAgenda = async ({ from, to } = {}) => {
   const { rows } = await pgQuery(
     `
     SELECT s.id,
@@ -177,11 +202,23 @@ export const getAgenda = async ({ includeTest = false, pastDays = 30 } = {}) => 
            s.service_requested,
            s.category,
            s.state,
+           s.purpose,
            s.confirmed_at,
            s.attendance_confirmed_at,
            s.quoted_price_text,
+           s.order_summary,
+           s.rating,
+           s.escalation_reason,
+           s.requires_deposit,
+           ${QA_FLAG} AS qa_whitelist,
+           s.clinic_id,
            c.name AS estabelecimento,
            c.city AS estabelecimento_cidade,
+           c.neighbourhood AS estabelecimento_bairro,
+           c.phone_normalized AS estabelecimento_telefone,
+           c.requires_deposit AS estabelecimento_exige_sinal,
+           c.rating AS estabelecimento_nota_google,
+           s.pet_owner_id,
            o.name AS tutor,
            o.cell_phone AS tutor_telefone,
            p.name AS pet
@@ -190,43 +227,45 @@ export const getAgenda = async ({ includeTest = false, pastDays = 30 } = {}) => 
       LEFT JOIN pet_owners o ON o.id = s.pet_owner_id
       LEFT JOIN pets p ON p.id = s.pet_id
      WHERE s.scheduled_date IS NOT NULL
-       AND s.scheduled_date >= now() - ($1 || ' days')::interval
-       AND s.state NOT LIKE 'CANCELLED%'
-       ${testFilter(includeTest)}
+       AND s.scheduled_date >= $1::date
+       AND s.scheduled_date < ($2::date + 1)
+       ${NO_SYNTHETIC}
      ORDER BY s.scheduled_date
-     LIMIT 300
+     LIMIT 500
     `,
-    [String(clampDays(pastDays, 30))],
+    [from, to],
   );
   return rows;
 };
 
 /**
- * Ficha do estabelecimento — o que já está guardado e ninguém vê.
+ * Ficha do estabelecimento — só quem a Latta CONTATOU de verdade.
  *
- * 🚨 `scheduling_total_attempts` e `scheduling_total_successful` são contadores
- * da própria `clinics` e NÃO batem com `scheduling_sessions`: em 13/08/2026 a
- * soma dava 123 tentativas e 46 sucessos contra 8 sessões existentes. Medindo
- * linha a linha, **118 das 123 são de "Iris Clinica Teste"**, a clínica de QA:
- * o contador nunca foi zerado depois dos testes. Ou seja, não é outra métrica,
- * é a mesma métrica contaminada. Viajam com nome próprio (`contador_legado_*`)
- * e a tela os rotula como legado. Nunca somar com o que sai de
- * `scheduling_sessions`, e nunca usar como denominador.
+ * 🚨 O critério é ter acionamento na janela OU `last_contacted_at`. O
+ * `scheduling_total_attempts > 0` saiu da condição: ele é contador legado da
+ * própria `clinics` e trazia pra tela a clínica de QA, que sozinha responde por
+ * 118 das 123 tentativas somadas. Cadastro que nunca foi contatado é base, não
+ * relacionamento, e enche a tela de linha morta.
+ *
+ * Os contadores legados continuam viajando com nome próprio
+ * (`contador_legado_*`) e a tela os rotula como tal — nunca somam com o que sai
+ * de `scheduling_sessions`, nem entram em denominador.
  */
-export const getMerchants = async ({ days = 90, includeTest = false } = {}) => {
-  const d = clampDays(days);
+export const getMerchants = async ({ days = 30 } = {}) => {
   const { rows } = await pgQuery(
     `
     WITH sess AS (
       SELECT s.clinic_id,
              count(*) AS acionamentos,
+             count(*) FILTER (WHERE ${IS_SCHEDULED}) AS agendamentos,
              count(*) FILTER (WHERE s.state IN ${CLOSED_STATES}) AS fechados,
              count(*) FILTER (WHERE s.state = 'ESCALATED') AS escalados,
              avg(s.rating) FILTER (WHERE s.rating IS NOT NULL) AS nota_media_latta,
-             max(s.created_at) AS ultimo_acionamento
+             max(s.created_at) AS ultimo_acionamento,
+             string_agg(DISTINCT nullif(trim(s.service_requested), ''), ' · ') AS servicos
         FROM scheduling_sessions s
        WHERE s.created_at >= now() - ($1 || ' days')::interval
-         ${testFilter(includeTest)}
+         ${NO_SYNTHETIC}
        GROUP BY 1
     )
     SELECT c.id,
@@ -247,30 +286,29 @@ export const getMerchants = async ({ days = 90, includeTest = false } = {}) => {
            c.scheduling_total_attempts AS contador_legado_tentativas,
            c.scheduling_total_successful AS contador_legado_sucessos,
            coalesce(sess.acionamentos, 0) AS acionamentos,
+           coalesce(sess.agendamentos, 0) AS agendamentos,
            coalesce(sess.fechados, 0) AS fechados,
            coalesce(sess.escalados, 0) AS escalados,
+           sess.servicos,
            sess.nota_media_latta,
            sess.ultimo_acionamento
       FROM clinics c
       LEFT JOIN sess ON sess.clinic_id = c.id
-     WHERE sess.clinic_id IS NOT NULL
-        OR c.last_contacted_at IS NOT NULL
-        OR c.scheduling_total_attempts > 0
+     WHERE (sess.clinic_id IS NOT NULL OR c.last_contacted_at IS NOT NULL)
+       ${excludeSynthetic('c.phone_normalized')}
+       AND NOT ${isWhitelistedQa('c.phone_normalized')}
      ORDER BY sess.ultimo_acionamento DESC NULLS LAST,
               c.last_contacted_at DESC NULLS LAST
      LIMIT 200
     `,
-    [String(d)],
+    [String(clampDays(days))],
   );
   return rows;
 };
 
 /**
- * Cobertura do cadastro por categoria — quantos estabelecimentos existem pra
- * cada uma, e quantos dá pra acionar de fato.
- *
- * É o que explica uma categoria zerada na tela: farmácia não tem acionamento
- * porque não tem cadastro nenhum, não porque ninguém quis.
+ * Cobertura do cadastro por categoria — é o que explica uma categoria zerada:
+ * farmácia não tem acionamento porque não tem cadastro, não porque ninguém quis.
  */
 export const getCoverage = async () => {
   const { rows } = await pgQuery(
@@ -281,6 +319,9 @@ export const getCoverage = async () => {
            count(*) FILTER (WHERE c.do_not_contact) AS nao_contatar,
            count(*) FILTER (WHERE c.last_contacted_at IS NOT NULL) AS ja_contatados
       FROM clinics c
+     WHERE true
+       ${excludeSynthetic('c.phone_normalized')}
+       AND NOT ${isWhitelistedQa('c.phone_normalized')}
      GROUP BY 1
     `,
   );
@@ -292,6 +333,7 @@ export default {
   B2B_PURPOSES,
   mergeCategories,
   getByCategory,
+  getTutors,
   getTimeline,
   getAgenda,
   getMerchants,

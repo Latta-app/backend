@@ -10,13 +10,10 @@ const parseDays = (raw, fallback = 30) => {
   return Math.min(Math.max(Math.round(n), 1), 365);
 };
 
-const parseBool = (raw) => raw === '1' || raw === 'true';
-
 export const overview = async (req, res) => {
   try {
     const days = parseDays(req.query.days);
-    const includeTest = parseBool(req.query.include_test);
-    const opts = { days, includeTest };
+    const opts = { days };
 
     const [pulse, series, tutors, rings, healthSignals, missions, rankings] = await Promise.all([
       AdminCheckinService.getPulse(opts),
@@ -32,7 +29,6 @@ export const overview = async (req, res) => {
       code: 'CHECKIN_OVERVIEW',
       data: {
         window_days: days,
-        include_test: includeTest,
         pulse,
         series,
         tutors,

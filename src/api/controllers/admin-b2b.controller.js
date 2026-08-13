@@ -1,32 +1,41 @@
 import AdminB2bService from '../services/admin-b2b.service.js';
 
-const parseDays = (raw, fallback = 90) => {
+const parseDays = (raw, fallback = 30) => {
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 1) return fallback;
   return Math.min(Math.max(Math.round(n), 1), 730);
 };
 
-const parseBool = (raw) => raw === '1' || raw === 'true';
+// Mês do calendário, em ISO. Sem parâmetro, o mês corrente.
+const parseMonth = (raw) => {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(raw || ''));
+  const now = new Date();
+  const year = m ? Number(m[1]) : now.getUTCFullYear();
+  const month = m ? Number(m[2]) - 1 : now.getUTCMonth();
+  const from = new Date(Date.UTC(year, month, 1));
+  const to = new Date(Date.UTC(year, month + 1, 0));
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return { from: iso(from), to: iso(to), month: iso(from).slice(0, 7) };
+};
 
 export const overview = async (req, res) => {
   try {
     const days = parseDays(req.query.days);
-    const includeTest = parseBool(req.query.include_test);
-    const opts = { days, includeTest };
+    const agendaMonth = parseMonth(req.query.month);
+    const opts = { days };
 
-    const [byCategory, timeline, agenda, merchants, coverage] = await Promise.all([
+    const [byCategory, tutors, timeline, agenda, merchants, coverage] = await Promise.all([
       AdminB2bService.getByCategory(opts),
+      AdminB2bService.getTutors(opts),
       AdminB2bService.getTimeline(opts),
-      AdminB2bService.getAgenda({ includeTest }),
+      AdminB2bService.getAgenda(agendaMonth),
       AdminB2bService.getMerchants(opts),
       AdminB2bService.getCoverage(),
     ]);
 
-    // O vocabulário vai junto com o dado: a tela precisa desenhar as oito
-    // categorias mesmo quando sete não têm acionamento, e sem a lista ela só
-    // saberia das que apareceram no GROUP BY. A união com o que o banco
-    // devolveu garante que uma categoria nova apareça mesmo que ninguém tenha
-    // atualizado o dicionário de rótulos.
+    // O vocabulário viaja com o dado: a tela desenha as oito categorias mesmo
+    // quando sete estão zeradas, e a união com o observado garante que uma
+    // categoria nova apareça mesmo sem ninguém ter traduzido o rótulo.
     const observed = [
       ...byCategory.map((r) => r.category),
       ...coverage.map((r) => r.category),
@@ -36,10 +45,11 @@ export const overview = async (req, res) => {
       code: 'B2B_OVERVIEW',
       data: {
         window_days: days,
-        include_test: includeTest,
+        agenda_month: agendaMonth.month,
         categories: AdminB2bService.mergeCategories(observed),
         purposes: AdminB2bService.B2B_PURPOSES,
         by_category: byCategory,
+        tutors,
         timeline,
         agenda,
         merchants,
