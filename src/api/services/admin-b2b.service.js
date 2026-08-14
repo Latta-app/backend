@@ -99,15 +99,118 @@ export const getByCategory = async ({ days = 30 } = {}) => {
 };
 
 /**
- * Quem mais aciona, e o que pede.
+ * Quanto tempo a jornada levou, e de quem era a vez em cada trecho.
+ *
+ * A fonte é `state_history`: um array `{at, state, reason}` que toda sessão
+ * carrega. Entre dois eventos consecutivos existe um TRECHO, e o estado do
+ * primeiro diz de quem era a vez naquele intervalo:
+ *
+ *   CONTACTING, NEGOTIATING              → estabelecimento (esperamos ele)
+ *   WAITING_USER, WAITING_FINAL_CONFIRM  → tutor (esperamos o tutor)
+ *   ESCALATED                            → suporte (um humano assumiu)
+ *   INITIATED                            → Latta (ainda não saímos daqui)
+ *
+ * `INITIATED` não é detalhe: numa das jornadas medidas ele responde por 35 das
+ * 36 horas — o acionamento entrou fora do expediente e dormiu na fila. Sem
+ * esse balde, as partes não somam o total e a conta parece mentir.
+ *
+ * DUAS REGRAS que a conta precisa respeitar pra não mentir:
+ *
+ * 1. A jornada acaba no PRIMEIRO desfecho, não no último evento. Sessão que é
+ *    confirmada e escala depois (relay, bot loop) continua recebendo eventos
+ *    por dias; contá-los diria "essa jornada levou 13 dias" sobre um
+ *    agendamento fechado em 9 segundos.
+ * 2. Por isso todo trecho é fechado no MENOR entre o próximo evento e o
+ *    desfecho. Sem isso as partes ficariam maiores que o total.
+ *
+ * Jornada ainda aberta não entra na média (não tem duração ainda), mas os
+ * trechos dela contam: é assim que "está com o suporte há 13 dias" aparece.
+ */
+const JORNADA_CTE = (noSynthetic) => `
+  sess_j AS (
+    SELECT s.id, s.pet_owner_id, s.created_at, s.state_history
+      FROM scheduling_sessions s
+     WHERE s.created_at >= now() - ($1 || ' days')::interval
+       ${noSynthetic}
+  ), eventos AS (
+    SELECT sess_j.id,
+           e.ord,
+           (e.evt->>'at')::timestamptz AS at,
+           e.evt->>'state' AS st
+      FROM sess_j
+      CROSS JOIN LATERAL jsonb_array_elements(coalesce(sess_j.state_history, '[]'::jsonb))
+        WITH ORDINALITY AS e(evt, ord)
+  ), fim AS (
+    SELECT id, min(at) AS terminou
+      FROM eventos
+     WHERE st IN ('CONFIRMED','COMPLETED','CANCELLED_BY_USER','CANCELLED_BY_MERCHANT','NO_SHOW','FAILED')
+     GROUP BY 1
+  ), trechos AS (
+    SELECT e.id, e.st, e.at,
+           lead(e.at) OVER (PARTITION BY e.id ORDER BY e.ord) AS proximo,
+           f.terminou
+      FROM eventos e
+      LEFT JOIN fim f ON f.id = e.id
+  ), balde AS (
+    SELECT id,
+           CASE
+             WHEN st IN ('CONTACTING', 'NEGOTIATING')             THEN 'estabelecimento'
+             WHEN st IN ('WAITING_USER', 'WAITING_FINAL_CONFIRM') THEN 'tutor'
+             WHEN st = 'ESCALATED'                                THEN 'suporte'
+             WHEN st = 'INITIATED'                                THEN 'latta'
+             ELSE NULL
+           END AS quem,
+           greatest(
+             EXTRACT(EPOCH FROM (
+               least(coalesce(proximo, now()), coalesce(terminou, now())) - at
+             )), 0
+           ) AS seg
+      FROM trechos
+     WHERE terminou IS NULL OR at < terminou
+  ), por_sessao AS (
+    SELECT id,
+           sum(seg) FILTER (WHERE quem = 'tutor')           AS seg_tutor,
+           sum(seg) FILTER (WHERE quem = 'estabelecimento') AS seg_estabelecimento,
+           sum(seg) FILTER (WHERE quem = 'suporte')         AS seg_suporte,
+           sum(seg) FILTER (WHERE quem = 'latta')           AS seg_latta
+      FROM balde
+     GROUP BY 1
+  ), jornada AS (
+    SELECT sess_j.pet_owner_id,
+           EXTRACT(EPOCH FROM (coalesce(f.terminou, now()) - sess_j.created_at)) AS total_seg,
+           f.terminou IS NOT NULL AS fechada,
+           p.seg_tutor, p.seg_estabelecimento, p.seg_suporte, p.seg_latta
+      FROM sess_j
+      LEFT JOIN fim f ON f.id = sess_j.id
+      LEFT JOIN por_sessao p ON p.id = sess_j.id
+  ), jornada_por_tutor AS (
+    SELECT pet_owner_id,
+           count(*) FILTER (WHERE fechada)                       AS jornadas_fechadas,
+           round(avg(total_seg) FILTER (WHERE fechada))          AS jornada_media_seg,
+           round(min(total_seg) FILTER (WHERE fechada))          AS jornada_min_seg,
+           round(max(total_seg) FILTER (WHERE fechada))          AS jornada_max_seg,
+           round(sum(coalesce(seg_tutor, 0)))                    AS seg_tutor,
+           round(sum(coalesce(seg_estabelecimento, 0)))          AS seg_estabelecimento,
+           round(sum(coalesce(seg_suporte, 0)))                  AS seg_suporte,
+           round(sum(coalesce(seg_latta, 0)))                    AS seg_latta
+      FROM jornada
+     GROUP BY 1
+  )
+`;
+
+/**
+ * Quem mais aciona, o que pede, e quanto tempo a jornada dele leva.
  *
  * `servicos` é a lista real do que aquele tutor pediu, agregada — é a resposta
  * pra "o que ele agenda", que nenhum número sozinho dá. Vem de
  * `service_requested`, que é o texto que o intake capturou.
+ *
+ * As colunas de tempo vêm de `JORNADA_CTE` (ver o bloco acima).
  */
 export const getTutors = async ({ days = 30 } = {}) => {
   const { rows } = await pgQuery(
     `
+    WITH ${JORNADA_CTE(NO_SYNTHETIC)}
     SELECT s.pet_owner_id,
            o.name AS tutor,
            o.cell_phone,
@@ -120,9 +223,21 @@ export const getTutors = async ({ days = 30 } = {}) => {
            string_agg(DISTINCT s.category, ',') AS categorias_lista,
            string_agg(DISTINCT nullif(trim(s.service_requested), ''), ' · ') AS servicos,
            avg(s.rating) FILTER (WHERE s.rating IS NOT NULL) AS nota_media,
-           max(s.created_at) AS ultimo_em
+           max(s.created_at) AS ultimo_em,
+           max(j.jornadas_fechadas)   AS jornadas_fechadas,
+           max(j.jornada_media_seg)   AS jornada_media_seg,
+           max(j.jornada_min_seg)     AS jornada_min_seg,
+           max(j.jornada_max_seg)     AS jornada_max_seg,
+           max(j.seg_tutor)           AS seg_tutor,
+           max(j.seg_estabelecimento) AS seg_estabelecimento,
+           max(j.seg_suporte)         AS seg_suporte,
+           max(j.seg_latta)           AS seg_latta
       FROM scheduling_sessions s
       LEFT JOIN pet_owners o ON o.id = s.pet_owner_id
+      -- jornada_por_tutor já vem com UMA linha por tutor, então o max() aqui
+      -- é só o agregado exigido pelo GROUP BY: não escolhe nada.
+      -- (Sem crase neste bloco: a query é template literal e a crase a fecha.)
+      LEFT JOIN jornada_por_tutor j ON j.pet_owner_id = s.pet_owner_id
      WHERE s.created_at >= now() - ($1 || ' days')::interval
        ${NO_SYNTHETIC}
      GROUP BY 1, 2, 3, 4
