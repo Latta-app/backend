@@ -35,7 +35,9 @@ export const B2B_CATEGORY_LABELS = [
   { id: 'petshop', label: 'Petshop' },
   { id: 'hotel', label: 'Hotel & creche' },
   { id: 'adestramento', label: 'Adestramento' },
-  { id: 'dog_walker', label: 'Dog walker' },
+  // "Passeador", não "Dog walker": o painel é operado em PT-BR e o termo em
+  // inglês era o único estrangeirismo da lista.
+  { id: 'dog_walker', label: 'Passeador' },
   { id: 'farmacia', label: 'Farmácia' },
   { id: 'funeraria', label: 'Funerária pet' },
 ];
