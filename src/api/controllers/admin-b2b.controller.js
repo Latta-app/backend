@@ -24,6 +24,19 @@ export const overview = async (req, res) => {
     const agendaMonth = parseMonth(req.query.month);
     const opts = { days };
 
+    // `?only=agenda` existe pro passo de mês do calendário. Trocar de mês
+    // pedia o overview inteiro — seis queries, incluindo os 200
+    // estabelecimentos — e a tela inteira sumia atrás do "Carregando B2B..."
+    // enquanto isso. Só a agenda muda quando o mês muda; o resto da tela nem
+    // olha pro mês.
+    if (String(req.query.only || '') === 'agenda') {
+      const agenda = await AdminB2bService.getAgenda(agendaMonth);
+      return res.json({
+        code: 'B2B_AGENDA',
+        data: { agenda_month: agendaMonth.month, agenda },
+      });
+    }
+
     const [byCategory, tutors, timeline, agenda, merchants, coverage] = await Promise.all([
       AdminB2bService.getByCategory(opts),
       AdminB2bService.getTutors(opts),
