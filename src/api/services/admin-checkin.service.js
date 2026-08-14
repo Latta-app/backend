@@ -19,6 +19,15 @@ import { excludeSynthetic, isWhitelistedQa } from './qa-filter.js';
 const NO_SYNTHETIC = excludeSynthetic('o.cell_phone');
 const QA_FLAG = isWhitelistedQa('o.cell_phone');
 
+// Mesmo teto do `parseDays` do controller (365). A janela é clampada aqui
+// TAMBÉM porque as funções são exportadas uma a uma: quem chamar direto, sem
+// passar pelo controller, não pode montar `CURRENT_DATE - $1` com lixo.
+const clampDays = (raw, fallback = 30) => {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(Math.max(Math.round(n), 1), 365);
+};
+
 /**
  * Faixa 1 — "está rodando?". Hoje, ontem, e o funil de entrega das últimas
  * 24h.
