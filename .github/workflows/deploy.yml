@@ -95,7 +95,47 @@ jobs:
             echo "Sincronizando env gerenciada..."
             upsert_env SCHEDULING_INTERNAL_SECRET "$SCHEDULING_INTERNAL_SECRET"
 
-            pm2 restart all 2>/dev/null || (pkill -f 'node.*app.js' || true; nohup npm start > /tmp/backend.log 2>&1 &)
+            # Estado ANTES de mexer: e o unico registro de por que a API caiu.
+            # O deploy e quase sempre a primeira coisa que roda depois de um
+            # incidente, e ate 20/08 ele reiniciava sem nunca fotografar o que
+            # encontrou — entao a causa morria junto com o processo.
+            echo "─── estado encontrado ───"
+            uptime || true
+            pm2 list || true
+
+            # 🚨 `pm2 restart all` NAO levanta app que o pm2 NAO CONHECE.
+            #
+            # Incidente 20/08/2026: o daemon do pm2 morreu e voltou com a lista
+            # de apps VAZIA. O `restart all` reiniciou o unico processo que
+            # sobrou (o modulo pm2-logrotate), devolveu **exit 0**, e por isso o
+            # `|| fallback` nunca disparou. Resultado: nginx devolvendo 502, a
+            # mensageria inteira fora do ar, e o deploy se declarando OK — o
+            # `restart` nao tem como distinguir "reiniciei o backend" de
+            # "reiniciei um modulo qualquer que nao e o backend".
+            #
+            # O conserto e decidir pela PRESENCA do app, nunca pelo exit code
+            # de um `restart` coletivo: `describe` responde a pergunta certa.
+            #
+            # O daemon sobe num passo proprio (`pm2 ping`) porque o spawn do
+            # daemon a partir da sessao SSH derrubou o script com SIGTERM (143)
+            # no meio do incidente, antes de chegar no health check.
+            pm2 ping > /dev/null 2>&1 || true
+
+            if pm2 describe latta-backend > /dev/null 2>&1; then
+              echo "app registrado no pm2 — restart"
+              pm2 restart latta-backend --update-env
+            else
+              echo "app AUSENTE do pm2 — cold start"
+              # Mata sobra de `nohup npm start` de deploys antigos: se ela
+              # continuar segurando a 8000, o pm2 sobe e morre em EADDRINUSE.
+              pkill -f 'node.*src/app.js' || true
+              sleep 1
+              pm2 start npm --name latta-backend -- start
+            fi
+
+            # Sem `save`, a lista do pm2 volta vazia no proximo respawn do
+            # daemon e o incidente se repete inteiro.
+            pm2 save || true
 
             # Health check com retry. Antes era um curl unico apos `sleep 3`, que
             # corria contra o boot do app: o pm2 reinicia em ~0s mas o Express so
@@ -115,7 +155,7 @@ jobs:
 
             echo "API nao respondeu em 40s. Diagnostico:"
             pm2 list || true
-            pm2 logs --lines 40 --nostream || true
+            pm2 logs latta-backend --lines 60 --nostream || pm2 logs --lines 60 --nostream || true
             [ -f /tmp/backend.log ] && tail -30 /tmp/backend.log
             exit 1
 
