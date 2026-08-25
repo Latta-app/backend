@@ -18,6 +18,7 @@ import {
   TemplateVariable,
   TemplateVariableType,
 } from '../models/index.js';
+import { ultimoInboundQueAbreJanelaSql } from '../../utils/customerWindow.js';
 
 // Test personas (scripts/test-onboarding-personas.ts): phones 5500000000XXX.
 // DUAS fontes de verdade (UNION) pra garantir que nenhum test persona vaza
@@ -2178,11 +2179,44 @@ const findOnboardingArmsByPhones = async (phones) => {
   }
 };
 
+/**
+ * O instante do último inbound que ABRE JANELA, por telefone.
+ *
+ * 🚨 Em lote, e não por contato: a listagem já paga uma pilha de subqueries
+ * correlacionadas e um round-trip por linha derrubaria a tela que é o produto.
+ * Mesmo formato do `findOnboardingArmsByPhones` — `raw` volta como veio, e o
+ * mapa de volta é por igualdade de string.
+ *
+ * A cláusula do que conta vem de `utils/customerWindow.js`. Não reescreva ela
+ * aqui: foi uma cópia à mão sem o filtro de tipo que fez o painel prometer
+ * janela aberta pra quem só tinha navegado num Flow.
+ */
+const findLastInboundByPhones = async (phones) => {
+  if (!phones?.length) return [];
+  try {
+    const rows = await Contact.sequelize.query(
+      `SELECT r.raw, ${ultimoInboundQueAbreJanelaSql('r.raw')} AS last_inbound
+       FROM unnest(ARRAY[:phones]::text[]) AS r(raw)`,
+      {
+        replacements: { phones },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+    return rows;
+  } catch (error) {
+    // Degrada pra "sem janela" em vez de derrubar o listing, como o irmão
+    // acima. O contador some do header; a conversa continua na tela.
+    console.error('❌ ERRO findLastInboundByPhones:', error.message);
+    return [];
+  }
+};
+
 export default {
   getAllContactsWithMessages,
   getAllContactsBeingAttended,
   searchContacts,
   findOnboardingArmsByPhones,
+  findLastInboundByPhones,
   getReplyMessageById,
   getContactByPetOwnerId,
   getContactByContactId,

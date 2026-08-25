@@ -3,6 +3,7 @@ import S3ClientUtil from '../../utils/s3.js';
 import { normalizeQuery } from '../../utils/normalizeQuery.js';
 import { isValidUUID } from '../../utils/validate.js';
 import { isStagingPhone } from '../../utils/staging-users.helper.js';
+import { decideJanela24h } from '../../utils/customerWindow.js';
 import { ChatHistory, Contact } from '../models/index.js';
 
 // ADR-0007 Fatia 7: guard de detail endpoints.
@@ -107,6 +108,46 @@ const attachOnboardingAb = async (contacts) => {
   }
 };
 
+/**
+ * Anexa a janela de 24h de cada contato — a que o contador do header lê.
+ *
+ * 🚨 POR QUE NO SERVIDOR, e não no navegador como era até 25/08/2026.
+ *
+ * O front calculava a janela varrendo `messagesData`, que é uma PÁGINA do
+ * histórico, não o histórico. Medido em 60 dias (25/08): em 52 das 309
+ * conversas o último inbound de verdade não está nas 20 linhas com que a
+ * conversa nasce na lista — então filtrar as linhas de Flow no cliente, que é
+ * o conserto certo, faria essas 52 exibirem "Chat Bloqueado" com a janela
+ * aberta. Nas 100 linhas do detalhe sobram 4, mas o defeito é de desenho, não
+ * de tamanho de página: quem sabe qual linha conta é quem tem o histórico
+ * inteiro.
+ *
+ * A divisão que fica: o SERVIDOR decide QUAL linha conta, o cliente conta
+ * QUANTO falta a partir dela (é ele que tem o relógio que roda de segundo em
+ * segundo).
+ *
+ * Degrada em silêncio: sem a chave, o front cai no cálculo local de sempre.
+ */
+const attachCustomerWindow = async (contacts) => {
+  if (!contacts?.length) return;
+
+  const phones = [...new Set(contacts.map((c) => c.cellphone).filter(Boolean))];
+  if (!phones.length) return;
+
+  const rows = await ChatRepository.findLastInboundByPhones(phones);
+  if (!rows.length) return;
+
+  const agora = Date.now();
+  const porTelefone = new Map(rows.map((r) => [r.raw, r.last_inbound]));
+  for (const contact of contacts) {
+    // `dataValues` porque o contato é instância Sequelize, mesmo padrão do
+    // attachOnboardingAb. Objeto cru passa direto sem derrubar a listagem.
+    if (!contact?.dataValues) continue;
+    if (!porTelefone.has(contact.cellphone)) continue;
+    contact.dataValues.janela24h = decideJanela24h(porTelefone.get(contact.cellphone), agora);
+  }
+};
+
 const attachReplyMessages = async (contacts) => {
   for (const contact of contacts) {
     for (const message of contact.chatHistory) {
@@ -155,6 +196,7 @@ const getAllContactsWithMessages = async ({
     await attachReplyMessages(contacts);
     await signMessagesMediaUrls(contacts);
     await attachOnboardingAb(contacts);
+    await attachCustomerWindow(contacts);
 
     return {
       contacts,
@@ -306,6 +348,7 @@ const getAllContactsBeingAttended = async ({
     await attachReplyMessages(contacts);
     await signMessagesMediaUrls(contacts);
     await attachOnboardingAb(contacts);
+    await attachCustomerWindow(contacts);
 
     return {
       contacts,
@@ -341,6 +384,7 @@ const searchContacts = async ({ query, page, limit, role, user_id, filters = {},
     // Sem isto a tag some assim que o operador digita na busca: este é um
     // builder SEPARADO do getAllContactsWithMessages, alimentando a MESMA lista.
     await attachOnboardingAb(contacts);
+    await attachCustomerWindow(contacts);
 
     return contacts;
   } catch (error) {
@@ -379,6 +423,7 @@ const getContactByPetOwnerId = async ({
     // Aplica os mesmos tratamentos dos outros métodos
     await attachReplyMessages([result.contact]);
     await signMessagesMediaUrls([result.contact]);
+    await attachCustomerWindow([result.contact]);
 
     return result;
   } catch (error) {
@@ -415,6 +460,7 @@ const getContactByContactId = async ({
 
     await attachReplyMessages([result.contact]);
     await signMessagesMediaUrls([result.contact]);
+    await attachCustomerWindow([result.contact]);
 
     return result;
   } catch (error) {
@@ -516,6 +562,7 @@ const getContactByPetOwnerIdOrPhone = async ({
 
     await attachReplyMessages([result.contact]);
     await signMessagesMediaUrls([result.contact]);
+    await attachCustomerWindow([result.contact]);
 
     return result;
   } catch (error) {
