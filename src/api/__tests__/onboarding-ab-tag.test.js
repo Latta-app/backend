@@ -25,6 +25,9 @@ vi.mock('../repositories/chat-history.repository.js', () => ({
     getAllContactsBeingAttended: vi.fn(),
     searchContacts: vi.fn(),
     findOnboardingArmsByPhones: vi.fn(async () => []),
+    // Enriquecimento vizinho no MESMO seam (a janela de 24h). Sem o mock, o
+    // service quebra aqui e a suíte da tag acusa um erro que não é dela.
+    findLastInboundByPhones: vi.fn(async () => []),
     getReplyMessageById: vi.fn(async () => null),
   },
 }));
