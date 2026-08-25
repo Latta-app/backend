@@ -50,6 +50,7 @@ import {
   CUSTOMER_WINDOW_HOURS,
   INBOUND_ABRE_JANELA_SQL,
   decideJanela24h,
+  ultimoInboundQueAbreJanelaSql,
 } from '../../utils/customerWindow.js';
 
 const H = 36e5;
@@ -125,6 +126,36 @@ describe('o predicado SQL — a regra, não a redação', () => {
   });
 });
 
+describe('as DUAS fontes do instante', () => {
+  const sql = ultimoInboundQueAbreJanelaSql(':phone');
+
+  it('lê o chat_history com o filtro de tipo', () => {
+    expect(sql).toContain('FROM chat_history');
+    expect(sql).toContain(INBOUND_ABRE_JANELA_SQL);
+  });
+
+  it('lê TAMBÉM o ledger do gateway — é o único lugar onde o nfm_reply existe', () => {
+    // Sem esta perna, a conta erra pra FECHADO em quem acabou de concluir um
+    // Flow. Medido em 25/08: `5531993110587` tinha inbound de treze dias atrás
+    // no chat_history e concluiu um Flow no mesmo dia.
+    expect(sql).toContain('FROM incoming_messages');
+  });
+
+  it('combina por GREATEST — o ledger só EMPURRA a janela, nunca encurta', () => {
+    // GREATEST no Postgres ignora NULL. É o que faz telefone anterior a 20/08
+    // (quando o ledger nasceu) continuar respondendo pelo chat_history.
+    expect(sql).toContain('GREATEST');
+    expect(sql).not.toMatch(/\bLEAST\b|\bcoalesce\(\s*\(SELECT max\(im/i);
+  });
+
+  it('as duas pernas usam a MESMA régua de telefone', () => {
+    // Réguas diferentes nos dois lados fariam o GREATEST comparar o inbound de
+    // um tutor com o silêncio de outro.
+    const usos = sql.match(/public\.normalize_br_phone\(:phone\)/g) || [];
+    expect(usos.length).toBe(2);
+  });
+});
+
 describe('a definição é UMA — ninguém escreve a regra à mão', () => {
   const SRC = path.resolve(process.cwd(), 'src');
   const DONO = path.join('utils', 'customerWindow.js');
@@ -136,18 +167,24 @@ describe('a definição é UMA — ninguém escreve a regra à mão', () => {
       return p.endsWith('.js') ? [p] : [];
     });
 
-  it('só o dono da regra compara `sent_by` com "latta" em SQL', () => {
-    // Sem lista de arquivos à mão: varre `src/` inteiro, então arquivo NOVO
-    // que copie a regra reprova sozinho. Uma lista ficaria defasada em silêncio.
-    const infratores = arquivos(SRC).filter((p) => {
-      if (p.endsWith(DONO)) return false;
-      const texto = readFileSync(p, 'utf8');
-      // Só a forma SQL (aspas simples do Postgres). `sent_by: 'petshop'` em
-      // objeto JS é escrita de linha, não leitura de janela, e fica de fora.
-      return /sent_by\s*(<>|!=|=)\s*'latta'/.test(texto);
-    });
+  // Sem lista de arquivos à mão: varre `src/` inteiro, então arquivo NOVO que
+  // copie a regra reprova sozinho. Uma lista ficaria defasada em silêncio.
+  const varrer = (regex) =>
+    arquivos(SRC)
+      .filter((p) => !p.endsWith(DONO) && regex.test(readFileSync(p, 'utf8')))
+      .map((p) => path.relative(SRC, p));
 
-    expect(infratores.map((p) => path.relative(SRC, p))).toEqual([]);
+  it('só o dono da regra compara `sent_by` com "latta" em SQL', () => {
+    // Só a forma SQL (aspas simples do Postgres). `sent_by: 'petshop'` em
+    // objeto JS é escrita de linha, não leitura de janela, e fica de fora.
+    expect(varrer(/sent_by\s*(<>|!=|=)\s*'latta'/)).toEqual([]);
+  });
+
+  it('só o dono da regra lê o ledger do gateway', () => {
+    // A segunda fonte tem a mesma armadilha da primeira: uma leitura solta de
+    // `incoming_messages` em outro arquivo seria uma terceira definição de
+    // janela, e ninguém veria.
+    expect(varrer(/\bincoming_messages\b/)).toEqual([]);
   });
 });
 

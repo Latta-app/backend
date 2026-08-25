@@ -18,7 +18,7 @@ import {
   TemplateVariable,
   TemplateVariableType,
 } from '../models/index.js';
-import { INBOUND_ABRE_JANELA_SQL } from '../../utils/customerWindow.js';
+import { ultimoInboundQueAbreJanelaSql } from '../../utils/customerWindow.js';
 
 // Test personas (scripts/test-onboarding-personas.ts): phones 5500000000XXX.
 // DUAS fontes de verdade (UNION) pra garantir que nenhum test persona vaza
@@ -2195,12 +2195,7 @@ const findLastInboundByPhones = async (phones) => {
   if (!phones?.length) return [];
   try {
     const rows = await Contact.sequelize.query(
-      `SELECT r.raw,
-              (SELECT max(ch.timestamp)
-                 FROM chat_history ch
-                WHERE regexp_replace(coalesce(ch.cell_phone, ''), '\\D', '', 'g')
-                      = public.normalize_br_phone(r.raw)
-                  AND ${INBOUND_ABRE_JANELA_SQL}) AS last_inbound
+      `SELECT r.raw, ${ultimoInboundQueAbreJanelaSql('r.raw')} AS last_inbound
        FROM unnest(ARRAY[:phones]::text[]) AS r(raw)`,
       {
         replacements: { phones },

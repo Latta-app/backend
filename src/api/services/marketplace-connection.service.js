@@ -15,7 +15,7 @@
 
 import { Sequelize } from 'sequelize';
 import { sequelize } from '../../config/database.js';
-import { INBOUND_ABRE_JANELA_SQL, decideJanela24h } from '../../utils/customerWindow.js';
+import { decideJanela24h, ultimoInboundQueAbreJanelaSql } from '../../utils/customerWindow.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,20 +29,15 @@ const CHAT_ENGINE_URL = `${SUPABASE_URL}/functions/v1/chat-engine`;
  * decide entre texto livre e template). Duplicar essa conta em dois lugares é
  * como o painel passaria a prometer algo que o disparo não cumpre.
  *
- * 🚨 O `AND ... <> 'flow'` do predicado é o conserto de 25/08/2026 e não é
- * detalhe: até ali esta query contava a navegação do tutor DENTRO do Flow como
- * mensagem, e navegação de Flow é `data_exchange` no nosso endpoint — a Meta
- * nunca vê. A regra (e o porquê) vive em `utils/customerWindow.js`.
+ * 🚨 A query saiu daqui em 25/08/2026 e virou uma expressão só, em
+ * `utils/customerWindow.js`. A escrita à mão que morava aqui contava a
+ * navegação do tutor DENTRO do Flow como mensagem (a Meta nunca vê
+ * `data_exchange`) e ignorava o ledger do gateway, onde mora o único registro
+ * do FECHAMENTO de Flow. Os dois erros, em direções opostas, na mesma linha.
  */
 const janela24h = async (phone) => {
   const [win] = await sequelize.query(
-    `
-    SELECT MAX(timestamp) AS last_inbound
-    FROM chat_history
-    WHERE regexp_replace(coalesce(cell_phone, ''), '\\D', '', 'g')
-          = public.normalize_br_phone(:phone)
-      AND ${INBOUND_ABRE_JANELA_SQL}
-    `,
+    `SELECT ${ultimoInboundQueAbreJanelaSql(':phone')} AS last_inbound`,
     { replacements: { phone }, type: Sequelize.QueryTypes.SELECT },
   );
 
