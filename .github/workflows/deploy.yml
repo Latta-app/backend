@@ -95,7 +95,68 @@ jobs:
             echo "Sincronizando env gerenciada..."
             upsert_env SCHEDULING_INTERNAL_SECRET "$SCHEDULING_INTERNAL_SECRET"
 
-            pm2 restart all 2>/dev/null || (pkill -f 'node.*app.js' || true; nohup npm start > /tmp/backend.log 2>&1 &)
+            # ── recuperacao do processo ───────────────────────────────────────
+            #
+            # 🚨 `set +e` NAO e desleixo, e a correcao de um bug de verdade.
+            #
+            # `script_stop: true` roda este script sob `set -e`, e comando de pm2
+            # devolve nao-zero em situacao PERFEITAMENTE normal (`pm2 list` com a
+            # lista dessincronizada da salva, por exemplo). Em 20/08 isso abortou
+            # o deploy DUAS vezes no meio da recuperacao, antes de qualquer echo
+            # sair — e o log nao dizia qual linha morreu, so "exited with status
+            # 1". Um `|| true` por linha nao resolve: quem aborta e o comando que
+            # voce nao previu.
+            #
+            # Quem da o veredito aqui e o HEALTH CHECK, nao o exit code de um
+            # comando do pm2. `set -e` volta a valer depois do bloco.
+            set +e
+
+            # Estado ANTES de mexer: e o unico registro de por que a API caiu.
+            # O deploy e a primeira coisa que roda depois de um incidente, e ate
+            # 20/08 ele reiniciava sem nunca fotografar o que encontrou — a causa
+            # morria junto com o processo. Foi o `uptime` daqui que provou o
+            # reboot (`up 1:52`), e o `pm2 list` que revelou o nome real do app.
+            echo "─── estado encontrado ───"
+            uptime
+            pm2 list
+
+            # 🚨 `pm2 restart all` NAO levanta app que o pm2 NAO CONHECE.
+            #
+            # Incidente 20/08/2026: a instancia REBOOTOU (~00:24 UTC). O nginx
+            # voltou sozinho — e um servico systemd — e o backend NAO, porque o
+            # pm2 nao tem resurrect no boot. O daemon voltou com a lista de apps
+            # vazia, entao `pm2 restart all` reiniciou o unico processo que
+            # sobrou (o modulo pm2-logrotate) e devolveu **exit 0**: o
+            # `|| fallback` nunca disparou. Resultado: nginx em 502, mensageria
+            # inteira fora do ar por ~2h, e o deploy se declarando OK. `restart`
+            # nao distingue "reiniciei o backend" de "reiniciei um modulo
+            # qualquer que nao e o backend".
+            #
+            # `resurrect` vem PRIMEIRO porque a lista salva e a unica fonte que
+            # sabe a config real do app (cwd, env, interpretador). O `start` cru
+            # e o ultimo recurso — ele adivinha.
+            pm2 resurrect
+
+            # 🚨 O nome e `latta_platform`. A 1a tentativa de conserto procurou
+            # `latta-backend` — nome que nunca existiu — entao o guard achava que
+            # o app estava ausente sempre. O nome nao se deduz do repo: ele veio
+            # do `pm2 list` acima, e e por isso que a foto do estado ficou.
+            if pm2 describe latta_platform > /dev/null 2>&1; then
+              echo "latta_platform presente no pm2"
+            else
+              echo "latta_platform AUSENTE apos resurrect — cold start"
+              # Mata sobra de `nohup npm start` de deploy antigo: se ela ainda
+              # segurar a 8000, o pm2 sobe e morre em EADDRINUSE.
+              pkill -f 'node.*src/app.js'
+              sleep 1
+              pm2 start npm --name latta_platform -- start
+            fi
+
+            # Sem `save`, a lista volta a divergir no proximo respawn do daemon
+            # e o incidente se repete inteiro.
+            pm2 save
+
+            set -e
 
             # Health check com retry. Antes era um curl unico apos `sleep 3`, que
             # corria contra o boot do app: o pm2 reinicia em ~0s mas o Express so
@@ -115,7 +176,7 @@ jobs:
 
             echo "API nao respondeu em 40s. Diagnostico:"
             pm2 list || true
-            pm2 logs --lines 40 --nostream || true
+            pm2 logs latta_platform --lines 60 --nostream || pm2 logs --lines 60 --nostream || true
             [ -f /tmp/backend.log ] && tail -30 /tmp/backend.log
             exit 1
 
