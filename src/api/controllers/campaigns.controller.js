@@ -40,6 +40,8 @@ import {
   iniciarLote,
   revisarPeca,
 } from '../services/campaign-batch.service.js';
+import { getTemplateCatalog } from '../services/template-catalog.service.js';
+import { resolverTemplate, variaveisDoCorpo } from '../services/campaign-template.service.js';
 
 /**
  * Separa o que vai pro jsonb do que vai pra tabela de coluna.
@@ -507,6 +509,97 @@ export const reviewPiece = async (req, res) => {
   }
 };
 
+/**
+ * Só os templates APROVADOS, com o corpo e as variáveis que ele usa.
+ *
+ * 🚨 Reaproveita o catálogo da mensageria (`template-catalog.service`) em vez de
+ * consultar `templates` de novo. Duas leituras do mesmo dado divergem: aquela
+ * camada já resolve o `components_json` que ora é jsonb e ora é texto, e uma
+ * cópia aqui herdaria metade do catálogo sem corpo.
+ */
+export const listTemplates = async (_req, res) => {
+  try {
+    const catalogo = await getTemplateCatalog();
+    const lista = Object.entries(catalogo)
+      .map(([nome, t]) => ({
+        nome,
+        rotulo: t.label || nome,
+        categoria: t.category,
+        corpo: t.body || '',
+        headerFormato: t.header_format || null,
+        rodape: t.footer || null,
+        botoes: t.buttons || [],
+        posicoes: variaveisDoCorpo(t.body),
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+    return res.json({ code: 'CAMPAIGN_TEMPLATES', data: lista });
+  } catch (err) {
+    console.error('[campaigns] templates failed:', err.message);
+    return res.status(500).json({ code: 'TEMPLATE_ERROR', message: err.message });
+  }
+};
+
+/** Lê a config da etapa de Template. */
+export const getTemplate = async (req, res) => {
+  try {
+    const rows = await sequelize.query('SELECT template FROM campaigns WHERE id = :id', {
+      type: QueryTypes.SELECT,
+      replacements: { id: req.params.id },
+    });
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_TEMPLATE', data: rows[0].template || {} });
+  } catch (err) {
+    console.error('[campaigns] get template failed:', err.message);
+    return res.status(500).json({ code: 'TEMPLATE_ERROR', message: err.message });
+  }
+};
+
+/**
+ * Salva a config da etapa de Template.
+ *
+ * 🚨 Coluna `template`, NUNCA `rules` nem `producao`. Cada etapa salva a si
+ * mesma inteira, e uma etapa que grava por cima da vizinha apaga o trabalho dela
+ * em silêncio.
+ */
+export const saveTemplate = async (req, res) => {
+  try {
+    const rows = await sequelize.query(
+      `UPDATE campaigns SET template = :template::jsonb, updated_at = NOW()
+        WHERE id = :id RETURNING template`,
+      {
+        type: QueryTypes.SELECT,
+        replacements: { id: req.params.id, template: JSON.stringify(req.body?.template ?? {}) },
+      },
+    );
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_TEMPLATE_SAVED', data: rows[0].template });
+  } catch (err) {
+    console.error('[campaigns] save template failed:', err.message);
+    return res.status(500).json({ code: 'TEMPLATE_ERROR', message: err.message });
+  }
+};
+
+/**
+ * A prévia do que cada casa vai LER.
+ *
+ * Read-only e sem efeito: não manda nada. Existe porque variável errada só
+ * aparece depois do disparo, e porque o gênero de cada casa sai do cadastro do
+ * pet — quem não tem gênero cadastrado fica bloqueado aqui em vez de receber uma
+ * mensagem que chama o cachorro dele pelo pronome errado.
+ */
+export const previewTemplate = async (req, res) => {
+  try {
+    const dados = await resolverTemplate(req.params.id, {
+      corpo: req.body?.corpo,
+      variaveis: req.body?.variaveis,
+    });
+    return res.json({ code: 'CAMPAIGN_TEMPLATE_PREVIEW', data: dados });
+  } catch (err) {
+    console.error('[campaigns] template preview failed:', err.message);
+    return res.status(500).json({ code: 'TEMPLATE_ERROR', message: err.message });
+  }
+};
+
 export default {
   previewAudience,
   listCampaigns,
@@ -523,4 +616,8 @@ export default {
   startBatch,
   listPieces,
   reviewPiece,
+  listTemplates,
+  getTemplate,
+  saveTemplate,
+  previewTemplate,
 };
