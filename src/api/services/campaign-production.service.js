@@ -61,7 +61,7 @@ const identificarFormato = (bytes) => {
  * Foto que o servidor não entrega é peça que não vai sair, e o funil diz isso em
  * voz alta em vez de deixar a falha aparecer na hora da geração.
  */
-const lerCabeca = async (url) => {
+export const lerCabeca = async (url) => {
   try {
     const resp = await fetch(url, {
       headers: { Range: 'bytes=0-31' },

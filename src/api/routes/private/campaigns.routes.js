@@ -11,6 +11,10 @@ import {
   updateCampaign,
   snapshotAudience,
   productionPreflight,
+  getProduction,
+  saveProduction,
+  uploadBackground,
+  generateSample,
 } from '../../controllers/campaigns.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
@@ -29,7 +33,14 @@ router.get('/campaigns/:id', getCampaign);
 router.put('/campaigns/:id', updateCampaign);
 router.post('/campaigns/:id/audience', snapshotAudience);
 
-// Producao: a conferencia pre-voo. Read-only, nao gera nada.
+// Producao: a peca-modelo. A conferencia pre-voo e sobre o LOTE e fica separada.
+router.get('/campaigns/:id/production', getProduction);
+router.put('/campaigns/:id/production', saveProduction);
+router.post('/campaigns/:id/production/background', uploadBackground);
+// 🚨 Gera UMA peca, nao o lote. Errar a direcao aqui custa uma inferencia.
+router.post('/campaigns/:id/production/sample', generateSample);
+
+// A conferencia pre-voo. Read-only, nao gera nada: ela diz o que trava o LOTE.
 router.get('/campaigns/:id/production/preflight', productionPreflight);
 
 export default router;

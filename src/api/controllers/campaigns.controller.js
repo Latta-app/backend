@@ -33,6 +33,7 @@ import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
 import { montarPublico, normalizarRegras } from '../services/campaign-audience.service.js';
 import { conferenciaPreVoo } from '../services/campaign-production.service.js';
+import { escolherAlvo, gerarAmostra, subirFundo } from '../services/campaign-piece.service.js';
 
 /**
  * Separa o que vai pro jsonb do que vai pra tabela de coluna.
@@ -298,6 +299,126 @@ export const productionPreflight = async (req, res) => {
   }
 };
 
+/** Lê a config da etapa de Produção. */
+export const getProduction = async (req, res) => {
+  try {
+    const rows = await sequelize.query('SELECT producao FROM campaigns WHERE id = :id', {
+      type: QueryTypes.SELECT,
+      replacements: { id: req.params.id },
+    });
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_PRODUCTION', data: rows[0].producao || {} });
+  } catch (err) {
+    console.error('[campaigns] get production failed:', err.message);
+    return res.status(500).json({ code: 'PRODUCTION_ERROR', message: err.message });
+  }
+};
+
+/**
+ * Salva a config da Produção.
+ *
+ * 🚨 Escreve na coluna `producao`, NUNCA no `rules`. O `rules` é do Público e é
+ * reescrito inteiro toda vez que ele salva: config de Produção ali dentro seria
+ * apagada em silêncio pela aba vizinha.
+ */
+export const saveProduction = async (req, res) => {
+  try {
+    const rows = await sequelize.query(
+      `UPDATE campaigns SET producao = :producao::jsonb, updated_at = NOW()
+        WHERE id = :id RETURNING producao`,
+      {
+        type: QueryTypes.SELECT,
+        replacements: { id: req.params.id, producao: JSON.stringify(req.body?.producao ?? {}) },
+      },
+    );
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_PRODUCTION_SAVED', data: rows[0].producao });
+  } catch (err) {
+    console.error('[campaigns] save production failed:', err.message);
+    return res.status(500).json({ code: 'PRODUCTION_ERROR', message: err.message });
+  }
+};
+
+/** Sobe o fundo da peça pro lugar de onde o gerador lê cena de referência. */
+export const uploadBackground = async (req, res) => {
+  try {
+    const { nomeArquivo, base64, contentType } = req.body || {};
+    if (!base64) return res.status(400).json({ code: 'BACKGROUND_REQUIRED' });
+    const fundo = await subirFundo({ nomeArquivo, base64, contentType });
+    return res.json({ code: 'CAMPAIGN_BACKGROUND', data: fundo });
+  } catch (err) {
+    console.error('[campaigns] background failed:', err.message);
+    return res.status(500).json({ code: 'BACKGROUND_ERROR', message: err.message });
+  }
+};
+
+/**
+ * Gera UMA peça, pra aprovar a direção de arte antes de replicar.
+ *
+ * Errar a direção numa amostra custa uma inferência. Errar no lote custa 69 e um
+ * disparo — por isso este endpoint existe separado, e por isso ele gera um só.
+ */
+export const generateSample = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const rows = await sequelize.query('SELECT producao FROM campaigns WHERE id = :id', {
+      type: QueryTypes.SELECT,
+      replacements: { id },
+    });
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+
+    const producao = { ...(rows[0].producao || {}), ...(req.body?.producao || {}) };
+    const alvo = req.body?.alvo || (await escolherAlvo(id));
+    if (!alvo) {
+      return res.status(400).json({
+        code: 'SEM_PUBLICO',
+        message: 'Não há público congelado: a amostra precisa de um tutor real pra usar de modelo.',
+      });
+    }
+
+    // O carimbo entra no nome do arquivo: duas amostras seguidas do mesmo alvo
+    // não podem se sobrescrever, senão comparar a anterior com a nova é
+    // impossível — e comparar é o trabalho desta etapa.
+    const amostra = await gerarAmostra({
+      campaignId: id,
+      producao,
+      alvo,
+      carimbo: Date.now(),
+    });
+
+    const historico = [
+      ...(Array.isArray(rows[0].producao?.amostras) ? rows[0].producao.amostras : []),
+      {
+        url: amostra.url,
+        alvo: amostra.alvo,
+        modelo: amostra.modelo,
+        em: new Date().toISOString(),
+      },
+    ].slice(-12);
+
+    await sequelize.query(
+      `UPDATE campaigns
+          SET producao = :producao::jsonb, updated_at = NOW()
+        WHERE id = :id`,
+      {
+        type: QueryTypes.UPDATE,
+        replacements: { id, producao: JSON.stringify({ ...producao, amostras: historico }) },
+      },
+    );
+
+    // 🚨 Se o alvo nao tinha foto legivel, a peca pode ter um pet INVENTADO.
+    // Vai junto na resposta pra tela dizer isso: aprovar direcao numa amostra
+    // de pet fabricado e aprovar no escuro.
+    return res.json({
+      code: 'CAMPAIGN_SAMPLE',
+      data: { ...amostra, amostras: historico, alvoLimpo: alvo.limpo !== false },
+    });
+  } catch (err) {
+    console.error('[campaigns] sample failed:', err.message);
+    return res.status(500).json({ code: 'SAMPLE_ERROR', message: err.message });
+  }
+};
+
 export default {
   previewAudience,
   listCampaigns,
@@ -306,4 +427,8 @@ export default {
   updateCampaign,
   snapshotAudience,
   productionPreflight,
+  getProduction,
+  saveProduction,
+  uploadBackground,
+  generateSample,
 };
