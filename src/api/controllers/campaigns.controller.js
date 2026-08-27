@@ -6,22 +6,90 @@
  *
  * 1. `preview` NÃO toca em tabela nenhuma. É só o funil de elegibilidade rodado
  *    ao vivo contra o banco. Uma campanha inteira pode ser montada e conferida
- *    sem nunca ser salva — e é o que a primeira fatia da aba de Público faz.
+ *    sem nunca ser salva, e é o que a primeira fatia da aba de Público faz.
  *
- * 2. O resto persiste em `campaigns` / `campaign_audience`. `campaigns` guarda o
- *    conjunto de regras em jsonb (formato aberto de propósito: as outras cinco
- *    abas ainda não existem pra dizer o que precisam guardar).
- *    `campaign_audience` é o snapshot CONGELADO do público.
+ * 2. O resto persiste em três tabelas (migration 20260827120000).
+ *    `campaigns` guarda o conjunto de regras em jsonb (formato aberto de
+ *    propósito: as outras cinco abas ainda não existem pra dizer o que precisam
+ *    guardar). `campaign_audience` é o snapshot CONGELADO do público.
+ *    `campaign_exclusions` é a lista de exclusão manual.
  *
  * 🚨 Por que o snapshot existe: o público é uma consulta viva e a base muda
- * embaixo dele. O funil do Dia do Cachorro deu 67 em 26/08 e dá outro número
- * hoje, com as mesmas regras, porque tutor novo entrou. Sem congelar, não há
- * como responder "quem exatamente recebeu aquela peça" depois do disparo.
+ * embaixo dele. O funil do Dia do Cachorro deu 67 em 26/08 e dá 68 no dia
+ * seguinte, com as mesmas regras, porque um tutor novo se cadastrou. Sem
+ * congelar, não há como responder "quem exatamente recebeu aquela peça" depois
+ * do disparo.
+ *
+ * 🚨🚨 Por que a exclusão manual NÃO mora dentro de `campaigns.rules`, que seria
+ * o lugar natural: ela guarda TELEFONE, e o motor da porta de saída do titular
+ * acha dado pessoal por COLUNA. Telefone enterrado num jsonb ele não alcança, e
+ * o classificador do snapshot de PII marcaria `campaigns` como tier "nenhum" com
+ * um telefone dentro. Em coluna própria o destino fica `apagar` por telefone,
+ * como qualquer outra tabela de contato. Quem mover a exclusão pra dentro do
+ * `rules` reabre esse buraco em silêncio.
  * ============================================================================ */
 
 import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
 import { montarPublico, normalizarRegras } from '../services/campaign-audience.service.js';
+
+/**
+ * Separa o que vai pro jsonb do que vai pra tabela de coluna.
+ *
+ * O cockpit manda e recebe UM objeto de regras, com as exclusões dentro. Quem
+ * quebra em dois é esta camada, e a costura fica aqui pra que nem o frontend nem
+ * o motor de regras precisem conhecer a divisão.
+ */
+const separarExclusoes = (rulesBrutas) => {
+  const regras = normalizarRegras(rulesBrutas);
+  const { exclusoes, ...semExclusoes } = regras;
+  return { regras: semExclusoes, exclusoes };
+};
+
+const lerExclusoes = async (campaignId, transaction) =>
+  sequelize.query(
+    `SELECT cell_phone AS telefone, motivo
+       FROM campaign_exclusions
+      WHERE campaign_id = :id
+      ORDER BY created_at`,
+    { type: QueryTypes.SELECT, replacements: { id: campaignId }, transaction },
+  );
+
+/**
+ * Reescreve a lista inteira: apaga e regrava.
+ *
+ * Diferença incremental (achar quem entrou e quem saiu) daria o mesmo resultado
+ * por muito mais código, e a lista tem dezenas de linhas, não milhares.
+ */
+const gravarExclusoes = async (campaignId, exclusoes, transaction) => {
+  await sequelize.query(`DELETE FROM campaign_exclusions WHERE campaign_id = :id`, {
+    type: QueryTypes.DELETE,
+    replacements: { id: campaignId },
+    transaction,
+  });
+  for (const e of exclusoes) {
+    // O motivo é NOT NULL no banco. Uma exclusão sem motivo escrito é
+    // exatamente o que a coluna existe pra impedir, então ela é recusada aqui
+    // em vez de virar erro de constraint lá embaixo.
+    if (!e.motivo) continue;
+    await sequelize.query(
+      `INSERT INTO campaign_exclusions (campaign_id, cell_phone, motivo)
+            VALUES (:id, :telefone, :motivo)
+       ON CONFLICT (campaign_id, cell_phone) DO UPDATE SET motivo = EXCLUDED.motivo`,
+      {
+        type: QueryTypes.INSERT,
+        replacements: { id: campaignId, telefone: e.telefone, motivo: e.motivo },
+        transaction,
+      },
+    );
+  }
+};
+
+/** Devolve pro cockpit o objeto único de regras, com as exclusões de volta. */
+const comExclusoes = async (campanha) => ({
+  ...campanha,
+  rules: { ...(campanha.rules || {}), exclusoes: await lerExclusoes(campanha.id) },
+});
 
 /** Pré-visualização do público. Read-only: não escreve nada, nem exige campanha. */
 export const previewAudience = async (req, res) => {
@@ -38,7 +106,8 @@ export const listCampaigns = async (_req, res) => {
   try {
     const rows = await sequelize.query(
       `SELECT c.id, c.nome, c.status, c.rules, c.created_at, c.updated_at,
-              (SELECT COUNT(*) FROM campaign_audience ca WHERE ca.campaign_id = c.id) AS audiencia_congelada
+              (SELECT COUNT(*) FROM campaign_audience ca WHERE ca.campaign_id = c.id) AS audiencia_congelada,
+              (SELECT COUNT(*) FROM campaign_exclusions ce WHERE ce.campaign_id = c.id) AS exclusoes_manuais
          FROM campaigns c
         ORDER BY c.created_at DESC`,
       { type: QueryTypes.SELECT },
@@ -57,7 +126,7 @@ export const getCampaign = async (req, res) => {
       { type: QueryTypes.SELECT, replacements: { id: req.params.id } },
     );
     if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
-    return res.json({ code: 'CAMPAIGN', data: rows[0] });
+    return res.json({ code: 'CAMPAIGN', data: await comExclusoes(rows[0]) });
   } catch (err) {
     console.error('[campaigns] get failed:', err.message);
     return res.status(500).json({ code: 'CAMPAIGNS_ERROR', message: err.message });
@@ -68,21 +137,26 @@ export const createCampaign = async (req, res) => {
   const nome = String(req.body?.nome || '').trim();
   if (!nome) return res.status(400).json({ code: 'CAMPAIGN_NAME_REQUIRED' });
   try {
-    const rules = normalizarRegras(req.body?.rules);
-    const rows = await sequelize.query(
-      `INSERT INTO campaigns (nome, status, rules, created_by)
-            VALUES (:nome, 'rascunho', :rules::jsonb, :createdBy)
-         RETURNING id, nome, status, rules, created_at, updated_at`,
-      {
-        type: QueryTypes.SELECT,
-        replacements: {
-          nome,
-          rules: JSON.stringify(rules),
-          createdBy: req.headers['user-id'] || null,
+    const { regras, exclusoes } = separarExclusoes(req.body?.rules);
+    const criada = await sequelize.transaction(async (transaction) => {
+      const rows = await sequelize.query(
+        `INSERT INTO campaigns (nome, status, rules, created_by)
+              VALUES (:nome, 'rascunho', :rules::jsonb, :createdBy)
+           RETURNING id, nome, status, rules, created_at, updated_at`,
+        {
+          type: QueryTypes.SELECT,
+          replacements: {
+            nome,
+            rules: JSON.stringify(regras),
+            createdBy: req.headers['user-id'] || null,
+          },
+          transaction,
         },
-      },
-    );
-    return res.status(201).json({ code: 'CAMPAIGN_CREATED', data: rows[0] });
+      );
+      await gravarExclusoes(rows[0].id, exclusoes, transaction);
+      return rows[0];
+    });
+    return res.status(201).json({ code: 'CAMPAIGN_CREATED', data: await comExclusoes(criada) });
   } catch (err) {
     console.error('[campaigns] create failed:', err.message);
     return res.status(500).json({ code: 'CAMPAIGNS_ERROR', message: err.message });
@@ -90,20 +164,37 @@ export const createCampaign = async (req, res) => {
 };
 
 export const updateCampaign = async (req, res) => {
+  const { id } = req.params;
   try {
     const nome = req.body?.nome === undefined ? null : String(req.body.nome).trim();
-    const rules = req.body?.rules === undefined ? null : JSON.stringify(normalizarRegras(req.body.rules));
-    const rows = await sequelize.query(
-      `UPDATE campaigns
-          SET nome       = COALESCE(:nome, nome),
-              rules      = COALESCE(:rules::jsonb, rules),
-              updated_at = NOW()
-        WHERE id = :id
-        RETURNING id, nome, status, rules, created_at, updated_at`,
-      { type: QueryTypes.SELECT, replacements: { id: req.params.id, nome, rules } },
-    );
-    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
-    return res.json({ code: 'CAMPAIGN_UPDATED', data: rows[0] });
+    const mexeNasRegras = req.body?.rules !== undefined;
+    const { regras, exclusoes } = mexeNasRegras
+      ? separarExclusoes(req.body.rules)
+      : { regras: null, exclusoes: [] };
+
+    const atualizada = await sequelize.transaction(async (transaction) => {
+      const rows = await sequelize.query(
+        `UPDATE campaigns
+            SET nome       = COALESCE(:nome, nome),
+                rules      = COALESCE(:rules::jsonb, rules),
+                updated_at = NOW()
+          WHERE id = :id
+          RETURNING id, nome, status, rules, created_at, updated_at`,
+        {
+          type: QueryTypes.SELECT,
+          replacements: { id, nome, rules: regras ? JSON.stringify(regras) : null },
+          transaction,
+        },
+      );
+      if (!rows.length) return null;
+      // Lista só é reescrita quando o caller mandou regras. Um PUT que só
+      // renomeia a campanha não pode apagar as exclusões por omissão.
+      if (mexeNasRegras) await gravarExclusoes(id, exclusoes, transaction);
+      return rows[0];
+    });
+
+    if (!atualizada) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_UPDATED', data: await comExclusoes(atualizada) });
   } catch (err) {
     console.error('[campaigns] update failed:', err.message);
     return res.status(500).json({ code: 'CAMPAIGNS_ERROR', message: err.message });
@@ -114,8 +205,8 @@ export const updateCampaign = async (req, res) => {
  * Congela o público atual da campanha em `campaign_audience`.
  *
  * Apaga o snapshot anterior e grava o novo: um snapshot parcial, metade velho e
- * metade novo, seria pior que nenhum — a pergunta que ele responde é "quem
- * estava na lista neste instante", e ela não admite duas respostas.
+ * metade novo, seria pior que nenhum. A pergunta que ele responde é "quem estava
+ * na lista neste instante", e ela não admite duas respostas.
  */
 export const snapshotAudience = async (req, res) => {
   const { id } = req.params;
@@ -126,7 +217,11 @@ export const snapshotAudience = async (req, res) => {
     });
     if (!campanha.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
 
-    const resultado = await montarPublico(req.body?.rules ?? campanha[0].rules);
+    // As regras do corpo ganham das gravadas, pra congelar exatamente o que o
+    // operador está vendo na tela. Sem corpo, vale o que está salvo.
+    const doBanco = { ...(campanha[0].rules || {}), exclusoes: await lerExclusoes(id) };
+    const { regras, exclusoes } = separarExclusoes(req.body?.rules ?? doBanco);
+    const resultado = await montarPublico({ ...regras, exclusoes });
 
     await sequelize.transaction(async (transaction) => {
       await sequelize.query(`DELETE FROM campaign_audience WHERE campaign_id = :id`, {
@@ -134,18 +229,17 @@ export const snapshotAudience = async (req, res) => {
         replacements: { id },
         transaction,
       });
-      for (const tutor of resultado.tutores) {
+      // Um INSERT só, não um por tutor. São dezenas de linhas dentro de uma
+      // transação: uma ida por tutor mantém a transação aberta o tempo todo sem
+      // ganhar nada. O `jsonb_array_elements` desmonta a lista no banco.
+      if (resultado.tutores.length) {
         await sequelize.query(
           `INSERT INTO campaign_audience (campaign_id, pet_owner_id, cell_phone, pets)
-                VALUES (:id, :ownerId, :telefone, :pets::jsonb)`,
+           SELECT :id, NULLIF(t->>'ownerId', '')::uuid, t->>'telefone', t->'pets'
+             FROM jsonb_array_elements(:tutores::jsonb) AS t`,
           {
             type: QueryTypes.INSERT,
-            replacements: {
-              id,
-              ownerId: tutor.ownerId,
-              telefone: tutor.telefone,
-              pets: JSON.stringify(tutor.pets),
-            },
+            replacements: { id, tutores: JSON.stringify(resultado.tutores) },
             transaction,
           },
         );
@@ -154,10 +248,11 @@ export const snapshotAudience = async (req, res) => {
         `UPDATE campaigns SET rules = :rules::jsonb, updated_at = NOW() WHERE id = :id`,
         {
           type: QueryTypes.UPDATE,
-          replacements: { id, rules: JSON.stringify(resultado.regras) },
+          replacements: { id, rules: JSON.stringify(regras) },
           transaction,
         },
       );
+      await gravarExclusoes(id, exclusoes, transaction);
     });
 
     return res.json({
