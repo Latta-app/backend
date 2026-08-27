@@ -15,6 +15,10 @@ import {
   saveProduction,
   uploadBackground,
   generateSample,
+  approveDirection,
+  startBatch,
+  listPieces,
+  reviewPiece,
 } from '../../controllers/campaigns.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
@@ -42,5 +46,19 @@ router.post('/campaigns/:id/production/sample', generateSample);
 
 // A conferencia pre-voo. Read-only, nao gera nada: ela diz o que trava o LOTE.
 router.get('/campaigns/:id/production/preflight', productionPreflight);
+
+// 🚨 Congela QUAL amostra foi aprovada e a receita que a produziu. Sem esta
+// linha o lote nao tem o que replicar.
+router.post('/campaigns/:id/production/approve', approveDirection);
+
+// ── O LOTE ─────────────────────────────────────────────────────────────────
+// 🚨 O POST dispara e VOLTA. Sao ~69 pecas a ~20s cada com concorrencia 3, o
+// que nao cabe num request: o estado mora na tabela e a tela le pelo GET.
+router.post('/campaigns/:id/pieces', startBatch);
+router.get('/campaigns/:id/pieces', listPieces);
+
+// O veredito humano sobre uma peca. E a unica checagem que pega o cachorro
+// errado e a palavra escrita errado.
+router.put('/campaigns/:id/pieces/:pieceId/revisao', reviewPiece);
 
 export default router;

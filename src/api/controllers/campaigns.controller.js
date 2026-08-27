@@ -34,6 +34,12 @@ import { QueryTypes } from 'sequelize';
 import { montarPublico, normalizarRegras } from '../services/campaign-audience.service.js';
 import { conferenciaPreVoo } from '../services/campaign-production.service.js';
 import { escolherAlvo, gerarAmostra, subirFundo } from '../services/campaign-piece.service.js';
+import {
+  aprovarDirecao,
+  estadoDoLote,
+  iniciarLote,
+  revisarPeca,
+} from '../services/campaign-batch.service.js';
 
 /**
  * Separa o que vai pro jsonb do que vai pra tabela de coluna.
@@ -419,6 +425,88 @@ export const generateSample = async (req, res) => {
   }
 };
 
+/**
+ * Aprova a direção de arte: qual amostra vale, e a receita que a produziu.
+ *
+ * 🚨 É a peça que faltava pra replicação existir. Sem ela o lote não tem o que
+ * replicar: ou copiaria os campos vivos do formulário — e aí uma edição feita
+ * depois da aprovação entraria no lote sem ninguém aprovar — ou pediria de novo
+ * ao operador o que ele já decidiu olhando a amostra.
+ */
+export const approveDirection = async (req, res) => {
+  try {
+    const salvo = await aprovarDirecao({
+      campaignId: req.params.id,
+      url: req.body?.url,
+      alvo: req.body?.alvo,
+    });
+    if (!salvo) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    if (salvo.erro) {
+      return res.status(400).json({
+        code: salvo.erro,
+        message: 'Essa amostra não está no histórico desta campanha.',
+      });
+    }
+    return res.json({ code: 'CAMPAIGN_DIRECTION_APPROVED', data: salvo });
+  } catch (err) {
+    console.error('[campaigns] approve direction failed:', err.message);
+    return res.status(500).json({ code: 'PRODUCTION_ERROR', message: err.message });
+  }
+};
+
+/**
+ * Dispara o lote e VOLTA na hora.
+ *
+ * 🚨 Não espera as ~69 peças. Oito minutos não cabem num request, e uma conexão
+ * derrubada no meio mataria o lote sem deixar registro de quais peças saíram. O
+ * estado mora na tabela; a tela pergunta pelo GET.
+ */
+export const startBatch = async (req, res) => {
+  try {
+    const r = await iniciarLote(req.params.id, { alvo: req.body?.alvo });
+    if (r.erro === 'CAMPAIGN_NOT_FOUND') return res.status(404).json({ code: r.erro });
+    if (r.erro) return res.status(400).json({ code: r.erro, message: r.mensagem });
+    return res.json({ code: 'CAMPAIGN_BATCH_STARTED', data: r });
+  } catch (err) {
+    console.error('[campaigns] batch failed:', err.message);
+    return res.status(500).json({ code: 'BATCH_ERROR', message: err.message });
+  }
+};
+
+/** O progresso do lote, peça por peça. É o que a tela pergunta enquanto roda. */
+export const listPieces = async (req, res) => {
+  try {
+    return res.json({ code: 'CAMPAIGN_PIECES', data: await estadoDoLote(req.params.id) });
+  } catch (err) {
+    console.error('[campaigns] list pieces failed:', err.message);
+    return res.status(500).json({ code: 'BATCH_ERROR', message: err.message });
+  }
+};
+
+/**
+ * O veredito humano sobre uma peça.
+ *
+ * 🚨 Esta é a única checagem que pega os dois piores defeitos de 26/08: o
+ * cachorro ser o do tutor certo, e a palavra na parede estar escrita certo. Os
+ * dois passaram por dimensão, peso e detecção de pet na cena.
+ */
+export const reviewPiece = async (req, res) => {
+  try {
+    const r = await revisarPeca({
+      campaignId: req.params.id,
+      pieceId: req.params.pieceId,
+      revisao: req.body?.revisao ?? null,
+      motivo: req.body?.motivo,
+    });
+    if (r.erro === 'PECA_NAO_ENCONTRADA') return res.status(404).json({ code: r.erro });
+    if (r.erro) return res.status(400).json({ code: r.erro });
+    return res.json({ code: 'CAMPAIGN_PIECE_REVIEWED', data: r });
+  } catch (err) {
+    console.error('[campaigns] review failed:', err.message);
+    return res.status(500).json({ code: 'BATCH_ERROR', message: err.message });
+  }
+};
+
 export default {
   previewAudience,
   listCampaigns,
@@ -431,4 +519,8 @@ export default {
   saveProduction,
   uploadBackground,
   generateSample,
+  approveDirection,
+  startBatch,
+  listPieces,
+  reviewPiece,
 };
