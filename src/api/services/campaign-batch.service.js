@@ -241,11 +241,18 @@ const reservarProxima = async (campaignId) => {
   return rows[0] || null;
 };
 
+// Colunas jsonb precisam do cast explícito: sem o `::jsonb` o Postgres recebe
+// um texto e recusa a atribuição.
+const JSONB = new Set(['referencias', 'pets']);
+
 const marcar = async (id, campos) => {
-  const sets = Object.keys(campos).map((k) => `${k} = :${k}`);
+  const sets = Object.keys(campos).map((k) => `${k} = :${k}${JSONB.has(k) ? '::jsonb' : ''}`);
+  const valores = Object.fromEntries(
+    Object.entries(campos).map(([k, v]) => [k, JSONB.has(k) ? JSON.stringify(v ?? []) : v]),
+  );
   await sequelize.query(
     `UPDATE campaign_pieces SET ${sets.join(', ')}, updated_at = NOW() WHERE id = :id`,
-    { type: QueryTypes.UPDATE, replacements: { id, ...campos } },
+    { type: QueryTypes.UPDATE, replacements: { id, ...valores } },
   );
 };
 
@@ -288,6 +295,11 @@ export const produzirPeca = async ({
         status: 'pronta',
         url: feita.url,
         modo: feita.modo,
+        // 🚨 O que o modelo VIU, não o que estava na ficha. Sem isto a revisão
+        // aponta pra foto de origem, e ela é HEIC em 27% das casas: o navegador
+        // não renderiza, e o revisor perde justo a metade da comparação que dá
+        // pra fazer a pergunta "este cachorro é o desta casa?".
+        referencias: feita.referencias,
         erro: null,
         concluida_em: new Date(),
       });
@@ -393,7 +405,8 @@ export const iniciarLote = async (campaignId, { alvo = 'pendentes' } = {}) => {
 export const estadoDoLote = async (campaignId) => {
   const pecas = await sequelize.query(
     `SELECT id, cell_phone, pet_owner_id, pet_id, pets, status, arquivo, url, modo,
-            erro, tentativas, revisao, revisao_motivo, revisada_em, concluida_em
+            erro, tentativas, revisao, revisao_motivo, revisada_em, concluida_em,
+            referencias
        FROM campaign_pieces
       WHERE campaign_id = :id
       ORDER BY cell_phone, arquivo`,

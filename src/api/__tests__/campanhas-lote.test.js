@@ -100,6 +100,31 @@ describe('o prompt conta ao modelo o que ele está recebendo', () => {
     expect(p).toContain('3 SEPARATE pets');
   });
 
+  it('🚨 declara EXATAMENTE quantos pets a peça tem, em todo modo', () => {
+    // Medido em 27/08: uma casa de um pet voltou com dois cachorros na peça, com
+    // o mesmo prompt que antes tinha devolvido um só. Sem contagem declarada,
+    // quantos animais aparecem é sorteio.
+    expect(montarPrompt({ pets: pets(1), modo: 'two', textoDaArte: '', descricaoFotos: '' })).toContain(
+      'EXACTLY 1 pet, no more and no fewer',
+    );
+    expect(montarPrompt({ pets: pets(2), modo: 'two', textoDaArte: '', descricaoFotos: '' })).toContain(
+      'EXACTLY 2 pets, no more and no fewer',
+    );
+    expect(
+      montarPrompt({ pets: pets(3), modo: 'collage', textoDaArte: '', descricaoFotos: '' }),
+    ).toContain('EXACTLY 3 pets, no more and no fewer');
+  });
+
+  it('🚨 o nome do pet entra como CONTEXTO, com a proibição colada', () => {
+    const p = montarPrompt({ pets: pets(1), modo: 'two', textoDaArte: '', descricaoFotos: '' });
+    expect(p).toContain('For context only');
+    // A linha antiga (`The pet names, if the scene shows any: X.`) convidava o
+    // modelo a escrever, e ele escreveu: em 27/08 a peça saiu com o nome do pet
+    // assinado no tapete e na plaquinha da coleira, sem ninguém pedir.
+    expect(p).not.toMatch(/The pet names, if the scene shows any/);
+    expect(p).toMatch(/Do NOT write these names, or any other text, anywhere in the image/);
+  });
+
   it('🚨 manda PRESERVAR o texto da parede, nunca escrevê-lo', () => {
     const p = montarPrompt({
       pets: pets(1),
