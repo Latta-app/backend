@@ -143,6 +143,27 @@ jobs:
             # do `pm2 list` acima, e e por isso que a foto do estado ficou.
             if pm2 describe latta_platform > /dev/null 2>&1; then
               echo "latta_platform presente no pm2"
+              # 🚨 O RESTART E O DEPLOY. Sem esta linha o git pull troca o codigo
+              # NO DISCO e o processo vivo segue servindo o que ja estava na
+              # memoria, indefinidamente.
+              #
+              # Foi o que aconteceu entre 20/08 e 27/08/2026. O conserto do
+              # incidente do reboot trocou `pm2 restart all` por
+              # `pm2 resurrect` + checagem de presenca, e `resurrect` levanta app
+              # MORTO: em app vivo ele nao faz nada. O deploy passou a ser um
+              # no-op silencioso pra todo merge, e nada acusou:
+              #
+              #   - o health check responde 200, porque o processo VELHO esta bem
+              #   - o smoke externo responde 200, pelo mesmo motivo
+              #   - o GitHub Actions marca verde
+              #
+              # Medido em 27/08: `uptime 7D, restarts 0` com DOIS commits no
+              # disco que nunca rodaram (#111 e #112). O sintoma chegou como
+              # "erro no servidor" numa tela nova, sete dias depois.
+              #
+              # Por NOME, nunca `all`: `restart all` foi o que reiniciou so o
+              # modulo pm2-logrotate no incidente de 20/08 e devolveu exit 0.
+              pm2 restart latta_platform --update-env
             else
               echo "latta_platform AUSENTE apos resurrect — cold start"
               # Mata sobra de `nohup npm start` de deploy antigo: se ela ainda
@@ -157,6 +178,25 @@ jobs:
             pm2 save
 
             set -e
+
+            # 🚨 GUARD: o processo REALMENTE recarregou?
+            #
+            # Este deploy ja se declarou verde por sete dias seguidos servindo
+            # codigo velho, e nenhum sinal existente pegou: health check, smoke
+            # externo e exit code do pm2 todos respondem OK enquanto o processo
+            # ANTIGO estiver de pe. Um deploy que nao recarrega e indistinguivel
+            # de um que recarregou, pra quem so pergunta "a API responde?".
+            #
+            # O sinal que distingue e a IDADE do processo. Se ele tem mais de um
+            # minuto de vida logo depois do restart, o restart nao aconteceu.
+            IDADE=$(pm2 jlist | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=JSON.parse(d).find(x=>x.name==='latta_platform');console.log(a?Math.round((Date.now()-a.pm2_env.pm_uptime)/1000):-1)})")
+            echo "idade do processo apos o restart: ${IDADE}s"
+            if [ "$IDADE" -lt 0 ] || [ "$IDADE" -gt 60 ]; then
+              echo "🚨 ABORT: latta_platform nao recarregou (idade ${IDADE}s)."
+              echo "   O codigo novo esta no disco e o processo vivo segue com o velho."
+              pm2 list
+              exit 1
+            fi
 
             # Health check com retry. Antes era um curl unico apos `sleep 3`, que
             # corria contra o boot do app: o pm2 reinicia em ~0s mas o Express so
