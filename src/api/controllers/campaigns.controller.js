@@ -46,6 +46,22 @@ const separarExclusoes = (rulesBrutas) => {
   return { regras: semExclusoes, exclusoes };
 };
 
+/**
+ * `created_by` é uuid, e o `user-id` chega por HEADER.
+ *
+ * 🚨 Header é entrada do cliente, não identidade provada: qualquer coisa pode
+ * vir ali. Jogar o valor cru numa coluna uuid derruba o INSERT inteiro com erro
+ * de tipo, e a campanha não é criada por causa de um campo que é só procedência.
+ * Medido em 27/08, com um usuário cujo id não era uuid: 500 no create.
+ *
+ * Quem diz quem é o usuário é o JWT, que o `verifyToken` já validou. Este campo
+ * é anotação, então valor que não serve vira NULL em vez de derrubar a operação.
+ */
+const uuidOuNulo = (valor) => {
+  const s = String(valor || '');
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null;
+};
+
 const lerExclusoes = async (campaignId, transaction) =>
   sequelize.query(
     `SELECT cell_phone AS telefone, motivo
@@ -148,7 +164,7 @@ export const createCampaign = async (req, res) => {
           replacements: {
             nome,
             rules: JSON.stringify(regras),
-            createdBy: req.headers['user-id'] || null,
+            createdBy: uuidOuNulo(req.headers['user-id']),
           },
           transaction,
         },
