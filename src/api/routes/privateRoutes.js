@@ -7,6 +7,7 @@ import AdminClinicActivityRoutes from './private/admin-clinic-activity.routes.js
 import AdminSchedulingMetricsRoutes from './private/admin-scheduling-metrics.routes.js';
 import AdminCheckinRoutes from './private/admin-checkin.routes.js';
 import AdminB2bRoutes from './private/admin-b2b.routes.js';
+import CampaignsRoutes from './private/campaigns.routes.js';
 import ClinicActivityRoutes from './private/clinic-activity.routes.js';
 import ClinicAuthRoutes from './private/clinic-auth.routes.js';
 import ClinicFeatureRoutes from './private/clinic-feature.routes.js';
@@ -42,6 +43,7 @@ router.use('/admin', AdminClinicActivityRoutes);
 router.use('/admin', AdminSchedulingMetricsRoutes);
 router.use('/admin', AdminCheckinRoutes);
 router.use('/admin', AdminB2bRoutes);
+router.use('/admin', CampaignsRoutes);
 router.use('/clinic-auth', ClinicAuthRoutes);
 router.use('/clinic', ClinicFeatureRoutes);
 router.use('/clinic', ClinicRoutes);
