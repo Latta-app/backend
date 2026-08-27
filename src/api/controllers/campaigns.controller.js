@@ -32,6 +32,7 @@
 import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
 import { montarPublico, normalizarRegras } from '../services/campaign-audience.service.js';
+import { conferenciaPreVoo } from '../services/campaign-production.service.js';
 
 /**
  * Separa o que vai pro jsonb do que vai pra tabela de coluna.
@@ -281,6 +282,22 @@ export const snapshotAudience = async (req, res) => {
   }
 };
 
+/**
+ * A conferencia PRE-VOO da producao: le o publico congelado e diz quais pecas
+ * vao sair erradas, antes de gastar inferencia.
+ *
+ * Read-only e sem efeito: nao gera, nao grava, nao manda nada.
+ */
+export const productionPreflight = async (req, res) => {
+  try {
+    const dados = await conferenciaPreVoo(req.params.id);
+    return res.json({ code: 'CAMPAIGN_PRODUCTION_PREFLIGHT', data: dados });
+  } catch (err) {
+    console.error('[campaigns] preflight failed:', err.message);
+    return res.status(500).json({ code: 'PRODUCTION_ERROR', message: err.message });
+  }
+};
+
 export default {
   previewAudience,
   listCampaigns,
@@ -288,4 +305,5 @@ export default {
   createCampaign,
   updateCampaign,
   snapshotAudience,
+  productionPreflight,
 };
