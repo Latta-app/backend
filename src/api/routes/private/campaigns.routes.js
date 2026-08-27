@@ -10,6 +10,7 @@ import {
   createCampaign,
   updateCampaign,
   snapshotAudience,
+  productionPreflight,
 } from '../../controllers/campaigns.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
@@ -27,5 +28,8 @@ router.post('/campaigns', createCampaign);
 router.get('/campaigns/:id', getCampaign);
 router.put('/campaigns/:id', updateCampaign);
 router.post('/campaigns/:id/audience', snapshotAudience);
+
+// Producao: a conferencia pre-voo. Read-only, nao gera nada.
+router.get('/campaigns/:id/production/preflight', productionPreflight);
 
 export default router;
