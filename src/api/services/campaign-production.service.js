@@ -2,9 +2,8 @@
  * PRODUÇÃO DE CAMPANHA — a conferência que roda ANTES de gerar
  * ============================================================================
  *
- * Esta é a primeira fatia da etapa de Produção, e ela não gera nada. Ela olha o
- * público congelado e responde uma pergunta só: **quais peças vão sair erradas,
- * e por quê**.
+ * Ela não gera nada. Olha o público congelado e responde uma pergunta só:
+ * **quais peças vão sair erradas, e por quê**.
  *
  * A ordem é deliberada, e é a mesma que fez o Público vir antes de tudo. Em
  * 26/08/2026, na campanha do Dia do Cachorro, três defeitos de geração custaram
@@ -12,118 +11,39 @@
  * inferência, e nenhum foi detectado porque ninguém olhou. Estas checagens são
  * esse olhar, feito por máquina e antes da conta chegar.
  *
- * 🚨 O QUE ELAS NÃO PEGAM, e por isso a conferência humana continua existindo:
+ * 🚨 O QUE ELAS NÃO PEGAM, e por isso a revisão humana continua existindo:
  * o cachorro ser o do tutor certo, e a palavra na parede estar escrita certo.
  * Os dois piores defeitos daquele dia passaram por dimensão, peso e detecção de
  * pet na cena. Nenhuma validação automática substitui o olho aqui.
+ *
+ * 🚨 O QUE MUDOU EM 27/08: a conferência deixou de TRAVAR por HEIC.
+ *
+ * Enquanto a HEIC ia crua pro modelo, ela era impedimento: 22 das 69 peças não
+ * podiam ser geradas, e a tela só sabia avisar. Agora a conversão roda no
+ * caminho da geração (`campaign-image.service`), então HEIC virou uma NOTA — a
+ * peça sai, e o operador fica sabendo que aquela foto passou por conversão. O
+ * que ainda impede é foto que o servidor não entrega: dela não sai peça nenhuma.
  * ============================================================================ */
 
 import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
-
-/**
- * 🚨 ARMADILHA 1: HEIC SERVIDO COMO JPEG. O Content-Type do S3 MENTE.
- *
- * 23 das 81 fotos da campanha (em 19 tutores) eram HEIC de iPhone servidas com
- * `Content-Type: image/jpeg`. Os magic bytes diziam `ftypheic`; o cabeçalho HTTP
- * dizia jpeg. Quem acredita no cabeçalho erra.
- *
- * O estrago tem dois tamanhos, e o segundo é o perigoso:
- *
- *   1. Onde o processamento reprova, é BARULHENTO: o tutor cai na lista de
- *      falhas e ninguém manda nada errado.
- *   2. Onde a foto vai DIRETO pro modelo rotulada como jpeg, é SILENCIOSO: se
- *      ele não decodifica, não falha — ele INVENTA um cachorro plausível. A peça
- *      sai bonita, com o cachorro de outra pessoa, e nada acusa.
- *
- * Por isso a checagem lê os BYTES, e lê só os primeiros: um Range de 16 bytes
- * responde a pergunta inteira sem baixar a foto.
- */
-const ASSINATURAS = [
-  { magica: /^\xFF\xD8\xFF/, formato: 'jpeg', ok: true },
-  { magica: /^\x89PNG\r\n\x1a\n/, formato: 'png', ok: true },
-  { magica: /^RIFF....WEBP/s, formato: 'webp', ok: true },
-  { magica: /ftyp(heic|heix|mif1|msf1)/, formato: 'heic', ok: false },
-];
-
-const identificarFormato = (bytes) => {
-  const cabeca = bytes.toString('latin1');
-  for (const a of ASSINATURAS) {
-    if (a.magica.test(cabeca)) return { formato: a.formato, precisaConverter: !a.ok };
-  }
-  return { formato: 'desconhecido', precisaConverter: false };
-};
-
-/**
- * Lê só a cabeça do arquivo, por Range.
- *
- * Devolve `null` quando a foto não responde — e `null` NÃO é "está tudo bem".
- * Foto que o servidor não entrega é peça que não vai sair, e o funil diz isso em
- * voz alta em vez de deixar a falha aparecer na hora da geração.
- */
-export const lerCabeca = async (url) => {
-  try {
-    const resp = await fetch(url, {
-      headers: { Range: 'bytes=0-31' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!resp.ok && resp.status !== 206) return { erro: `HTTP ${resp.status}` };
-    const buf = Buffer.from(await resp.arrayBuffer());
-    return {
-      ...identificarFormato(buf),
-      contentType: resp.headers.get('content-type') || null,
-    };
-  } catch (e) {
-    return { erro: e?.name === 'TimeoutError' ? 'timeout' : String(e?.message || e).slice(0, 80) };
-  }
-};
+import { lerCabeca } from './campaign-image.service.js';
+import { modoDaPeca, nomeDoArquivo } from './campaign-piece.service.js';
 
 /** Concorrência modesta: são dezenas de fotos e o S3 não é o gargalo do dia. */
 const emLotes = async (itens, n, fn) => {
   const saida = [];
   for (let i = 0; i < itens.length; i += n) {
+    // eslint-disable-next-line no-await-in-loop
     saida.push(...(await Promise.all(itens.slice(i, i + n).map(fn))));
   }
   return saida;
 };
 
-/**
- * 🚨 ARMADILHA 2: 3+ FOTOS NO REQUEST QUEBRAM A CENA.
- *
- * Com 4 imagens (cena + 3 fotos) o modelo perde a âncora e re-renderiza tudo:
- * paleta trocada e o lettering da parede com grafia ERRADA ("caschorho",
- * "cascharho"). Medido duas vezes em 26/08.
- *
- * A saída é uma TIRA DE REFERÊNCIA: as N fotos lado a lado numa imagem só,
- * devolvendo o request pra duas imagens. Por isso o modo não é escolha de
- * gosto, é consequência da contagem de pets.
- */
-const modoDaPeca = (qtdPets) => {
-  if (qtdPets <= 1)
-    return { modo: 'two', imagensNoRequest: 2, porque: 'uma foto só, o modelo mantém a âncora' };
-  if (qtdPets === 2)
-    return {
-      modo: 'two',
-      imagensNoRequest: 3,
-      porque: 'duas fotos ainda cabem sem quebrar a cena',
-    };
-  return {
-    modo: 'collage',
-    imagensNoRequest: 2,
-    porque: `${qtdPets} pets viram uma tira de referência: 3+ fotos soltas quebram o lettering`,
-  };
+const PORQUE_DO_MODO = {
+  two: 'as fotos vão soltas no request, que é onde o modelo mantém a âncora da cena',
+  collage: '3+ fotos soltas quebram o lettering, então elas viram uma tira de referência',
 };
-
-/**
- * 🚨 ARMADILHA 3: NOME DE ARQUIVO FIXO EM PARALELO TROCA AS ARTES DE DONO.
- *
- * Aconteceu à mão em 26/08 (a peça de um tutor foi mandada pra outro) e quase
- * aconteceu em escala: com nome fixo, dois workers escrevem no MESMO arquivo.
- *
- * O nome sai SEMPRE derivado do telefone. Não é sugestão: é o único dado que já
- * é único por destinatário no momento da geração.
- */
-const nomeDoArquivo = (telefone) => `t${String(telefone).replace(/\D/g, '')}.jpg`;
 
 export const conferenciaPreVoo = async (campaignId) => {
   const tutores = await sequelize.query(
@@ -144,29 +64,51 @@ export const conferenciaPreVoo = async (campaignId) => {
       })),
     );
 
-    const heic = fotos.filter((f) => f.precisaConverter);
+    const converter = fotos.filter((f) => f.precisaConverter);
     const quebradas = fotos.filter((f) => f.erro);
     // O Content-Type mentiu quando ele diz jpeg e os bytes dizem outra coisa.
     const mentiram = fotos.filter(
       (f) => f.formato && f.contentType && !f.contentType.includes(f.formato),
     );
+    // Formato que não é JPEG nem HEIC não tem conversor aqui, e a peça morre na
+    // geração. Isso IMPEDE, ao contrário da HEIC.
+    const semConversor = fotos.filter(
+      (f) => f.precisaConverter && f.formato !== 'heic' && !f.erro,
+    );
 
-    const plano = modoDaPeca(pets.length);
-    const impede = quebradas.length > 0;
+    const modo = modoDaPeca(fotos.length);
+    const impede = quebradas.length > 0 || semConversor.length > 0;
 
     return {
       telefone: t.cell_phone,
-      arquivo: nomeDoArquivo(t.cell_phone),
+      arquivo: nomeDoArquivo({ telefone: t.cell_phone }),
       pets: pets.map((p) => p.nome),
-      ...plano,
+      modo,
+      imagensNoRequest: modo === 'collage' ? 2 : fotos.length + 1,
+      porque: PORQUE_DO_MODO[modo],
       fotos,
       alertas: [
-        ...(heic.length
+        // 🚨 NOTA, não impedimento. A conversão acontece antes de a foto chegar
+        // no modelo, e o convertido fica guardado no S3. Ela continua sendo dita
+        // em voz alta porque HEIC servida como jpeg é exatamente o caso em que o
+        // modelo falha em SILÊNCIO se alguém tirar a conversão do caminho.
+        ...(converter.filter((f) => f.formato === 'heic').length
           ? [
               {
                 tipo: 'heic',
+                grave: false,
+                texto: `${converter.filter((f) => f.formato === 'heic').length} foto(s) em HEIC. São convertidas pra JPEG antes de gerar.`,
+              },
+            ]
+          : []),
+        ...(semConversor.length
+          ? [
+              {
+                tipo: 'sem_conversor',
                 grave: true,
-                texto: `${heic.length} foto(s) em HEIC. Converta antes: mandar assim faz o modelo inventar um pet.`,
+                texto: `${semConversor.length} foto(s) em ${[
+                  ...new Set(semConversor.map((f) => f.formato)),
+                ].join(', ')}, que não temos como converter.`,
               },
             ]
           : []),
@@ -175,7 +117,7 @@ export const conferenciaPreVoo = async (campaignId) => {
         // duas vezes — o operador lê dois problemas onde existe um. Fora do
         // caso HEIC a divergência ainda vale ser dita: é sinal de upload
         // estranho, mas não impede a peça.
-        ...(mentiram.length && !heic.length
+        ...(mentiram.length && !converter.length
           ? [
               {
                 tipo: 'content_type',
@@ -196,7 +138,7 @@ export const conferenciaPreVoo = async (campaignId) => {
             ]
           : []),
       ],
-      pronta: !impede && heic.length === 0,
+      pronta: !impede,
     };
   });
 
@@ -211,7 +153,9 @@ export const conferenciaPreVoo = async (campaignId) => {
       collage: conta((l) => l.modo === 'collage'),
     },
     // Os nomes de arquivo TÊM que ser todos distintos. Se dois colidirem, duas
-    // peças gravam no mesmo lugar e uma casa recebe a arte da outra.
+    // peças gravam no mesmo lugar e uma casa recebe a arte da outra. Desde
+    // 27/08 quem tem a última palavra é o índice único do banco, e esta conta
+    // ficou pra dizer o problema ANTES do INSERT ser recusado.
     nomesUnicos: new Set(linhas.map((l) => l.arquivo)).size === linhas.length,
     linhas,
   };
