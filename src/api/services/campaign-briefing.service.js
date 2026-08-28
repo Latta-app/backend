@@ -597,7 +597,15 @@ export const proporCampanha = async ({ briefing, mensagens }) => {
   return {
     tipo: 'proposta',
     nome: texto(bruto?.nome),
-    entendi: texto(bruto?.entendi),
+    // 🚨 O RESUMO NÃO PODE PROMETER O QUE A TRAVA BARROU.
+    //
+    // Medido em 28/08: o agente resumiu "a blacklist será desativada" enquanto a
+    // trava, logo abaixo na mesma tela, dizia o contrário. Duas frases opostas
+    // no mesmo lugar, e a primeira é a que se lê primeiro. Não dá pra reescrever
+    // a frase dele com confiança, mas dá pra recusar que ela passe sozinha.
+    entendi: publico.travas.length
+      ? `${texto(bruto?.entendi)} (menos o que está em "Isso eu não faço", logo abaixo)`
+      : texto(bruto?.entendi),
     publico: {
       regras: publico.regras,
       decisoes: publico.decisoes,

@@ -163,6 +163,26 @@ describe('🚨 toda decisão diz de onde veio', () => {
   });
 });
 
+describe('🚨 o resumo não promete o que a trava barrou', () => {
+  it('travou: o resumo ganha a ressalva', () => {
+    // Medido em 28/08: o agente resumiu "a blacklist será desativada" com a
+    // trava dizendo o contrário logo abaixo. Duas frases opostas na mesma tela,
+    // e a primeira é a que se lê primeiro.
+    const r = normalizarPublico({ publico: { blacklist: false } });
+    expect(r.travas).toHaveLength(1);
+    // O serviço monta o `entendi` com a ressalva quando `travas` não é vazio.
+    const entendi = r.travas.length
+      ? 'A blacklist será desativada (menos o que está em "Isso eu não faço", logo abaixo)'
+      : 'A blacklist será desativada';
+    expect(entendi).toMatch(/Isso eu não faço/);
+  });
+
+  it('sem trava, o resumo fica como o agente escreveu', () => {
+    const r = normalizarPublico({ publico: { especie: 'Cat' } });
+    expect(r.travas).toEqual([]);
+  });
+});
+
 describe('🚨 desligar regra que não é travada AVISA o estrago', () => {
   it('sem foto própria, a peça mostra a ilustração da raça e a tela diz isso', () => {
     // Medido em 28/08: o agente desligou esta regra sozinho a partir de um
