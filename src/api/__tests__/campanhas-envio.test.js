@@ -39,7 +39,7 @@ vi.mock('../services/whatsapp-outbound.service.js', async (real) => {
   };
 });
 
-import { montarPayload, enviarUma } from '../services/campaign-send.service.js';
+import { montarPayload, enviarUma, acharBotaoDeUrl } from '../services/campaign-send.service.js';
 import { classificarFalha } from '../services/whatsapp-outbound.service.js';
 
 describe('🚨 o payload leva a arte da pessoa e o token dela', () => {
@@ -70,20 +70,65 @@ describe('🚨 o payload leva a arte da pessoa e o token dela', () => {
   });
 
   it('🚨 o botão leva o TOKEN, e nunca o telefone', () => {
-    const btn = montarPayload(base).template.components.find((c) => c.type === 'button');
+    const btn = montarPayload({ ...base, botaoUrlIndice: '0' }).template.components.find(
+      (c) => c.type === 'button',
+    );
     expect(btn.parameters[0].text).toBe('abc123');
     expect(JSON.stringify(montarPayload(base))).not.toContain('t5531999300962');
   });
 
   it('sem token não monta botão, em vez de montar um que leva pro nada', () => {
-    const semToken = montarPayload({ ...base, token: null });
+    const semToken = montarPayload({ ...base, token: null, botaoUrlIndice: '0' });
     expect(semToken.template.components.find((c) => c.type === 'button')).toBeUndefined();
   });
 
+  it('🚨 template SEM botão de URL não ganha componente de botão', () => {
+    // Medido em 28/08: os dois templates do Dia do Cachorro aprovados usam
+    // QUICK_REPLY. Mandar `sub_type: url` pra eles faz a Meta RECUSAR o envio
+    // inteiro, e a recusa apareceria no primeiro disparo.
+    const p = montarPayload({ ...base, botaoUrlIndice: null });
+    expect(p.template.components.find((c) => c.type === 'button')).toBeUndefined();
+  });
   it('o idioma vem do template, com pt_BR de reserva', () => {
     expect(montarPayload({ ...base, idioma: 'en_US' }).template.language.code).toBe('en_US');
     expect(montarPayload(base).template.language.code).toBe('pt_BR');
   });
+});
+
+describe('🚨 achar o botão de URL do template', () => {
+  it('QUICK_REPLY não conta', () => {
+    expect(
+      acharBotaoDeUrl([{ type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: 'Quero repostar' }] }]),
+    ).toBe(null);
+  });
+
+  it('URL FIXA não conta: ela não aceita parâmetro', () => {
+    expect(
+      acharBotaoDeUrl([
+        { type: 'BUTTONS', buttons: [{ type: 'URL', url: 'https://latta.app.br/loja' }] },
+      ]),
+    ).toBe(null);
+  });
+
+  it('URL com variável conta, e devolve o índice dela', () => {
+    expect(
+      acharBotaoDeUrl([
+        {
+          type: 'BUTTONS',
+          buttons: [
+            { type: 'QUICK_REPLY', text: 'x' },
+            { type: 'URL', url: 'https://latta.app.br/dia-do-cachorro/{{1}}' },
+          ],
+        },
+      ]),
+    ).toBe('1');
+  });
+
+  it('template sem bloco de botões devolve nada', () => {
+    expect(acharBotaoDeUrl([{ type: 'BODY', text: 'oi' }])).toBe(null);
+    expect(acharBotaoDeUrl(null)).toBe(null);
+  });
+
 });
 
 describe('🚨 falhou é diferente de não sei', () => {

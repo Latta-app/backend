@@ -58,7 +58,39 @@ const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
  * tutor quando ele compartilha; com o nome do arquivo ali, ele publicaria o
  * próprio número.
  */
-export const montarPayload = ({ telefone, templateNome, idioma, arte, valores, token, slug }) => {
+/**
+ * 🚨 O TEMPLATE TEM BOTÃO DE URL COM VARIÁVEL? Só ele aceita parâmetro.
+ *
+ * Medido em 28/08: os dois templates do Dia do Cachorro aprovados na Meta usam
+ * `QUICK_REPLY`, não `URL`. Mandar um componente `button` com `sub_type: url`
+ * pra um template de resposta rápida faz a Meta RECUSAR o envio inteiro — e a
+ * recusa viria no primeiro disparo, com o operador achando que quebrou outra
+ * coisa.
+ *
+ * E botão de URL FIXA também não leva parâmetro: só a que tem `{{n}}` no
+ * endereço. Por isso a checagem é pelas duas coisas juntas.
+ */
+export const acharBotaoDeUrl = (componentes) => {
+  const bloco = (Array.isArray(componentes) ? componentes : []).find(
+    (c) => String(c?.type).toUpperCase() === 'BUTTONS',
+  );
+  const botoes = Array.isArray(bloco?.buttons) ? bloco.buttons : [];
+  const i = botoes.findIndex(
+    (b) => String(b?.type).toUpperCase() === 'URL' && /\{\{\d+\}\}/.test(String(b?.url || '')),
+  );
+  return i >= 0 ? String(i) : null;
+};
+
+export const montarPayload = ({
+  telefone,
+  templateNome,
+  idioma,
+  arte,
+  valores,
+  token,
+  slug,
+  botaoUrlIndice,
+}) => {
   const componentes = [];
 
   if (arte) {
@@ -76,11 +108,12 @@ export const montarPayload = ({ telefone, templateNome, idioma, arte, valores, t
     });
   }
 
-  if (token && slug) {
+  // 🚨 Só quando o template TEM botão de URL com variável. Ver `acharBotaoDeUrl`.
+  if (token && slug && botaoUrlIndice !== null && botaoUrlIndice !== undefined) {
     componentes.push({
       type: 'button',
       sub_type: 'url',
-      index: '0',
+      index: String(botaoUrlIndice),
       parameters: [{ type: 'text', text: token }],
     });
   }
@@ -149,6 +182,7 @@ export const enviarUma = async ({ peca, campanha, textoPorTelefone }) => {
     valores: linha?.valores,
     token: peca.token,
     slug: campanha.slug,
+    botaoUrlIndice: campanha.botaoUrlIndice,
   });
 
   try {
@@ -266,6 +300,7 @@ export const prepararEnvio = async (campaignId) => {
       templateNome,
       idioma: catalogo[0].template_language || 'pt_BR',
       slug,
+      botaoUrlIndice: acharBotaoDeUrl(componentes),
     },
     corpo,
     textoPorTelefone: new Map(resolvido.linhas.map((l) => [l.telefone, l])),
