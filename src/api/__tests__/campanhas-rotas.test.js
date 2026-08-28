@@ -69,7 +69,33 @@ describe('as rotas do lote e do template existem', () => {
     ['GET', '/campaigns/:id/template'],
     ['PUT', '/campaigns/:id/template'],
     ['POST', '/campaigns/:id/template/preview'],
+    ['POST', '/campaigns/briefing'],
+    ['GET', '/campaigns/:id/pagina'],
+    ['PUT', '/campaigns/:id/pagina'],
+    ['POST', '/campaigns/:id/pagina/gerar'],
+    ['POST', '/campaigns/:id/aprovacao'],
   ])('%s %s', (metodo, caminho) => {
     expect(posicao(metodo, caminho)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('🚨 o agente nao tem rota que APLIQUE', () => {
+  it('a unica rota do agente e um POST que devolve proposta', () => {
+    const doAgente = rotas.filter((r) => /briefing/.test(r.caminho));
+    expect(doAgente).toHaveLength(1);
+    expect(doAgente[0].metodos).toEqual(['POST']);
+  });
+
+  it('🚨 congelar publico, aprovar direcao e disparar seguem em rotas PROPRIAS', () => {
+    // O desenho inteiro do agente depende desta fronteira: ele preenche
+    // formulario, e todo passo com consequencia continua exigindo a mao do
+    // operador numa rota que o briefing nao chama.
+    for (const caminho of [
+      '/campaigns/:id/audience',
+      '/campaigns/:id/production/approve',
+      '/campaigns/:id/pieces',
+    ]) {
+      expect(posicao('POST', caminho)).toBeGreaterThanOrEqual(0);
+    }
   });
 });

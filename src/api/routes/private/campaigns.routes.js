@@ -23,6 +23,11 @@ import {
   getTemplate,
   saveTemplate,
   previewTemplate,
+  briefing,
+  getPagina,
+  savePagina,
+  gerarPagina,
+  aprovacao,
 } from '../../controllers/campaigns.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
@@ -46,6 +51,12 @@ router.post('/campaigns', createCampaign);
 // — entao a rota e literal, e literal antes de parametro. Guard em
 // campanhas-rotas.test.js.
 router.get('/campaigns/templates', listTemplates);
+
+// 🚨 O AGENTE DE CAMPANHA, e ele NAO APLICA NADA. Devolve uma proposta pra tela
+// preencher formulario, ou uma pergunta quando falta algo que muda quem recebe.
+// Congelar publico, aprovar direcao e disparar seguem exigindo a mao do
+// operador — nenhuma prosa abre essa porta. Literal, entao vem antes do `:id`.
+router.post('/campaigns/briefing', briefing);
 
 router.get('/campaigns/:id', getCampaign);
 router.put('/campaigns/:id', updateCampaign);
@@ -82,5 +93,18 @@ router.put('/campaigns/:id/template', saveTemplate);
 // errada so aparece depois do disparo, e casa sem genero cadastrado fica
 // bloqueada aqui em vez de receber o pronome errado.
 router.post('/campaigns/:id/template/preview', previewTemplate);
+
+// ── PAGINA DE COMPARTILHAMENTO ─────────────────────────────────────────────
+router.get('/campaigns/:id/pagina', getPagina);
+router.put('/campaigns/:id/pagina', savePagina);
+// 🚨 GERA os dois arquivos, nao PUBLICA. A pagina e arquivo estatico no repo
+// landing-page, servido pelo Netlify: quem publica e quem tem o repo na mao.
+router.post('/campaigns/:id/pagina/gerar', gerarPagina);
+
+// ── APROVACAO ──────────────────────────────────────────────────────────────
+// 🚨 O ultimo portao antes do Destino: arte, texto e link da MESMA pessoa, no
+// mesmo card. Cada um passa sozinho na tela dele; o que ninguem confere e a
+// combinacao, e e ela que chega no aparelho.
+router.post('/campaigns/:id/aprovacao', aprovacao);
 
 export default router;

@@ -28,6 +28,7 @@
  * o sintoma vai ser peça gerada duas vezes.
  * ============================================================================ */
 
+import crypto from 'crypto';
 import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
 import { gerarPeca, nomeDoArquivo, modoDaPeca } from './campaign-piece.service.js';
@@ -54,6 +55,17 @@ const CONCORRENCIA = 3;
 
 /** Peça em `gerando` há mais que isto é sobra de restart, não trabalho vivo. */
 const MINUTOS_ATE_ABANDONO = 15;
+
+/**
+ * 🚨 O ENDERECO PUBLICO da peca, opaco e sorteado no momento da semeadura.
+ *
+ * Sorteado UMA vez, e nao a cada tentativa: o link ja pode ter sido gravado no
+ * template quando a peca for refeita, e um token novo deixaria o link antigo
+ * apontando pro nada. O nome do arquivo continua sendo derivado do telefone,
+ * porque ele e chave, nao endereco — e endereco derivado do telefone publica o
+ * numero do tutor num link que ele mesmo compartilha.
+ */
+const sortearToken = () => crypto.randomBytes(9).toString('base64url');
 
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
@@ -159,6 +171,7 @@ export const semear = async (campaignId, { escopo }) => {
           pet_id: pet.id ?? null,
           pets: [pet],
           arquivo: nomeDoArquivo({ telefone: t.cell_phone, petId: pet.id }),
+          token: sortearToken(),
           modo: modoDaPeca(1),
         });
       }
@@ -169,6 +182,7 @@ export const semear = async (campaignId, { escopo }) => {
         pet_id: null,
         pets,
         arquivo: nomeDoArquivo({ telefone: t.cell_phone }),
+        token: sortearToken(),
         modo: modoDaPeca(pets.filter((p) => p.foto).length),
       });
     }
@@ -178,14 +192,15 @@ export const semear = async (campaignId, { escopo }) => {
   // Um INSERT só, com a lista desmontada no banco. Uma ida por peça manteria a
   // transação aberta por 69 viagens sem ganhar nada.
   await sequelize.query(
-    `INSERT INTO campaign_pieces (campaign_id, cell_phone, pet_owner_id, pet_id, pets, arquivo, modo)
+    `INSERT INTO campaign_pieces (campaign_id, cell_phone, pet_owner_id, pet_id, pets, arquivo, modo, token)
      SELECT :id,
             p->>'cell_phone',
             NULLIF(p->>'pet_owner_id','')::uuid,
             NULLIF(p->>'pet_id','')::uuid,
             p->'pets',
             p->>'arquivo',
-            p->>'modo'
+            p->>'modo',
+            p->>'token'
        FROM jsonb_array_elements(:pecas::jsonb) AS p
      ON CONFLICT (campaign_id, arquivo) DO NOTHING`,
     {
@@ -235,7 +250,7 @@ const reservarProxima = async (campaignId) => {
          LIMIT 1
          FOR UPDATE SKIP LOCKED
       )
-      RETURNING id, cell_phone, pet_owner_id, pet_id, pets, arquivo, tentativas`,
+      RETURNING id, cell_phone, pet_owner_id, pet_id, pets, arquivo, token, tentativas`,
     { type: QueryTypes.SELECT, replacements: { id: campaignId } },
   );
   return rows[0] || null;
@@ -289,6 +304,7 @@ export const produzirPeca = async ({
         producao: receita,
         alvo,
         arquivo: peca.arquivo,
+        token: peca.token,
       });
       // eslint-disable-next-line no-await-in-loop
       await marcar(peca.id, {
@@ -406,7 +422,7 @@ export const estadoDoLote = async (campaignId) => {
   const pecas = await sequelize.query(
     `SELECT id, cell_phone, pet_owner_id, pet_id, pets, status, arquivo, url, modo,
             erro, tentativas, revisao, revisao_motivo, revisada_em, concluida_em,
-            referencias
+            referencias, token
        FROM campaign_pieces
       WHERE campaign_id = :id
       ORDER BY cell_phone, arquivo`,
