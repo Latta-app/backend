@@ -74,6 +74,9 @@ describe('as rotas do lote e do template existem', () => {
     ['PUT', '/campaigns/:id/pagina'],
     ['POST', '/campaigns/:id/pagina/gerar'],
     ['POST', '/campaigns/:id/aprovacao'],
+    ['GET', '/campaigns/:id/envio'],
+    ['POST', '/campaigns/:id/envio'],
+    ['PUT', '/campaigns/:id/envio/:pieceId'],
   ])('%s %s', (metodo, caminho) => {
     expect(posicao(metodo, caminho)).toBeGreaterThanOrEqual(0);
   });
