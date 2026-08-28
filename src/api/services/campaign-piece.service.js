@@ -289,7 +289,23 @@ export const nomeDoArquivo = ({ telefone, petId }) => {
  * `arquivo` chega pronto de quem chamou, porque quem sabe se aquilo é amostra ou
  * peça de lote é o caller, e o nome é a única coisa que os distingue.
  */
-export const gerarPeca = async ({ campaignId, producao, alvo, arquivo }) => {
+/**
+ * 🚨 O ENDEREÇO PÚBLICO DA PEÇA NÃO PODE SER O NOME DO ARQUIVO.
+ *
+ * O nome derivado do telefone (`t5531999300962.jpg`) está certo pro que ele
+ * existe: garantir uma peça por casa, com o índice único do banco atrás. Só que
+ * a página de compartilhamento serve a arte por PROXY DO NOME, e esse link vai
+ * pro tutor pra ele mandar pro Instagram — com o nome derivado do telefone,
+ * `latta.app/dia-do-gato/t5531999300962` publica o número da pessoa num link que
+ * ela mesma compartilha. Ninguém olharia e veria: o link funciona.
+ *
+ * Então quem vai pra URL é um token opaco, e o nome do arquivo continua sendo o
+ * que ele sempre foi — chave, não endereço.
+ */
+export const chaveDaPeca = ({ campaignId, arquivo, token }) =>
+  token ? `campanhas/${campaignId}/p/${token}.jpg` : `campanhas/${campaignId}/${arquivo}`;
+
+export const gerarPeca = async ({ campaignId, producao, alvo, arquivo, token }) => {
   const fundo = producao?.fundo;
   if (!fundo) throw new Error('a campanha ainda não tem fundo');
 
@@ -348,7 +364,7 @@ export const gerarPeca = async ({ campaignId, producao, alvo, arquivo }) => {
     fotosBase64,
   });
 
-  const key = `campanhas/${campaignId}/${arquivo}`;
+  const key = chaveDaPeca({ campaignId, arquivo, token });
   await s3.uploadFile({
     bucketName: BUCKET,
     filePath: key,
@@ -359,6 +375,7 @@ export const gerarPeca = async ({ campaignId, producao, alvo, arquivo }) => {
   return {
     url: `${BASE}/${key}`,
     arquivo,
+    token: token ?? null,
     modo,
     imagensNoRequest: 1 + fotosBase64.length,
     referencias,

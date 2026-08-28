@@ -42,6 +42,9 @@ import {
 } from '../services/campaign-batch.service.js';
 import { getTemplateCatalog } from '../services/template-catalog.service.js';
 import { resolverTemplate, variaveisDoCorpo } from '../services/campaign-template.service.js';
+import { proporCampanha } from '../services/campaign-briefing.service.js';
+import { montarHtml, linhasDeRedirect, PADRAO_DA_PAGINA } from '../services/campaign-page.service.js';
+import { montarAprovacao } from '../services/campaign-approval.service.js';
 
 /**
  * Separa o que vai pro jsonb do que vai pra tabela de coluna.
@@ -600,6 +603,121 @@ export const previewTemplate = async (req, res) => {
   }
 };
 
+/**
+ * O AGENTE DE CAMPANHA: o operador descreve, o agente propõe as marcações.
+ *
+ * 🚨 NÃO APLICA NADA. Não cria campanha, não congela público, não aprova
+ * direção e não gera peça — devolve uma proposta pra tela preencher os
+ * formulários, ou uma pergunta quando falta algo que muda quem recebe. Essa
+ * fronteira é o desenho inteiro: troca "deixei passar uma marcação" por "confiro
+ * uma proposta", sem trocar por "disparei pra lista errada".
+ *
+ * Roda o funil de verdade (read-only) pra proposta chegar com o número ao lado:
+ * conferir a consequência é mais fácil que conferir a marcação.
+ */
+export const briefing = async (req, res) => {
+  try {
+    const proposta = await proporCampanha({
+      briefing: req.body?.briefing,
+      mensagens: req.body?.mensagens,
+    });
+    return res.json({ code: 'CAMPAIGN_BRIEFING', data: proposta });
+  } catch (err) {
+    console.error('[campaigns] briefing failed:', err.message);
+    return res.status(400).json({ code: 'BRIEFING_ERROR', message: err.message });
+  }
+};
+
+/** Lê a config da aba de Página de compartilhamento. */
+export const getPagina = async (req, res) => {
+  try {
+    const rows = await sequelize.query('SELECT pagina FROM campaigns WHERE id = :id', {
+      type: QueryTypes.SELECT,
+      replacements: { id: req.params.id },
+    });
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_PAGINA', data: rows[0].pagina || {} });
+  } catch (err) {
+    console.error('[campaigns] get pagina failed:', err.message);
+    return res.status(500).json({ code: 'PAGINA_ERROR', message: err.message });
+  }
+};
+
+/** Salva a copy da página. Coluna própria: cada etapa salva a si mesma. */
+export const savePagina = async (req, res) => {
+  try {
+    const rows = await sequelize.query(
+      `UPDATE campaigns SET pagina = :pagina::jsonb, updated_at = NOW()
+        WHERE id = :id RETURNING pagina`,
+      {
+        type: QueryTypes.SELECT,
+        replacements: { id: req.params.id, pagina: JSON.stringify(req.body?.pagina ?? {}) },
+      },
+    );
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    return res.json({ code: 'CAMPAIGN_PAGINA_SAVED', data: rows[0].pagina });
+  } catch (err) {
+    console.error('[campaigns] save pagina failed:', err.message);
+    return res.status(500).json({ code: 'PAGINA_ERROR', message: err.message });
+  }
+};
+
+/**
+ * Os dois arquivos que a página exige, prontos pra colar no repo da landing.
+ *
+ * 🚨 NÃO PUBLICA. A página é arquivo estático no `landing-page`, servido pelo
+ * Netlify: quem publica é quem tem o repo na mão. Esta rota tira do operador a
+ * parte que quebra em SILÊNCIO, que são as duas linhas do `_redirects`.
+ */
+export const gerarPagina = async (req, res) => {
+  try {
+    const rows = await sequelize.query('SELECT pagina FROM campaigns WHERE id = :id', {
+      type: QueryTypes.SELECT,
+      replacements: { id: req.params.id },
+    });
+    if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
+    const pagina = { ...PADRAO_DA_PAGINA, ...(rows[0].pagina || {}), ...(req.body?.pagina || {}) };
+    if (!pagina.slug) {
+      return res.status(400).json({
+        code: 'PAGINA_SEM_SLUG',
+        message: 'A página precisa de um endereço antes de gerar.',
+      });
+    }
+    return res.json({
+      code: 'CAMPAIGN_PAGINA_HTML',
+      data: {
+        pagina,
+        caminho: `public/${pagina.slug}/index.html`,
+        html: montarHtml({ pagina, campaignId: req.params.id }),
+        redirects: linhasDeRedirect({ slug: pagina.slug, campaignId: req.params.id }),
+      },
+    });
+  } catch (err) {
+    console.error('[campaigns] gerar pagina failed:', err.message);
+    return res.status(500).json({ code: 'PAGINA_ERROR', message: err.message });
+  }
+};
+
+/**
+ * APROVAÇÃO: o que CADA PESSOA vai receber, junto.
+ *
+ * 🚨 Arte, texto e link no mesmo card. Cada um passa sozinho na tela dele; o que
+ * ninguém confere é a COMBINAÇÃO, e é ela que chega no aparelho.
+ */
+export const aprovacao = async (req, res) => {
+  try {
+    const dados = await montarAprovacao(req.params.id, {
+      corpo: req.body?.corpo,
+      variaveis: req.body?.variaveis,
+      slug: req.body?.slug,
+    });
+    return res.json({ code: 'CAMPAIGN_APROVACAO', data: dados });
+  } catch (err) {
+    console.error('[campaigns] aprovacao failed:', err.message);
+    return res.status(500).json({ code: 'APROVACAO_ERROR', message: err.message });
+  }
+};
+
 export default {
   previewAudience,
   listCampaigns,
@@ -620,4 +738,9 @@ export default {
   getTemplate,
   saveTemplate,
   previewTemplate,
+  briefing,
+  getPagina,
+  savePagina,
+  gerarPagina,
+  aprovacao,
 };
