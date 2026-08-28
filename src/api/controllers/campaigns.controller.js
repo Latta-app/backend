@@ -45,6 +45,12 @@ import { resolverTemplate, variaveisDoCorpo } from '../services/campaign-templat
 import { proporCampanha } from '../services/campaign-briefing.service.js';
 import { montarHtml, linhasDeRedirect, PADRAO_DA_PAGINA } from '../services/campaign-page.service.js';
 import { montarAprovacao } from '../services/campaign-approval.service.js';
+import {
+  dispararLote,
+  estadoDoEnvio,
+  prepararEnvio,
+  resolverIncerta,
+} from '../services/campaign-send.service.js';
 
 /**
  * Separa o que vai pro jsonb do que vai pra tabela de coluna.
@@ -718,6 +724,69 @@ export const aprovacao = async (req, res) => {
   }
 };
 
+/** O estado do disparo, peça por peça. */
+export const envioEstado = async (req, res) => {
+  try {
+    const [estado, pronto] = await Promise.all([
+      estadoDoEnvio(req.params.id),
+      prepararEnvio(req.params.id),
+    ]);
+    return res.json({
+      code: 'CAMPAIGN_ENVIO',
+      data: { ...estado, falta: pronto.falta ?? [], impedido: !!pronto.erro },
+    });
+  } catch (err) {
+    console.error('[campaigns] envio estado failed:', err.message);
+    return res.status(500).json({ code: 'ENVIO_ERROR', message: err.message });
+  }
+};
+
+/**
+ * 🚨 O DISPARO. É a única operação desta seção cujo erro não tem desfazer.
+ *
+ * `telefone` no corpo manda pra UM número e para — é assim que o primeiro
+ * disparo de toda campanha deve acontecer, no aparelho de quem está montando,
+ * antes de qualquer coisa chegar em tutor. Uma peça de prova custa uma mensagem;
+ * o lote errado custa o público inteiro.
+ *
+ * Sai só o que passou pela Aprovação, e linha com `enviado_em` nunca mais entra
+ * na fila.
+ */
+export const enviar = async (req, res) => {
+  try {
+    const r = await dispararLote(req.params.id, { telefone: req.body?.telefone });
+    if (r.erro === 'CAMPAIGN_NOT_FOUND') return res.status(404).json({ code: r.erro });
+    if (r.erro) return res.status(400).json({ code: r.erro, falta: r.falta });
+    return res.json({ code: 'CAMPAIGN_ENVIO_INICIADO', data: r });
+  } catch (err) {
+    console.error('[campaigns] enviar failed:', err.message);
+    return res.status(500).json({ code: 'ENVIO_ERROR', message: err.message });
+  }
+};
+
+/**
+ * O veredito humano sobre uma peça INCERTA.
+ *
+ * 🚨 Existe endpoint em vez de automação porque a máquina não sabe: timeout não
+ * diz se a mensagem saiu. Quem sabe olhar o aparelho do tutor, ou o relatório da
+ * Meta, é gente.
+ */
+export const resolverEnvioIncerto = async (req, res) => {
+  try {
+    const r = await resolverIncerta({
+      campaignId: req.params.id,
+      pieceId: req.params.pieceId,
+      decisao: req.body?.decisao,
+    });
+    if (r.erro === 'PECA_NAO_ENCONTRADA') return res.status(404).json({ code: r.erro });
+    if (r.erro) return res.status(400).json({ code: r.erro });
+    return res.json({ code: 'CAMPAIGN_ENVIO_RESOLVIDO', data: r });
+  } catch (err) {
+    console.error('[campaigns] resolver incerta failed:', err.message);
+    return res.status(500).json({ code: 'ENVIO_ERROR', message: err.message });
+  }
+};
+
 export default {
   previewAudience,
   listCampaigns,
@@ -743,4 +812,7 @@ export default {
   savePagina,
   gerarPagina,
   aprovacao,
+  envioEstado,
+  enviar,
+  resolverEnvioIncerto,
 };

@@ -10,19 +10,13 @@
 // IMPORTANTE: graph.facebook.com tem ECONNRESET intermitente do Docker EC2.
 // Workaround: chama via whatsapp-proxy EF que age como proxy estável.
 
-import axios from 'axios';
 import { QueryTypes } from 'sequelize';
 import { Contact, PetOwner, Template, TemplateVariable, TemplateVariableType } from '../models/index.js';
 import ContactRepository from '../repositories/contact.repository.js';
+import { callMeta, logToHistory } from './whatsapp-outbound.service.js';
 import { sequelize } from '../../config/database.js';
 
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '587778224419344';
-const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kusqorpjtadcuooprpqb.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const WHATSAPP_PROXY_URL = `${SUPABASE_URL}/functions/v1/whatsapp-proxy?target=https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
-const CHAT_HISTORY_LOGGER_URL = `${SUPABASE_URL}/functions/v1/chat-history-logger`;
 
 // Canonical Luma sender label gravado em chat_history.name e refletido no
 // painel + bolha do tutor. Ver `.claude/rules/n8n-rules.md` (rebrand 2026-05).
@@ -36,32 +30,18 @@ const VAR_TYPE_FULL_NAME = '25df752a-1412-4eaf-9421-7d1b5b92b392';
 const VAR_TYPE_PET_NAME = '1edfdb51-7c5b-4822-928f-5a22b57b06c1';
 const VAR_TYPE_COMPANY = 'f7929314-8274-43b7-856b-100b9e0af83f';
 
-async function callMeta(payload) {
-  const resp = await axios.post(WHATSAPP_PROXY_URL, payload, {
-    headers: {
-      'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    timeout: 15000,
-  });
-  return resp.data;
-}
-
-async function logToHistory(row) {
-  // Fire-and-forget: erro de log não bloqueia envio (mensagem já foi pra Meta).
-  // Tutor recebe; mensageria fica fora-de-sync por minutos no pior caso.
-  try {
-    await axios.post(CHAT_HISTORY_LOGGER_URL, row, {
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 5000,
-    });
-  } catch (err) {
-    console.warn('[messaging] logToHistory failed:', err?.message || err);
-  }
-}
+// A ida à Meta e o log no chat_history saíram daqui pro
+// `whatsapp-outbound.service`, sem mudar comportamento: mesmo proxy, mesmo
+// timeout, mesmo fire-and-forget do log.
+//
+// 🚨 O motivo é a rede de recuperação de entrega. Ela depende do rastro nascer
+// em TODO sink de outbound, e já ficou 8 dias dormente porque nasceu em um só.
+// Um sink novo escondido numa cópia é um sink que nenhuma rede cobre — e o
+// Destino da campanha precisava desta mesma ida.
+//
+// 🚨 O que NÃO foi junto é o `setAttendance` logo abaixo, e essa separação é o
+// ponto: aqui ele é verdade (a Luma assumiu a conversa), e numa campanha seria
+// desastre. Ver o cabeçalho do módulo extraído.
 
 /**
  * Resolve uma variável automática (não-manual) buscando no DB.

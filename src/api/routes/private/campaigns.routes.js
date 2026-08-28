@@ -28,6 +28,9 @@ import {
   savePagina,
   gerarPagina,
   aprovacao,
+  envioEstado,
+  enviar,
+  resolverEnvioIncerto,
 } from '../../controllers/campaigns.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
@@ -106,5 +109,18 @@ router.post('/campaigns/:id/pagina/gerar', gerarPagina);
 // mesmo card. Cada um passa sozinho na tela dele; o que ninguem confere e a
 // combinacao, e e ela que chega no aparelho.
 router.post('/campaigns/:id/aprovacao', aprovacao);
+
+// ── DESTINO ────────────────────────────────────────────────────────────────
+// 🚨 A unica operacao desta secao cujo erro NAO TEM DESFAZER.
+//
+// Sai so o que passou pela Aprovacao, e linha com `enviado_em` nunca mais entra
+// na fila. Um `telefone` no corpo do POST manda pra UM numero e para, que e
+// como o primeiro disparo de toda campanha deve acontecer.
+router.get('/campaigns/:id/envio', envioEstado);
+router.post('/campaigns/:id/envio', enviar);
+
+// 🚨 O veredito humano sobre a peca INCERTA. Existe endpoint em vez de
+// automacao porque a maquina nao sabe: timeout nao diz se a mensagem saiu.
+router.put('/campaigns/:id/envio/:pieceId', resolverEnvioIncerto);
 
 export default router;
