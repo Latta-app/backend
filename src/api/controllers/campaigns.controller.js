@@ -45,6 +45,7 @@ import { resolverTemplate, variaveisDoCorpo } from '../services/campaign-templat
 import { proporCampanha } from '../services/campaign-briefing.service.js';
 import { montarHtml, linhasDeRedirect, PADRAO_DA_PAGINA } from '../services/campaign-page.service.js';
 import { montarAprovacao } from '../services/campaign-approval.service.js';
+import { ondeParou } from '../services/campaign-stage.service.js';
 import {
   dispararLote,
   estadoDoEnvio,
@@ -137,17 +138,44 @@ export const previewAudience = async (req, res) => {
   }
 };
 
+/**
+ * A lista de campanhas, com ONDE CADA UMA PAROU.
+ *
+ * 🚨 O nome sozinho não responde a pergunta que se faz ao abrir a seção, que é
+ * "qual eu estava montando, e em que pé ela está". Uma campanha com público
+ * congelado e nenhuma peça é uma coisa; a mesma com 69 peças aprovadas e zero
+ * enviadas é outra bem diferente, e as duas se chamam igual na lista.
+ *
+ * As contagens vêm em subconsulta e não em join: a `campaign_pieces` tem uma
+ * linha por peça, e um join simples multiplicaria a campanha por 69 antes de
+ * agrupar. São dezenas de campanhas, não milhares.
+ *
+ * `ORDER BY updated_at`, e não `created_at`: quem reabre a seção quer a que
+ * mexeu por último no topo, e não a que criou por último.
+ */
 export const listCampaigns = async (_req, res) => {
   try {
     const rows = await sequelize.query(
       `SELECT c.id, c.nome, c.status, c.rules, c.created_at, c.updated_at,
+              (c.producao -> 'direcaoAprovada') IS NOT NULL          AS direcao_aprovada,
+              NULLIF(c.template ->> 'nome', '')                      AS template_escolhido,
+              NULLIF(c.pagina   ->> 'slug', '')                      AS pagina_slug,
               (SELECT COUNT(*) FROM campaign_audience ca WHERE ca.campaign_id = c.id) AS audiencia_congelada,
-              (SELECT COUNT(*) FROM campaign_exclusions ce WHERE ce.campaign_id = c.id) AS exclusoes_manuais
+              (SELECT COUNT(*) FROM campaign_exclusions ce WHERE ce.campaign_id = c.id) AS exclusoes_manuais,
+              (SELECT COUNT(*) FROM campaign_pieces cp WHERE cp.campaign_id = c.id AND cp.status = 'pronta')      AS pecas_prontas,
+              (SELECT COUNT(*) FROM campaign_pieces cp WHERE cp.campaign_id = c.id AND cp.status = 'erro')        AS pecas_com_erro,
+              (SELECT COUNT(*) FROM campaign_pieces cp WHERE cp.campaign_id = c.id AND cp.revisao = 'aprovada')   AS pecas_aprovadas,
+              (SELECT COUNT(*) FROM campaign_pieces cp WHERE cp.campaign_id = c.id AND cp.enviado_em IS NOT NULL) AS enviadas
          FROM campaigns c
-        ORDER BY c.created_at DESC`,
+        ORDER BY c.updated_at DESC`,
       { type: QueryTypes.SELECT },
     );
-    return res.json({ code: 'CAMPAIGNS_LIST', data: rows });
+    // O estagio vai PRONTO pra tela: e regra de dominio, e calcular no
+    // frontend criaria uma segunda casa pra mesma verdade.
+    return res.json({
+      code: 'CAMPAIGNS_LIST',
+      data: rows.map((c) => ({ ...c, estagio: ondeParou(c) })),
+    });
   } catch (err) {
     console.error('[campaigns] list failed:', err.message);
     return res.status(500).json({ code: 'CAMPAIGNS_ERROR', message: err.message });
