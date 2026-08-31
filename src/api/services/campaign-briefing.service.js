@@ -303,7 +303,16 @@ const PADRAO_DO_CAMPO = {
  * "confira" é a coisa certa a dizer.
  */
 const decisao = (campo, valor, porqueBruto, opcoes = {}) => {
-  const padrao = PADRAO_DO_CAMPO[campo];
+  // 🚨 A BASE DA COMPARAÇÃO É A CAMPANHA ABERTA, quando existe uma.
+  //
+  // Com uma campanha na tela, "mudou" só quer dizer alguma coisa em relação ao
+  // que ESTÁ SALVO nela. Comparar com o padrão global diria "mudou" sobre um
+  // valor que a pessoa escolheu semana passada e o agente não encostou, e diria
+  // "como sempre" sobre uma troca que ele acabou de fazer. O selo voltaria a
+  // contar uma história diferente da que aconteceu, que é o defeito de 31/08
+  // noutra forma.
+  const base = opcoes.base ?? PADRAO_DO_CAMPO;
+  const padrao = base[campo] ?? PADRAO_DO_CAMPO[campo];
   const mudou = padrao !== undefined && valor !== padrao;
   const dele = texto(porqueBruto?.porque);
 
@@ -328,8 +337,12 @@ const decisao = (campo, valor, porqueBruto, opcoes = {}) => {
     porque:
       dele ||
       (mudou
-        ? 'isso mudou em relação ao de sempre e o agente não disse por quê. Confira.'
-        : 'ninguém falou disso na conversa, então ficou como sempre fica'),
+        ? opcoes.base
+          ? 'isso mudou em relação ao que já estava salvo e o agente não disse por quê. Confira.'
+          : 'isso mudou em relação ao de sempre e o agente não disse por quê. Confira.'
+        : opcoes.base
+          ? 'ninguém mexeu nisso, então ficou como já estava na campanha'
+          : 'ninguém falou disso na conversa, então ficou como sempre fica'),
   };
 };
 
@@ -341,11 +354,12 @@ const decisao = (campo, valor, porqueBruto, opcoes = {}) => {
  * tela. Descartar em silêncio seria trocar um defeito barulhento (regra
  * desconhecida) por um mudo (regra que sumiu), e o mudo é o que passa batido.
  */
-export const normalizarPublico = (bruto, { tipos = [] } = {}) => {
+export const normalizarPublico = (bruto, { tipos = [], aberta = null } = {}) => {
   const proposto = bruto?.publico ?? {};
   const porques = bruto?.publicoPorque ?? {};
   const rotulosDeVinculo = Object.fromEntries(tipos.map((t) => [t.nome, t.rotulo]));
-  const opcoesDeFrase = { rotulosDeVinculo };
+  // 🚨 Com uma campanha aberta, ela vira a base da comparação. Ver `decisao`.
+  const opcoesDeFrase = { rotulosDeVinculo, ...(aberta ? { base: aberta } : {}) };
   const valoresDe = (spec) => (typeof spec.valores === 'function' ? spec.valores(tipos) : spec.valores);
   const regras = {};
   const decisoes = [];
@@ -384,17 +398,25 @@ export const normalizarPublico = (bruto, { tipos = [] } = {}) => {
       continue;
     }
 
-    // 🚨 CAMPO QUE O AGENTE NÃO CITOU ENTRA NA LISTA MESMO ASSIM, com o padrão.
-    // Ele decidiu por omissão, e omissão é decisão: era a lacuna que fazia uma
-    // proposta parecer mais completa do que era. O que muda com a linguagem
-    // nova é a forma, nunca a honestidade.
-    const usado = veio === undefined ? PADRAO_DO_CAMPO[campo] : veio;
+    // 🚨 CAMPO QUE O AGENTE NÃO CITOU ENTRA NA LISTA MESMO ASSIM. Ele decidiu
+    // por omissão, e omissão é decisão: era a lacuna que fazia uma proposta
+    // parecer mais completa do que era.
+    //
+    // 🚨 E o valor de encosto é o da CAMPANHA ABERTA, não o padrão global. Sem
+    // isto, pedir "muda o público pra gato" numa campanha aberta devolveria os
+    // outros nove campos ao default e desfaria em silêncio o que a pessoa tinha
+    // marcado à mão. Mudança pedida em uma coisa não mexe nas outras.
+    const encosto = aberta?.[campo] ?? PADRAO_DO_CAMPO[campo];
+
     if (veio !== undefined && !valoresDe(spec).includes(veio)) {
       ignorei.push(`${campo}: "${veio}" não é um valor que existe, então ficou o padrão`);
-      decisoes.push(decisao(campo, PADRAO_DO_CAMPO[campo], null, opcoesDeFrase));
+      regras[campo] = encosto;
+      decisoes.push(decisao(campo, encosto, null, opcoesDeFrase));
       continue;
     }
-    if (veio !== undefined) regras[campo] = veio;
+
+    const usado = veio === undefined ? encosto : veio;
+    regras[campo] = usado;
     decisoes.push(decisao(campo, usado, porques[campo], opcoesDeFrase));
     if (veio === undefined) continue;
     if (veio === false && spec.avisoSeDesligada) {
@@ -424,25 +446,36 @@ export const normalizarPublico = (bruto, { tipos = [] } = {}) => {
   return { regras: normalizadas, decisoes: decisoesVisiveis, travas, avisos, ignorei };
 };
 
-export const normalizarProducao = (bruto) => {
+export const normalizarProducao = (bruto, { aberta = null } = {}) => {
   const proposto = bruto?.producao ?? {};
   const porques = bruto?.producaoPorque ?? {};
   const valores = { tipo: 'gerar' };
   const decisoes = [];
   const ignorei = [];
+  const opcoes = aberta ? { base: aberta } : {};
+  // Mesma regra do público: o que o agente não citou volta ao que a campanha
+  // já tem, e só cai no padrão global quando não há campanha aberta.
+  const encosto = (campo, cair) => aberta?.[campo] ?? cair;
 
   const escopo = proposto.escopo;
-  valores.escopo = PRODUCAO_VOCABULARIO.escopo.valores.includes(escopo) ? escopo : 'tutor';
+  const escopoPadrao = encosto('escopo', 'tutor');
+  valores.escopo = PRODUCAO_VOCABULARIO.escopo.valores.includes(escopo) ? escopo : escopoPadrao;
   if (escopo && valores.escopo !== escopo) {
-    ignorei.push(`escopo: "${escopo}" não existe, então ficou "tutor"`);
+    ignorei.push(`escopo: "${escopo}" não existe, então ficou "${escopoPadrao}"`);
   }
-  decisoes.push(decisao('escopo', valores.escopo, porques.escopo));
+  decisoes.push(decisao('escopo', valores.escopo, porques.escopo, opcoes));
 
-  valores.descricaoFotos = texto(proposto.descricaoFotos);
-  decisoes.push(decisao('descricaoFotos', valores.descricaoFotos, porques.descricaoFotos));
+  valores.descricaoFotos =
+    proposto.descricaoFotos === undefined
+      ? texto(encosto('descricaoFotos', ''))
+      : texto(proposto.descricaoFotos);
+  decisoes.push(decisao('descricaoFotos', valores.descricaoFotos, porques.descricaoFotos, opcoes));
 
-  valores.textoDaArte = texto(proposto.textoDaArte);
-  decisoes.push(decisao('textoDaArte', valores.textoDaArte, porques.textoDaArte));
+  valores.textoDaArte =
+    proposto.textoDaArte === undefined
+      ? texto(encosto('textoDaArte', ''))
+      : texto(proposto.textoDaArte);
+  decisoes.push(decisao('textoDaArte', valores.textoDaArte, porques.textoDaArte, opcoes));
 
   return { valores, decisoes, ignorei };
 };
@@ -542,6 +575,25 @@ export const normalizarVariaveis = (bruto, posicoes) => {
 };
 
 /**
+ * A campanha aberta, contada nas MESMAS frases que o operador lê.
+ *
+ * 🚨 Ela vai pro prompt assim, e não como o jsonb cru, por dois motivos que são
+ * o mesmo motivo. Primeiro: um modelo que raciocina sobre `fotoEscopo: "algum"`
+ * devolve justificativa citando `fotoEscopo`, e a frase que sobra na tela volta
+ * a ser nome de campo — o defeito que esta rodada consertou na outra ponta.
+ * Segundo: a tabela de frases já existe e é a única fonte de como cada valor se
+ * chama em português. Duas descrições do mesmo estado divergiriam.
+ */
+export const resumoDaCampanha = (aberta, tipos = []) => {
+  const rotulosDeVinculo = Object.fromEntries(tipos.map((t) => [t.nome, t.rotulo]));
+  const campos = [...Object.keys(VOCABULARIO), 'escopo', 'descricaoFotos', 'textoDaArte'];
+  const de = { ...(aberta?.regras ?? {}), ...(aberta?.producao ?? {}) };
+  return campos
+    .map((campo) => fraseDoCampo(campo, de[campo], { rotulosDeVinculo }))
+    .filter(Boolean);
+};
+
+/**
  * O briefing inteiro: duas idas ao modelo, e o funil rodado de verdade no fim.
  *
  * 🚨 São duas idas de propósito. A segunda recebe o CORPO REAL dos templates
@@ -550,10 +602,27 @@ export const normalizarVariaveis = (bruto, posicoes) => {
  * template e mapeia as variáveis dele no mesmo fôlego, sem nunca ter lido o
  * corpo — e o mapa sai plausível e errado.
  */
-export const proporCampanha = async ({ briefing, mensagens }) => {
+export const proporCampanha = async ({ briefing, mensagens, campanhaAberta }) => {
   const pedido = texto(briefing);
   if (!pedido) throw new Error('Escreva o briefing antes de pedir a proposta.');
   const conversa = Array.isArray(mensagens) ? mensagens : [];
+
+  /**
+   * 🚨 A CAMPANHA ABERTA, quando existe uma.
+   *
+   * Até 31/08 o agente propunha SEMPRE do zero: abrir uma campanha montada e
+   * dizer "muda o público pra gato" gerava uma proposta que mexia em tudo, e as
+   * outras nove marcações voltavam ao default sem ninguém pedir. Ele não estava
+   * errando de vez em quando, ele nunca soube que havia uma campanha.
+   *
+   * Com ela, três coisas mudam: o prompt vê o estado atual, o encosto de cada
+   * campo é o valor salvo (não o default), e o selo compara com o que está
+   * salvo. As três dizem a mesma coisa: mudança pedida em uma coisa não mexe
+   * nas outras.
+   */
+  const aberta = campanhaAberta?.regras ? campanhaAberta : null;
+  const baseDoPublico = aberta?.regras ?? null;
+  const baseDaProducao = aberta?.producao ?? null;
 
   // 🚨 Os tipos de vínculo saem do banco, não de uma lista aqui. Se a consulta
   // falhar, sobram os quatro grupos: o agente perde a chance de recortar por
@@ -606,6 +675,19 @@ export const proporCampanha = async ({ briefing, mensagens }) => {
           ? conversa.map((m) => `${m.papel === 'agente' ? 'VOCÊ' : 'OPERADOR'}: ${texto(m.texto)}`).join('\n')
           : `OPERADOR: ${pedido}`
       }`,
+      // 🚨 A campanha aberta entra no prompt EM PORTUGUÊS, pelas mesmas frases
+      // que o operador lê. Mandar o jsonb cru faria o modelo raciocinar sobre
+      // nome de campo e devolver justificativa citando nome de campo, que é o
+      // defeito que esta rodada inteira consertou noutra ponta.
+      aberta
+        ? [
+            `🚨 JÁ EXISTE UMA CAMPANHA ABERTA, chamada "${texto(campanhaAberta.nome) || 'sem nome'}", e ela está assim hoje:`,
+            resumoDaCampanha(aberta, tipos)
+              .map((l) => `  - ${l}`)
+              .join('\n'),
+            'O operador está AJUSTANDO essa campanha, não criando outra. Mude SOMENTE o que ele pedir agora e devolva o resto exatamente como está acima. Mexer no que ninguém citou desfaz em silêncio o que ele marcou à mão.',
+          ].join('\n')
+        : 'Não há campanha aberta: isto é uma campanha nova.',
       podePerguntar
         ? `Você já fez ${jaPerguntou} de ${TETO_DE_PERGUNTAS} perguntas. Pergunte só se faltar algo que muda quem recebe ou o que sai; senão, proponha.`
         : `🚨 Você já fez ${jaPerguntou} perguntas, que é o limite. AGORA VOCÊ TEM QUE PROPOR. O que faltar, assuma no padrão e liste em "naoDecidi".`,
@@ -623,8 +705,8 @@ export const proporCampanha = async ({ briefing, mensagens }) => {
     };
   }
 
-  const publico = normalizarPublico(bruto, { tipos });
-  const producao = normalizarProducao(bruto);
+  const publico = normalizarPublico(bruto, { tipos, aberta: baseDoPublico });
+  const producao = normalizarProducao(bruto, { aberta: baseDaProducao });
 
   // ── O template, com a lista curta ─────────────────────────────────────────
   let template = { nome: null, variaveis: {}, candidatos: [], ignorei: [], faltando: [] };

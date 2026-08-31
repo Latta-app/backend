@@ -37,6 +37,7 @@ import {
   VOCABULARIO,
   TRAVAS,
   TETO_DE_PERGUNTAS,
+  resumoDaCampanha,
 } from '../services/campaign-briefing.service.js';
 import { COMO } from '../services/campaign-fala.service.js';
 
@@ -288,6 +289,81 @@ describe('🚨 o que a CONVERSA REAL de 31/08 pegou, e nenhum teste verde tinha 
 
   it('escolher "dono" não avisa nada, porque não há estrago', () => {
     expect(normalizarPublico({ publico: { vinculo: 'dono' } }, { tipos: TIPOS }).avisos).toEqual([]);
+  });
+});
+
+describe('🚨 o agente CONHECE a campanha aberta', () => {
+  // Até 31/08 ele propunha sempre do zero. Abrir uma campanha montada e dizer
+  // "muda o público pra gato" gerava uma proposta que mexia em tudo: as outras
+  // nove marcações voltavam ao default sem ninguém pedir. Ele não errava de vez
+  // em quando, ele nunca soube que havia uma campanha.
+  const ABERTA = {
+    especie: 'Dog',
+    fotoPropria: false,
+    fotoEscopo: 'algum',
+    vinculo: 'principal',
+    dedupNome: false,
+    petAtivo: true,
+  };
+
+  it('🚨 mudar UMA coisa não desfaz as outras nove', () => {
+    const r = normalizarPublico(
+      { publico: { especie: 'Cat' }, publicoPorque: { especie: { porque: 'você pediu gato' } } },
+      { tipos: TIPOS, aberta: ABERTA },
+    );
+    expect(r.regras.especie).toBe('Cat'); // o que ele pediu, mudou
+    // E o resto ficou como a campanha tinha, NÃO como o padrão global manda.
+    expect(r.regras.fotoPropria).toBe(false);
+    expect(r.regras.fotoEscopo).toBe('algum');
+    expect(r.regras.vinculo).toBe('principal');
+    expect(r.regras.dedupNome).toBe(false);
+  });
+
+  it('🚨 "mudou" passa a ser em relação ao SALVO, não ao padrão global', () => {
+    const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS, aberta: ABERTA });
+    // `principal` é diferente do padrão global (`dono`), mas é o que a campanha
+    // já tinha e ninguém encostou nele. Dizer "mudou" aqui contaria uma
+    // história que não aconteceu, que é o defeito de 31/08 noutra forma.
+    expect(r.decisoes.find((d) => d.campo === 'vinculo').mudou).toBe(false);
+    expect(r.decisoes.find((d) => d.campo === 'especie').mudou).toBe(true);
+  });
+
+  it('o texto do que ficou igual fala da CAMPANHA, não do "de sempre"', () => {
+    const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS, aberta: ABERTA });
+    expect(r.decisoes.find((d) => d.campo === 'vinculo').porque).toMatch(/já estava na campanha/i);
+  });
+
+  it('sem campanha aberta, tudo continua como era', () => {
+    const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS });
+    expect(r.regras.vinculo).toBe('dono');
+    expect(r.regras.dedupNome).toBe(true);
+    expect(r.decisoes.find((d) => d.campo === 'vinculo').porque).toMatch(/ninguém falou/i);
+  });
+
+  it('a produção também encosta na campanha, não no padrão', () => {
+    const r = normalizarProducao(
+      { producao: { escopo: 'pet' } },
+      { aberta: { escopo: 'tutor', textoDaArte: 'Feliz dia do gato', descricaoFotos: 'o pet no centro' } },
+    );
+    expect(r.valores.escopo).toBe('pet');
+    expect(r.valores.textoDaArte).toBe('Feliz dia do gato');
+    expect(r.valores.descricaoFotos).toBe('o pet no centro');
+  });
+
+  it('🚨 o resumo pro prompt sai em PORTUGUÊS, sem nome de campo', () => {
+    // Um modelo que raciocina sobre `fotoEscopo: "algum"` devolve justificativa
+    // citando `fotoEscopo`, e a frase que sobra na tela volta a ser nome de
+    // campo. É o mesmo defeito, uma camada antes.
+    const linhas = resumoDaCampanha({ regras: ABERTA, producao: { escopo: 'pet' } }, TIPOS);
+    expect(linhas.length).toBeGreaterThan(5);
+    for (const l of linhas) {
+      for (const campo of Object.keys(VOCABULARIO)) {
+        expect(l.toLowerCase(), `"${l}" cita ${campo}`).not.toContain(campo.toLowerCase());
+      }
+      expect(l).not.toMatch(/[:=]/);
+    }
+    expect(linhas).toContain('Basta um pet da casa ter foto');
+    expect(linhas).toContain('Uma peça por animal');
   });
 });
 
