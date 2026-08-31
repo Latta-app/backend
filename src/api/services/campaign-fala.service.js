@@ -168,17 +168,37 @@ export const fraseDoCampo = (campo, valor, { rotulosDeVinculo = {} } = {}) => {
 };
 
 /**
- * Como a decisão chegou ali, em duas palavras.
+ * O selo: o que dá pra AFIRMAR sobre o valor, e nada além disso.
  *
- * 🚨 São DUAS, não três, e essa é a correção de 31/08. Antes eram "você pediu" e
- * "padrão", deduzidos de um campo `origem` que o próprio modelo declarava e que
- * errava nos dois sentidos: ele marcava como padrão o que tinha mudado, e o
- * código marcava como padrão o que ele tinha explicado. O rótulo passou a
- * contradizer a frase ao lado, no mesmo pixel.
+ * 🚨 ELE NÃO FALA MAIS DE ORIGEM, e essa é a correção que a conversa real
+ * obrigou. "Você pediu" e "assumi assim" são afirmações sobre QUEM decidiu, e
+ * quem decidiu é justamente o que não dá pra verificar aqui: o código só sabe
+ * comparar o valor com o padrão. Rodando contra o modelo em 31/08, três linhas
+ * de três briefings diferentes saíram contradizendo o próprio texto ao lado:
  *
- * Agora só se afirma o que é verificável comparando com o padrão: ou o valor
- * mudou, ou ele ficou como sempre foi. A justificativa é sempre a do agente.
+ *     ✓ Só quem é dono do pet          [assumi assim]
+ *         você pediu só os donos do animal
+ *     ✓ Basta um pet da casa ter foto  [você pediu]
+ *         Assumi 'algum' porque a peça é individual
+ *
+ * As duas metades estavam certas e mesmo assim brigavam, porque falavam de
+ * coisas diferentes fingindo falar da mesma. O selo passou a dizer só o que ele
+ * mede: o valor mudou, ou ficou como sempre fica. A frase ao lado continua sendo
+ * a do agente, e ela é quem conta quem pediu o quê. Duas afirmações verdadeiras
+ * sobre coisas diferentes param de se contradizer quando cada uma diz de que
+ * está falando.
  */
-export const COMO = { pedido: 'você pediu', assumido: 'assumi assim', sempre: 'isso é sempre assim' };
+export const COMO = { pedido: 'mudou', assumido: 'como sempre', sempre: 'sempre assim' };
 
-export default { fraseDoCampo, fraseDoVinculo, abaDoCampo, COMO };
+/**
+ * 🚨 CAMPO DE TEXTO LIVRE NÃO GANHA SUSPEITA.
+ *
+ * O padrão deles é a string vazia, então QUALQUER texto "mudou em relação ao
+ * padrão", e a suspeita disparava em cima da frase que o operador tinha acabado
+ * de ditar: em 31/08, "A arte já vem com a frase: Feliz dia do gato" saía com o
+ * âmbar de "isso mudou e o agente não disse por quê". Comparar texto livre com
+ * o vazio não mede nada, e um alerta que aparece sempre deixa de ser alerta.
+ */
+export const E_TEXTO_LIVRE = (campo) => Object.hasOwn(MOLDURA_LIVRE, campo);
+
+export default { fraseDoCampo, fraseDoVinculo, abaDoCampo, COMO, E_TEXTO_LIVRE };

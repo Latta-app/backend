@@ -172,6 +172,16 @@ const contarPets = (linhas) => new Set(linhas.map((l) => l.pet_id)).size;
 export const montarPublico = async (regrasBrutas) => {
   const regras = normalizarRegras(regrasBrutas);
   const linhas = await sequelize.query(SQL_UNIVERSO, { type: QueryTypes.SELECT });
+  // 🚨 Os tipos voltam JUNTO com o funil pra tela montar o seletor de vínculo a
+  // partir do banco. Uma lista escrita no frontend é a mesma que envelhece e
+  // vira álibi: o oitavo tipo cadastrado amanhã ficaria invisível pro operador
+  // sem nada acusar, exatamente como os quatro que já eram invisíveis.
+  let tipos = [];
+  try {
+    tipos = await tiposDeVinculo();
+  } catch {
+    tipos = [];
+  }
 
   const funil = [];
   const degrauPet = (id, titulo, ligada, detalhe, antes, depois) =>
@@ -527,6 +537,7 @@ export const montarPublico = async (regrasBrutas) => {
   return {
     regras,
     funil,
+    vinculosDisponiveis: tipos,
     total: tutores.length,
     totalPets: tutores.reduce((n, t) => n + t.pets.length, 0),
     tutores: tutores.map((t) => ({

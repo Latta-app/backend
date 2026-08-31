@@ -13,12 +13,17 @@
  * troca "deixei passar uma marcação" por "disparei pra lista errada", que é
  * pior — a segunda não tem tela de conferência depois.
  *
- * 🚨 E ELA DIZ DE ONDE VEIO CADA COISA. Toda decisão carrega `origem`
- * (`briefing` ou `padrao`) e o porquê. Sem isso a conferência é impossível: uma
+ * 🚨 E ELA SE EXPLICA EM PORTUGUÊS. Toda decisão sai com uma FRASE (não com o
+ * nome do campo), com o porquê que o agente deu, e com a informação de se aquilo
+ * mudou ou ficou como sempre fica. Sem isso a conferência é impossível: uma
  * proposta que parece completa esconde onde o agente ficou no default, e o
  * operador revisa o que está escrito em vez de revisar o que foi decidido por
  * omissão. O `naoDecidi` existe pelo mesmo motivo — silêncio não pode passar
  * por decisão.
+ *
+ * 🚨 O que ela NÃO faz mais é afirmar QUEM decidiu. O campo `origem`, que o
+ * modelo declarava, errava nos dois sentidos, e o rótulo derivado dele
+ * contradizia a frase ao lado no mesmo pixel. Ver `campaign-fala.service.js`.
  *
  * ── AS QUATRO TRAVAS ─────────────────────────────────────────────────────────
  *
@@ -39,7 +44,7 @@
 
 import { pedirJson } from './llm-json.service.js';
 import { montarPublico, normalizarRegras, tiposDeVinculo } from './campaign-audience.service.js';
-import { fraseDoCampo, abaDoCampo } from './campaign-fala.service.js';
+import { fraseDoCampo, abaDoCampo, E_TEXTO_LIVRE } from './campaign-fala.service.js';
 import { GRUPOS_DE_VINCULO } from './campaign-audience.service.js';
 import { getTemplateCatalog } from './template-catalog.service.js';
 import { variaveisDoCorpo } from './campaign-template.service.js';
@@ -101,7 +106,17 @@ export const VOCABULARIO = {
       ...tipos.map((t) => t.nome).filter((n) => !GRUPOS_DE_VINCULO[n]),
     ],
     descricao:
-      'quem, das pessoas ligadas ao pet, recebe. "dono" é quem o pet é (o principal e o co-tutor); "qualquer" inclui também veterinário, passeador, cuidador e rede de apoio, que têm acesso ao pet mas não são donos dele.',
+      'quem, das pessoas ligadas ao pet, recebe. "dono" é quem o pet é (o principal e o co-tutor); "qualquer" inclui também veterinário, passeador, cuidador e rede de apoio, que têm acesso ao pet mas não são donos dele. 🚨 "manda pra todo mundo" NÃO autoriza sair de "dono": quem fala isso está falando de não deixar tutor de fora, não de escrever pro veterinário sobre o cachorro de outra pessoa.',
+    // 🚨 A TERCEIRA CATEGORIA, entre livre e travada: dá pra desligar, e o
+    // estrago é dito em voz alta. Medido em 31/08, na conversa real: o agente
+    // marcou "qualquer" a partir de um "manda pra todo mundo, sem exceção" que
+    // falava da blacklist, e o público pulou de 69 pra 98. É o mesmo defeito de
+    // 28/08 com `fotoPropria`, num campo novo, e a resposta é a mesma: ele PODE
+    // escolher isso, o que não pode é o estrago ser silencioso.
+    avisoSeValor: {
+      qualquer:
+        'entra também veterinário, passeador, cuidador e rede de apoio, que têm acesso ao pet mas não são donos dele. A peça chega falando "o seu cachorro" pra quem cuida do cachorro de outra casa.',
+    },
   },
   dedupNome: {
     valores: [true, false],
@@ -294,7 +309,13 @@ const decisao = (campo, valor, porqueBruto, opcoes = {}) => {
 
   // 🚨 Mudou e ninguém explicou. Este é o caso que merece âmbar, e só ele: não
   // há frase pra preservar, então dizer "confira" não apaga informação nenhuma.
-  const semExplicacao = mudou && !dele;
+  //
+  // 🚨 Texto livre fica FORA do âmbar. O padrão dele é vazio, então qualquer
+  // frase "mudou", e o alerta disparava justo em cima do que o operador tinha
+  // acabado de ditar: em 31/08 a linha "A arte já vem com a frase: Feliz dia do
+  // gato" saiu marcada como mudança inexplicada. Alerta que aparece sempre
+  // deixa de ser alerta.
+  const semExplicacao = mudou && !dele && !E_TEXTO_LIVRE(campo);
 
   return {
     campo,
@@ -379,7 +400,18 @@ export const normalizarPublico = (bruto, { tipos = [] } = {}) => {
     if (veio === false && spec.avisoSeDesligada) {
       avisos.push({ campo, recado: spec.avisoSeDesligada });
     }
+    if (spec.avisoSeValor?.[veio]) {
+      avisos.push({ campo, recado: spec.avisoSeValor[veio] });
+    }
   }
+
+  // 🚨 O PAR CONTRADITÓRIO. Sem foto própria exigida, o escopo da foto não
+  // decide nada, e as duas linhas juntas se desmentiam na tela: "entra também
+  // quem só tem o desenho da raça" seguido de "todo pet da casa precisa ter
+  // foto". Saiu assim da conversa real de 31/08. Some a linha que não vale, em
+  // vez de deixar o operador escolher em qual acreditar.
+  const decisoesVisiveis =
+    regras.fotoPropria === false ? decisoes.filter((d) => d.campo !== 'fotoEscopo') : decisoes;
 
   for (const campo of Object.keys(proposto)) {
     if (!VOCABULARIO[campo]) ignorei.push(`${campo} não é uma regra que existe por aqui`);
@@ -389,7 +421,7 @@ export const normalizarPublico = (bruto, { tipos = [] } = {}) => {
   // escrito, e o motivo existe pra ser auditável seis meses depois — escrito por
   // máquina ele vira exatamente o álibi que a coluna NOT NULL tenta impedir.
   const normalizadas = normalizarRegras({ ...regras, exclusoes: [] });
-  return { regras: normalizadas, decisoes, travas, avisos, ignorei };
+  return { regras: normalizadas, decisoes: decisoesVisiveis, travas, avisos, ignorei };
 };
 
 export const normalizarProducao = (bruto) => {

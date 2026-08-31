@@ -38,6 +38,7 @@ import {
   TRAVAS,
   TETO_DE_PERGUNTAS,
 } from '../services/campaign-briefing.service.js';
+import { COMO } from '../services/campaign-fala.service.js';
 
 // Os tipos de vínculo são DADO (pet_owner_types). Aqui eles chegam como as
 // quatro linhas que prod tem preenchidas em 31/08.
@@ -232,6 +233,61 @@ describe('🚨 toda decisão diz o que mudou, e preserva o porquê do agente', (
   it('toda decisão leva a uma aba, senão a linha não tem conserto', () => {
     const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS });
     for (const d of r.decisoes) expect(d.aba, `${d.campo} não leva a lugar nenhum`).toBeTruthy();
+  });
+});
+
+describe('🚨 o que a CONVERSA REAL de 31/08 pegou, e nenhum teste verde tinha pego', () => {
+  it('🚨 o selo NUNCA afirma quem decidiu, porque isso não é verificável', () => {
+    // Três briefings, três linhas contradizendo o texto ao lado:
+    //   "Só quem é dono do pet"         [assumi assim] / "você pediu só os donos"
+    //   "Basta um pet da casa ter foto" [você pediu]   / "Assumi 'algum' porque..."
+    // As duas metades estavam certas e brigavam porque falavam de coisas
+    // diferentes fingindo falar da mesma. O selo só pode dizer o que ele mede.
+    for (const rotulo of Object.values(COMO)) {
+      expect(rotulo, `"${rotulo}" afirma quem decidiu`).not.toMatch(/você|voce|assumi|padrão/i);
+    }
+  });
+
+  it('🚨 texto livre NÃO ganha âmbar de "mudou e não explicou"', () => {
+    // O padrão dele é vazio, então qualquer frase "mudou", e o alerta disparava
+    // em cima do que o operador tinha acabado de ditar: "A arte já vem com a
+    // frase: Feliz dia do gato" saiu marcada como mudança inexplicada.
+    const r = normalizarProducao({ producao: { textoDaArte: 'Feliz dia do gato' } });
+    const d = r.decisoes.find((x) => x.campo === 'textoDaArte');
+    expect(d.frase).toBe('A arte já vem com a frase: Feliz dia do gato');
+    expect(d.suspeita).toBeUndefined();
+  });
+
+  it('🚨 sem foto própria exigida, a linha do ESCOPO da foto some', () => {
+    // Saíram as duas juntas na conversa real, se desmentindo:
+    //   "Entra também quem só tem o desenho da raça no lugar da foto"
+    //   "Todo pet da casa precisa ter foto"
+    // O escopo não decide nada quando a foto não é exigida. Sumir é melhor do
+    // que deixar o operador escolher em qual das duas acreditar.
+    const r = normalizarPublico(
+      { publico: { fotoPropria: false, fotoEscopo: 'todos' } },
+      { tipos: TIPOS },
+    );
+    expect(r.decisoes.map((d) => d.campo)).not.toContain('fotoEscopo');
+    // E com a foto exigida ela volta, porque aí ela decide de novo.
+    const c = normalizarPublico({ publico: { fotoPropria: true } }, { tipos: TIPOS });
+    expect(c.decisoes.map((d) => d.campo)).toContain('fotoEscopo');
+  });
+
+  it('🚨 "qualquer" pessoa ligada ao pet AVISA o estrago', () => {
+    // Medido na conversa real: um "manda pra todo mundo, sem exceção" que
+    // falava da blacklist virou vínculo "qualquer", e o público pulou de 69 pra
+    // 98. Mesmo defeito de 28/08 com a foto, campo novo. Ele PODE escolher
+    // isso; o que não pode é o estrago ser silencioso.
+    const r = normalizarPublico({ publico: { vinculo: 'qualquer' } }, { tipos: TIPOS });
+    expect(r.regras.vinculo).toBe('qualquer');
+    const aviso = r.avisos.find((a) => a.campo === 'vinculo');
+    expect(aviso).toBeTruthy();
+    expect(aviso.recado).toMatch(/veterinário|não são donos/i);
+  });
+
+  it('escolher "dono" não avisa nada, porque não há estrago', () => {
+    expect(normalizarPublico({ publico: { vinculo: 'dono' } }, { tipos: TIPOS }).avisos).toEqual([]);
   });
 });
 
