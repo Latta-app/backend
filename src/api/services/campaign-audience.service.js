@@ -21,6 +21,7 @@
 
 import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
+import { fraseDoCampo } from './campaign-fala.service.js';
 
 /**
  * O universo: toda linha de pet_owner_pets com o pet, o dono e a supressão já
@@ -35,6 +36,10 @@ const SQL_UNIVERSO = `
   SELECT
     pop.pet_owner_id                          AS owner_id,
     pop.is_main_owner                         AS is_main_owner,
+    pop.is_active                             AS vinculo_is_active,
+    pop.removed_at                            AS vinculo_removed_at,
+    ot.name                                   AS vinculo_tipo,
+    ot.label                                  AS vinculo_rotulo,
     p.id                                      AS pet_id,
     p.name                                    AS pet_name,
     p.created_at                              AS pet_created_at,
@@ -43,6 +48,9 @@ const SQL_UNIVERSO = `
     p.original_photo                          AS original_photo,
     p.photo                                   AS photo,
     pt.name                                   AS especie,
+    pt.label                                  AS especie_rotulo,
+    br.label                                  AS raca_rotulo,
+    br.name                                   AS raca_nome,
     g.name                                    AS genero,
     o.name                                    AS owner_name,
     o.cell_phone                              AS cell_phone,
@@ -56,11 +64,76 @@ const SQL_UNIVERSO = `
   FROM pet_owner_pets pop
   JOIN pets p        ON p.id = pop.pet_id
   JOIN pet_types pt  ON pt.id = p.pet_type_id
+  LEFT JOIN pet_owner_types ot ON ot.id = pop.pet_owner_type_id
+  LEFT JOIN pet_breeds br ON br.id = p.pet_breed_id
   LEFT JOIN pet_genders g ON g.id = p.pet_gender_id
   JOIN pet_owners o  ON o.id = pop.pet_owner_id
   WHERE o.cell_phone IS NOT NULL
   ORDER BY o.cell_phone, p.created_at
 `;
+
+/**
+ * 🚨 A RAÇA MORA EM `pet_breeds`, e o rótulo legível é `label`, não `name`.
+ *
+ * Medido 31/08/2026 contra prod: `name` é o nome em inglês do catálogo
+ * ("Maltese", "French Bulldog", "Pomeranian") e `label` é o que a pessoa
+ * reconhece ("Maltês", "Bulldog Francês", "Lulu da Pomerânia"). Mostrar `name`
+ * numa tela em português funciona pra Pug e Border Collie e falha justo nas
+ * raças que têm nome traduzido, que é onde o operador olharia pra conferir.
+ *
+ * Preenchimento medido no mesmo dia: 155 de 155 pets ativos têm `pet_breed_id`.
+ * O fallback existe pro pet que entrar sem ela amanhã, não pra hoje.
+ */
+const racaLegivel = (l) => l.raca_rotulo || l.raca_nome || null;
+
+/**
+ * 🚨 OS TIPOS DE VÍNCULO SÃO DADO, e a lista sai do banco.
+ *
+ * `pet_owner_pets.pet_owner_type_id` aponta pra `pet_owner_types`, que em
+ * 31/08/2026 tem sete linhas: principal (153 vínculos), co-tutor (24),
+ * veterinário (3), rede de apoio (1), e passeador, cuidador e contato de
+ * emergência com zero. A regra de público oferecia TRÊS opções, deduzidas do
+ * booleano `is_main_owner`, e ignorava a coluna inteira.
+ *
+ * 🚨 A consequência já aconteceu: no Dia do Cachorro um veterinário saiu do
+ * público por EXCLUSÃO MANUAL, com o motivo escrito à mão, sob a justificativa
+ * de que "nada no schema separa veterinário de tutor". Separa desde sempre.
+ * Aquela linha à mão nunca precisou existir, e lista à mão é a coisa que
+ * envelhece e vira álibi.
+ *
+ * Escrever os sete aqui repetiria o mesmo erro noutra camada: o oitavo tipo
+ * cadastrado amanhã sumiria da tela sem nada acusar. A lista vem da tabela.
+ */
+export const tiposDeVinculo = async () => {
+  const linhas = await sequelize.query(
+    `SELECT t.name, t.label, COUNT(pop.id) AS vinculos
+       FROM pet_owner_types t
+       LEFT JOIN pet_owner_pets pop ON pop.pet_owner_type_id = t.id
+      WHERE t.is_active IS NOT FALSE
+      GROUP BY t.id, t.name, t.label, t.display_order
+      ORDER BY t.display_order, t.name`,
+    { type: QueryTypes.SELECT },
+  );
+  return linhas.map((l) => ({
+    nome: l.name,
+    rotulo: l.label || l.name,
+    vinculos: Number(l.vinculos || 0),
+  }));
+};
+
+/**
+ * Os grupos de vínculo, que são o recorte que uma campanha de fato pede.
+ *
+ * `dono` é o que faltava e é o que resolve o caso do veterinário: quem recebe
+ * "uma homenagem pro seu cachorro" precisa ser dono do cachorro. Os outros
+ * cinco tipos são gente que tem acesso ao pet, não gente de quem o pet é.
+ */
+export const GRUPOS_DE_VINCULO = {
+  qualquer: null,
+  dono: ['primary', 'co_parent'],
+  principal: ['primary'],
+  cotutor: ['co_parent'],
+};
 
 const normalizarTelefone = (raw) => String(raw || '').replace(/\D/g, '');
 
@@ -73,7 +146,17 @@ export const normalizarRegras = (raw = {}) => ({
   // 'todos' = o tutor só entra se TODOS os pets dele têm foto própria (foi o que
   // rodou em 26/08). 'algum' = basta um. Ver o degrau da foto lá embaixo.
   fotoEscopo: raw.fotoEscopo === 'algum' ? 'algum' : 'todos',
-  vinculo: ['principal', 'cotutor', 'qualquer'].includes(raw.vinculo) ? raw.vinculo : 'qualquer',
+  // 🚨 O PADRÃO PASSOU A SER `dono` (31/08). Antes era `qualquer`, e `qualquer`
+  // manda "uma homenagem pro seu cachorro" pro veterinário que tem acesso à
+  // ficha do cachorro de outra pessoa. Foi exatamente o que obrigou a exclusão
+  // manual do Dia do Cachorro. O padrão seguro é o recorte de quem é dono; quem
+  // quiser alcançar a rede inteira pede `qualquer` e vê o número subir.
+  //
+  // O valor pode ser um GRUPO ou o nome de um tipo de vínculo do banco. Não há
+  // lista fechada aqui de propósito: ver `tiposDeVinculo`. Um nome que não
+  // existe não é silenciado, ele vira um degrau que corta tudo e aparece no
+  // funil como corte, que é o sintoma barulhento em vez do mudo.
+  vinculo: typeof raw.vinculo === 'string' && /^[a-z_]+$/.test(raw.vinculo) ? raw.vinculo : 'dono',
   dedupNome: raw.dedupNome !== false,
   personasTeste: raw.personasTeste !== false,
   blacklist: raw.blacklist !== false,
@@ -174,18 +257,62 @@ export const montarPublico = async (regrasBrutas) => {
     degrauPet('petAtivo', 'Pet ativo', false, 'is_active não é falso.', antes, antes);
   }
 
+  // ── VÍNCULO VIVO ──────────────────────────────────────────────────────────
+  // 🚨🚨 ISTO NÃO É REGRA, É CONSERTO. Até 31/08 o universo juntava
+  // `pet_owner_pets` sem olhar se o vínculo ainda existe, e o funil contava
+  // gente que já tinha saído de perto do pet. Medido em prod naquele dia: 1 dos
+  // 69 tutores do funil de cachorro entrava SÓ por vínculo removido, com o pet
+  // de outra casa no nome dele.
+  //
+  // 🚨 E as DUAS condições são necessárias. O `messaging.service` filtra só
+  // `pop.is_active = true`, e isso NÃO basta: em prod há uma linha com
+  // `is_active = true` E `removed_at` preenchido, e é justamente ela que fazia
+  // aquela tutora entrar. Copiar o filtro de lá teria consertado 2 dos 3
+  // vínculos mortos dela e deixado o terceiro passar, com o número parecendo
+  // certo.
+  //
+  // Por que é degrau e não filtro escondido no SQL: filtrar calado tiraria a
+  // pessoa da conta sem nada dizer, e "sumiu um tutor entre ontem e hoje" é
+  // exatamente a pergunta que o funil existe pra responder. Ele não tem
+  // interruptor porque não há campanha pra qual mandar mensagem sobre o pet de
+  // quem já saiu seja o certo.
+  {
+    const depois = atual.filter((l) => l.vinculo_is_active !== false && !l.vinculo_removed_at);
+    degrauPet(
+      'vinculoAtivo',
+      'Quem saiu de perto do pet fica de fora',
+      true,
+      'O vínculo com o pet segue de pé: ninguém desativou nem removeu.',
+      antes,
+      contarPets(depois),
+    );
+    atual = depois;
+    antes = contarPets(atual);
+  }
+
   // ── VÍNCULO ───────────────────────────────────────────────────────────────
-  // pet_owner_pets é N:N e `is_main_owner` diz quem é o tutor principal. O mesmo
-  // pet gera peça pros dois tutores quando o vínculo é 'qualquer' — às vezes é o
-  // desejado (casal) e às vezes não, então a escolha é do operador, não minha.
-  if (regras.vinculo !== 'qualquer') {
-    const querPrincipal = regras.vinculo === 'principal';
-    const depois = atual.filter((l) => !!l.is_main_owner === querPrincipal);
+  // 🚨 O tipo do vínculo sai de `pet_owner_types`, não do booleano
+  // `is_main_owner`. Os dois concordam hoje (153 principais em ambos, medido
+  // 31/08), mas o booleano só sabe dizer "é o principal ou não é", e o "não é"
+  // junta co-tutor com veterinário, passeador, cuidador, rede de apoio e
+  // contato de emergência. Era essa mistura que obrigava a exclusão à mão.
+  const tiposPedidos = GRUPOS_DE_VINCULO[regras.vinculo] ?? [regras.vinculo];
+  if (tiposPedidos) {
+    const rotulos = [
+      ...new Set(atual.filter((l) => tiposPedidos.includes(l.vinculo_tipo)).map((l) => l.vinculo_rotulo)),
+    ].filter(Boolean);
+    const depois = atual.filter((l) => tiposPedidos.includes(l.vinculo_tipo));
     degrauPet(
       'vinculo',
-      querPrincipal ? 'Só tutor principal' : 'Só co-tutor',
+      fraseDoCampo('vinculo', regras.vinculo, {
+        rotulosDeVinculo: Object.fromEntries(
+          linhas.filter((l) => l.vinculo_tipo).map((l) => [l.vinculo_tipo, l.vinculo_rotulo]),
+        ),
+      }) || `Só o vínculo "${regras.vinculo}"`,
       true,
-      'pet_owner_pets.is_main_owner. O vínculo é N:N.',
+      rotulos.length
+        ? `Vale pra quem entra como ${rotulos.map((r) => r.toLowerCase()).join(' ou ')}.`
+        : 'Nenhum vínculo desse tipo existe na base hoje.',
       antes,
       contarPets(depois),
     );
@@ -194,9 +321,9 @@ export const montarPublico = async (regrasBrutas) => {
   } else {
     degrauPet(
       'vinculo',
-      'Vínculo: qualquer',
+      'Qualquer pessoa ligada ao pet, dono ou não',
       false,
-      'pet_owner_pets é N:N. O mesmo pet pode gerar peça pra dois tutores.',
+      'O mesmo pet pode gerar peça pra duas pessoas. Veterinário e passeador entram junto.',
       antes,
       antes,
     );
@@ -218,6 +345,7 @@ export const montarPublico = async (regrasBrutas) => {
         suprimido: !!l.suprimido,
         pets: [],
         fundidos: [],
+        vinculos: new Map(),
       });
     }
     const tutor = porTutor.get(telefone);
@@ -228,10 +356,19 @@ export const montarPublico = async (regrasBrutas) => {
       id: l.pet_id,
       nome: l.pet_name,
       genero: l.genero,
+      // 🚨 Espécie e raça entram aqui pra aparecerem na lista de "quem entra".
+      // A lista é a única prova que o olho confere, e telefone + nome + nome do
+      // pet não dizem se o público faz sentido: "Ricota" pode ser o gato que não
+      // devia estar num disparo de cachorro, e nada na linha acusa.
+      especie: l.especie_rotulo || l.especie,
+      raca: racaLegivel(l),
       originalPhoto: l.original_photo,
       photo: l.photo,
       criadoEm: l.pet_created_at,
     });
+    // O tipo de vínculo é do par tutor+pet, não do tutor. Guardado por pet, o
+    // "Veterinário" aparece na linha exata que o justifica.
+    tutor.vinculos.set(l.pet_id, l.vinculo_rotulo || l.vinculo_tipo || null);
   }
 
   let tutores = [...porTutor.values()];
@@ -394,6 +531,9 @@ export const montarPublico = async (regrasBrutas) => {
         id: p.id,
         nome: p.nome,
         genero: p.genero,
+        especie: p.especie,
+        raca: p.raca,
+        vinculo: t.vinculos.get(p.id) ?? null,
         foto: p.originalPhoto,
       })),
       fundidos: t.fundidos,
@@ -401,4 +541,4 @@ export const montarPublico = async (regrasBrutas) => {
   };
 };
 
-export default { montarPublico, normalizarRegras };
+export default { montarPublico, normalizarRegras, tiposDeVinculo, GRUPOS_DE_VINCULO };

@@ -38,7 +38,9 @@
  * ============================================================================ */
 
 import { pedirJson } from './llm-json.service.js';
-import { montarPublico, normalizarRegras } from './campaign-audience.service.js';
+import { montarPublico, normalizarRegras, tiposDeVinculo } from './campaign-audience.service.js';
+import { fraseDoCampo, abaDoCampo } from './campaign-fala.service.js';
+import { GRUPOS_DE_VINCULO } from './campaign-audience.service.js';
 import { getTemplateCatalog } from './template-catalog.service.js';
 import { variaveisDoCorpo } from './campaign-template.service.js';
 
@@ -84,10 +86,22 @@ export const VOCABULARIO = {
     descricao:
       '"todos" exige que todos os pets da casa tenham foto; "algum" basta um. Use "algum" quando a peça mostra um pet só.',
   },
+  /**
+   * 🚨 O ÚNICO CAMPO CUJOS VALORES SÃO DADO, e por isso `valores` é uma função.
+   *
+   * Os quatro grupos são fixos; os tipos de vínculo vêm de `pet_owner_types`, e
+   * são sete em prod (principal, co-tutor, veterinário, rede de apoio,
+   * passeador, cuidador, contato de emergência). Escrever os sete aqui à mão é
+   * a forma de guard-álibi que defasa sozinha: o oitavo tipo cadastrado amanhã
+   * deixaria de existir pro agente sem nada acusar.
+   */
   vinculo: {
-    valores: ['qualquer', 'principal', 'cotutor'],
+    valores: (tipos = []) => [
+      ...Object.keys(GRUPOS_DE_VINCULO),
+      ...tipos.map((t) => t.nome).filter((n) => !GRUPOS_DE_VINCULO[n]),
+    ],
     descricao:
-      'o mesmo pet pode ter dois tutores. "qualquer" gera peça pros dois; "principal" só pro dono principal.',
+      'quem, das pessoas ligadas ao pet, recebe. "dono" é quem o pet é (o principal e o co-tutor); "qualquer" inclui também veterinário, passeador, cuidador e rede de apoio, que têm acesso ao pet mas não são donos dele.',
   },
   dedupNome: {
     valores: [true, false],
@@ -166,7 +180,8 @@ REGRAS DURAS DA PROPOSTA:
 - Escolha SOMENTE entre os valores permitidos. Nunca invente nome de regra nem valor.
 - Só mude um campo se a conversa PEDIR aquilo. "Manda pra todo mundo" fala de quem pediu silêncio, e não autoriza mexer em foto, em cadastro desativado nem em duplicata. Na dúvida, deixe no padrão.
 - 🚨 Se a conversa pedir pra desligar uma regra TRAVADA, marque ela como false mesmo assim. A trava segura e explica pro operador. Engolir o pedido em silêncio é pior: a pessoa achou que foi atendida.
-- Para cada campo, diga se veio da CONVERSA ou é o PADRÃO. Se ninguém falou daquilo, a origem é "padrao" e você diz isso — nunca finja que foi decidido.
+- 🚨 Para cada campo que você marcar, escreva em "porque" a frase de UMA LINHA que justifica aquilo, na língua de quem trabalha. Se foi a conversa que pediu, cite o pedaço dela ("você falou em tutores de gato"). Se você assumiu, diga que assumiu e por quê. NUNCA cite nome de campo, de coluna nem de tabela nessa frase: quem lê não conhece o banco, e uma justificativa que ele não consegue conferir é pior do que nenhuma.
+- Não declare de onde a decisão veio. Quem compara com o padrão é o sistema, e ele faz isso melhor do que você. Sua parte é a justificativa.
 - Se pedirem algo que você não consegue traduzir em campo nenhum, ponha em "naoDecidi" com a frase da pessoa. Nunca chute.
 - "textoDaArte" só é preenchido se a conversa citar a frase que está na arte. Senão, vazio.
 - Português do Brasil, sem travessão, frases curtas, presente do indicativo.
@@ -179,9 +194,9 @@ Para propor:
   "nome": "nome curto da campanha",
   "entendi": "uma frase do que você entendeu",
   "publico": { "especie": "...", "petAtivo": true, "fotoPropria": true, "fotoEscopo": "...", "vinculo": "...", "dedupNome": true },
-  "publicoPorque": { "especie": {"origem":"briefing","porque":"..."} },
+  "publicoPorque": { "especie": {"porque":"você falou em tutores de gato"} },
   "producao": { "escopo": "...", "descricaoFotos": "...", "textoDaArte": "" },
-  "producaoPorque": { "escopo": {"origem":"briefing","porque":"..."} },
+  "producaoPorque": { "escopo": {"porque":"você pediu uma peça por casa"} },
   "pagina": { "kicker": "rótulo curto em caixa alta", "titulo": "...", "instrucao": "uma frase dizendo o que fazer", "botao": "texto do botão" },
   "buscaTemplate": "3 a 6 palavras que descrevem a mensagem, pra procurar o template",
   "naoDecidi": ["..."]
@@ -228,7 +243,11 @@ const PADRAO_DO_CAMPO = {
   petAtivo: true,
   fotoPropria: true,
   fotoEscopo: 'todos',
-  vinculo: 'qualquer',
+  // 🚨 Mudou de 'qualquer' pra 'dono' em 31/08, junto com `normalizarRegras`.
+  // As duas tabelas descrevem o mesmo contrato e defasam em silêncio: um padrão
+  // aqui diferente do de lá faz toda proposta sair marcada como "você pediu"
+  // sem ninguém ter pedido nada.
+  vinculo: 'dono',
   dedupNome: true,
   personasTeste: true,
   blacklist: true,
@@ -238,42 +257,58 @@ const PADRAO_DO_CAMPO = {
 };
 
 /**
- * Uma decisão auditável: o campo, o valor, de onde veio e por quê.
+ * Uma decisão auditável: a FRASE, se ela mudou, e o porquê que o agente deu.
  *
- * 🚨 A ORIGEM É CALCULADA, NÃO DECLARADA. Medido em 28/08, na primeira conversa
- * de verdade: o agente marcou `vinculo = principal` (que NÃO é o padrão) e
- * rotulou como "padrao, não especificado". Ou seja, ele mudou quem recebe e a
- * trilha de auditoria disse que nada tinha acontecido — que é exatamente o
- * defeito que a trilha existe pra impedir. Modelo pode se enganar sobre o que
- * fez; comparar com o padrão não.
+ * ── 🚨 O QUE ESTAVA ERRADO AQUI ATÉ 31/08, e eram dois defeitos ─────────────
  *
- * A regra: valor diferente do padrão é decisão, ponto. Valor igual ao padrão só
- * é "briefing" se o modelo disser que foi pedido — e aí ele está sub-declarando,
- * que é o erro seguro (o operador confere como se fosse default).
+ * 1. A JUSTIFICATIVA BOA ERA JOGADA FORA. Quando o valor diferia do padrão e o
+ *    modelo não tinha marcado `origem: 'briefing'`, o código SUBSTITUÍA o
+ *    `porque` dele pelo texto de suspeita. O briefing dizia "pros tutores de
+ *    gato", o modelo escrevia isso, e a tela dizia que ele não soube explicar.
+ *    Ele soube. O código apagou, e apagou justamente a frase que fazia a
+ *    conferência valer a pena.
+ *
+ * 2. O RÓTULO CONTRADIZIA O TEXTO AO LADO. O rótulo saía de comparar com o
+ *    padrão; a frase vinha do modelo. Quando ele pedia "uma peça por casa" e
+ *    isso por acaso ERA o padrão, a linha saía como "padrão" com a frase "pediu
+ *    'uma peça por casa'" grudada nela. Duas afirmações opostas no mesmo pixel.
+ *
+ * ── O CONSERTO ──────────────────────────────────────────────────────────────
+ *
+ * 🚨 PAREI DE PERGUNTAR A ORIGEM AO MODELO. O campo `origem` era pouco confiável
+ * NOS DOIS SENTIDOS: ele marcava como padrão o que tinha mudado (medido em
+ * 28/08) e o código marcava como padrão o que ele tinha explicado (medido em
+ * 31/08). Um dado que erra nas duas direções não melhora a auditoria, ele
+ * inventa uma terceira história.
+ *
+ * Agora só se afirma o que dá pra verificar aqui dentro, comparando com o
+ * padrão: **mudou** ou **ficou como sempre foi**. A justificativa é SEMPRE a
+ * frase do agente, sem reescrita. E a suspeita ficou pro único caso em que ela
+ * é honesta: mudou e não veio frase NENHUMA. Aí não há o que preservar, e
+ * "confira" é a coisa certa a dizer.
  */
-const decisao = (campo, valor, porqueBruto) => {
+const decisao = (campo, valor, porqueBruto, opcoes = {}) => {
   const padrao = PADRAO_DO_CAMPO[campo];
   const mudou = padrao !== undefined && valor !== padrao;
-  const origem = mudou || porqueBruto?.origem === 'briefing' ? 'briefing' : 'padrao';
+  const dele = texto(porqueBruto?.porque);
 
-  // 🚨 O AGENTE MUDOU E DISSE QUE NÃO MUDOU. Aconteceu na primeira conversa de
-  // verdade: `vinculo = principal` (o padrão é `qualquer`) veio com a
-  // justificativa "não foi mencionado". A origem calculada já pega isso, mas o
-  // texto ao lado continuaria contando a história errada — e é o texto que o
-  // operador lê. Então a incoerência vira o próprio aviso, apontando pro campo
-  // exato que merece um segundo olhar.
-  const semCombinar = mudou && porqueBruto?.origem !== 'briefing';
+  // 🚨 Mudou e ninguém explicou. Este é o caso que merece âmbar, e só ele: não
+  // há frase pra preservar, então dizer "confira" não apaga informação nenhuma.
+  const semExplicacao = mudou && !dele;
+
   return {
     campo,
     valor,
-    origem,
-    ...(semCombinar ? { suspeita: true } : {}),
-    porque: semCombinar
-      ? `mudou em relação ao padrão (${JSON.stringify(padrao)}) e o agente não soube dizer por quê. Confira.`
-      : texto(porqueBruto?.porque) ||
-        (origem === 'padrao'
-          ? 'ninguém falou disso na conversa, então ficou como sempre foi'
-          : 'mudou em relação ao padrão'),
+    frase: fraseDoCampo(campo, valor, opcoes),
+    aba: abaDoCampo(campo),
+    mudou,
+    como: mudou ? 'pedido' : 'assumido',
+    ...(semExplicacao ? { suspeita: true } : {}),
+    porque:
+      dele ||
+      (mudou
+        ? 'isso mudou em relação ao de sempre e o agente não disse por quê. Confira.'
+        : 'ninguém falou disso na conversa, então ficou como sempre fica'),
   };
 };
 
@@ -285,9 +320,12 @@ const decisao = (campo, valor, porqueBruto) => {
  * tela. Descartar em silêncio seria trocar um defeito barulhento (regra
  * desconhecida) por um mudo (regra que sumiu), e o mudo é o que passa batido.
  */
-export const normalizarPublico = (bruto) => {
+export const normalizarPublico = (bruto, { tipos = [] } = {}) => {
   const proposto = bruto?.publico ?? {};
   const porques = bruto?.publicoPorque ?? {};
+  const rotulosDeVinculo = Object.fromEntries(tipos.map((t) => [t.nome, t.rotulo]));
+  const opcoesDeFrase = { rotulosDeVinculo };
+  const valoresDe = (spec) => (typeof spec.valores === 'function' ? spec.valores(tipos) : spec.valores);
   const regras = {};
   const decisoes = [];
   const travas = [];
@@ -307,16 +345,37 @@ export const normalizarPublico = (bruto) => {
       // filtro silencioso.
       regras[campo] = true;
       if (veio === false) travas.push({ campo, recado: RECADO_DA_TRAVA[campo] });
+      // 🚨 A trava também é uma DECISÃO, e ela passou a aparecer em 31/08. Antes
+      // as três só existiam na tela quando o agente tentava desligá-las, o que
+      // deixava a leitura mais tranquila do que a verdade: uma proposta lida de
+      // cima a baixo não dizia que o pet falecido estava fora. "Está sempre
+      // ligado" é informação, e é ela que faz o operador não procurar o
+      // interruptor.
+      decisoes.push({
+        campo,
+        valor: true,
+        frase: fraseDoCampo(campo, true, opcoesDeFrase),
+        aba: abaDoCampo(campo),
+        mudou: false,
+        como: 'sempre',
+        porque: RECADO_DA_TRAVA[campo],
+      });
       continue;
     }
 
-    if (veio === undefined) continue; // fica o default de normalizarRegras
-    if (!spec.valores.includes(veio)) {
+    // 🚨 CAMPO QUE O AGENTE NÃO CITOU ENTRA NA LISTA MESMO ASSIM, com o padrão.
+    // Ele decidiu por omissão, e omissão é decisão: era a lacuna que fazia uma
+    // proposta parecer mais completa do que era. O que muda com a linguagem
+    // nova é a forma, nunca a honestidade.
+    const usado = veio === undefined ? PADRAO_DO_CAMPO[campo] : veio;
+    if (veio !== undefined && !valoresDe(spec).includes(veio)) {
       ignorei.push(`${campo}: "${veio}" não é um valor que existe, então ficou o padrão`);
+      decisoes.push(decisao(campo, PADRAO_DO_CAMPO[campo], null, opcoesDeFrase));
       continue;
     }
-    regras[campo] = veio;
-    decisoes.push(decisao(campo, veio, porques[campo]));
+    if (veio !== undefined) regras[campo] = veio;
+    decisoes.push(decisao(campo, usado, porques[campo], opcoesDeFrase));
+    if (veio === undefined) continue;
     if (veio === false && spec.avisoSeDesligada) {
       avisos.push({ campo, recado: spec.avisoSeDesligada });
     }
@@ -464,12 +523,27 @@ export const proporCampanha = async ({ briefing, mensagens }) => {
   if (!pedido) throw new Error('Escreva o briefing antes de pedir a proposta.');
   const conversa = Array.isArray(mensagens) ? mensagens : [];
 
+  // 🚨 Os tipos de vínculo saem do banco, não de uma lista aqui. Se a consulta
+  // falhar, sobram os quatro grupos: o agente perde a chance de recortar por
+  // "só veterinário" e não perde nada mais. Derrubar a proposta inteira por
+  // causa disso seria trocar uma proposta boa por nenhuma.
+  let tipos = [];
+  try {
+    tipos = await tiposDeVinculo();
+  } catch {
+    tipos = [];
+  }
+
   const vocabularioPraPrompt = JSON.stringify(
     {
       publico: Object.fromEntries(
         Object.entries(VOCABULARIO).map(([k, v]) => [
           k,
-          { valores: v.valores, travada: !!v.travada, o_que_faz: v.descricao },
+          {
+            valores: typeof v.valores === 'function' ? v.valores(tipos) : v.valores,
+            travada: !!v.travada,
+            o_que_faz: v.descricao,
+          },
         ]),
       ),
       producao: Object.fromEntries(
@@ -517,7 +591,7 @@ export const proporCampanha = async ({ briefing, mensagens }) => {
     };
   }
 
-  const publico = normalizarPublico(bruto);
+  const publico = normalizarPublico(bruto, { tipos });
   const producao = normalizarProducao(bruto);
 
   // ── O template, com a lista curta ─────────────────────────────────────────
