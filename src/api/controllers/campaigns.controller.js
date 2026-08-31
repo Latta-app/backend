@@ -203,14 +203,18 @@ export const createCampaign = async (req, res) => {
     const { regras, exclusoes } = separarExclusoes(req.body?.rules);
     const criada = await sequelize.transaction(async (transaction) => {
       const rows = await sequelize.query(
-        `INSERT INTO campaigns (nome, status, rules, created_by)
-              VALUES (:nome, 'rascunho', :rules::jsonb, :createdBy)
-           RETURNING id, nome, status, rules, created_at, updated_at`,
+        // 🚨 A conversa entra JÁ NO INSERT. Gravá-la só no update perderia
+        // exatamente o caso mais comum: a campanha que nasce da conversa, no
+        // primeiro save. A coluna ficaria vazia justo em quem a usou.
+        `INSERT INTO campaigns (nome, status, rules, briefing, created_by)
+              VALUES (:nome, 'rascunho', :rules::jsonb, :briefing::jsonb, :createdBy)
+           RETURNING id, nome, status, rules, briefing, created_at, updated_at`,
         {
           type: QueryTypes.SELECT,
           replacements: {
             nome,
             rules: JSON.stringify(regras),
+            briefing: req.body?.briefing ? JSON.stringify(req.body.briefing) : null,
             createdBy: uuidOuNulo(req.headers['user-id']),
           },
           transaction,

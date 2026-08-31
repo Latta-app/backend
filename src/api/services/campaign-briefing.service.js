@@ -195,6 +195,7 @@ REGRAS DURAS DA PROPOSTA:
 - Escolha SOMENTE entre os valores permitidos. Nunca invente nome de regra nem valor.
 - Só mude um campo se a conversa PEDIR aquilo. "Manda pra todo mundo" fala de quem pediu silêncio, e não autoriza mexer em foto, em cadastro desativado nem em duplicata. Na dúvida, deixe no padrão.
 - 🚨 Se a conversa pedir pra desligar uma regra TRAVADA, marque ela como false mesmo assim. A trava segura e explica pro operador. Engolir o pedido em silêncio é pior: a pessoa achou que foi atendida.
+- 🚨🚨 TODO campo que você MUDAR precisa de um "porque". Campo mudado sem porque aparece pro operador em âmbar, como mudança que ninguém soube explicar, e ele vai conferir uma coisa que você sabia justificar. Isso vale mais ainda quando ele pediu a mudança em uma frase só: escreva "você pediu" e repita o pedaço do pedido.
 - 🚨 Para cada campo que você marcar, escreva em "porque" a frase de UMA LINHA que justifica aquilo, na língua de quem trabalha. Se foi a conversa que pediu, cite o pedaço dela ("você falou em tutores de gato"). Se você assumiu, diga que assumiu e por quê. NUNCA cite nome de campo, de coluna nem de tabela nessa frase: quem lê não conhece o banco, e uma justificativa que ele não consegue conferir é pior do que nenhuma.
 - Não declare de onde a decisão veio. Quem compara com o padrão é o sistema, e ele faz isso melhor do que você. Sua parte é a justificativa.
 - Se pedirem algo que você não consegue traduzir em campo nenhum, ponha em "naoDecidi" com a frase da pessoa. Nunca chute.
