@@ -185,7 +185,7 @@ export const listCampaigns = async (_req, res) => {
 export const getCampaign = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      `SELECT id, nome, status, rules, created_at, updated_at FROM campaigns WHERE id = :id`,
+      `SELECT id, nome, status, rules, briefing, created_at, updated_at FROM campaigns WHERE id = :id`,
       { type: QueryTypes.SELECT, replacements: { id: req.params.id } },
     );
     if (!rows.length) return res.status(404).json({ code: 'CAMPAIGN_NOT_FOUND' });
@@ -203,14 +203,18 @@ export const createCampaign = async (req, res) => {
     const { regras, exclusoes } = separarExclusoes(req.body?.rules);
     const criada = await sequelize.transaction(async (transaction) => {
       const rows = await sequelize.query(
-        `INSERT INTO campaigns (nome, status, rules, created_by)
-              VALUES (:nome, 'rascunho', :rules::jsonb, :createdBy)
-           RETURNING id, nome, status, rules, created_at, updated_at`,
+        // 🚨 A conversa entra JÁ NO INSERT. Gravá-la só no update perderia
+        // exatamente o caso mais comum: a campanha que nasce da conversa, no
+        // primeiro save. A coluna ficaria vazia justo em quem a usou.
+        `INSERT INTO campaigns (nome, status, rules, briefing, created_by)
+              VALUES (:nome, 'rascunho', :rules::jsonb, :briefing::jsonb, :createdBy)
+           RETURNING id, nome, status, rules, briefing, created_at, updated_at`,
         {
           type: QueryTypes.SELECT,
           replacements: {
             nome,
             rules: JSON.stringify(regras),
+            briefing: req.body?.briefing ? JSON.stringify(req.body.briefing) : null,
             createdBy: uuidOuNulo(req.headers['user-id']),
           },
           transaction,
@@ -231,6 +235,12 @@ export const updateCampaign = async (req, res) => {
   try {
     const nome = req.body?.nome === undefined ? null : String(req.body.nome).trim();
     const mexeNasRegras = req.body?.rules !== undefined;
+    // 🚨 A CONVERSA É O PORQUÊ DA CAMPANHA, e a coluna existia sem ninguém
+    // gravar nela desde 28/08. As regras dizem QUEM recebe; só a conversa diz
+    // por que aquele recorte, e é a pergunta que sobra quando alguém reabre a
+    // campanha três semanas depois. Ela também é o que faz o agente conhecer a
+    // campanha aberta em vez de propor do zero toda vez.
+    const briefingNovo = req.body?.briefing === undefined ? null : req.body.briefing;
     const { regras, exclusoes } = mexeNasRegras
       ? separarExclusoes(req.body.rules)
       : { regras: null, exclusoes: [] };
@@ -240,12 +250,18 @@ export const updateCampaign = async (req, res) => {
         `UPDATE campaigns
             SET nome       = COALESCE(:nome, nome),
                 rules      = COALESCE(:rules::jsonb, rules),
+                briefing   = COALESCE(:briefing::jsonb, briefing),
                 updated_at = NOW()
           WHERE id = :id
-          RETURNING id, nome, status, rules, created_at, updated_at`,
+          RETURNING id, nome, status, rules, briefing, created_at, updated_at`,
         {
           type: QueryTypes.SELECT,
-          replacements: { id, nome, rules: regras ? JSON.stringify(regras) : null },
+          replacements: {
+            id,
+            nome,
+            rules: regras ? JSON.stringify(regras) : null,
+            briefing: briefingNovo ? JSON.stringify(briefingNovo) : null,
+          },
           transaction,
         },
       );
@@ -649,10 +665,34 @@ export const previewTemplate = async (req, res) => {
  * Roda o funil de verdade (read-only) pra proposta chegar com o número ao lado:
  * conferir a consequência é mais fácil que conferir a marcação.
  */
+/**
+ * A campanha que o agente está ajustando, lida do banco.
+ *
+ * Devolve `null` pra qualquer coisa que não seja uma campanha existente com
+ * regras gravadas: id ausente, id que não é uuid, campanha apagada. `null` quer
+ * dizer "campanha nova", que é o comportamento que sempre existiu, então o
+ * caminho degradado é o antigo e não um erro.
+ */
+const lerCampanhaPraAgente = async (id) => {
+  const uuid = uuidOuNulo(id);
+  if (!uuid) return null;
+  const rows = await sequelize.query(
+    `SELECT nome, rules AS regras, producao FROM campaigns WHERE id = :id`,
+    { type: QueryTypes.SELECT, replacements: { id: uuid } },
+  );
+  return rows[0]?.regras ? rows[0] : null;
+};
+
 export const briefing = async (req, res) => {
   try {
     const proposta = await proporCampanha({
       briefing: req.body?.briefing,
+      // 🚨 A campanha aberta vem do BANCO, pelo id, e não do corpo do request.
+      // O corpo é o formulário na tela de quem está conversando, e ele pode
+      // estar sujo com edição não salva: o agente ajustaria uma campanha que
+      // não existe, e a proposta bateria com a tela e não com o que está
+      // gravado. Sem id, é campanha nova e ele propõe do zero, como sempre.
+      campanhaAberta: await lerCampanhaPraAgente(req.body?.campanhaId),
       mensagens: req.body?.mensagens,
     });
     return res.json({ code: 'CAMPAIGN_BRIEFING', data: proposta });
