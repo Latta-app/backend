@@ -106,6 +106,29 @@ describe('🚨 vínculo morto não entra no público', () => {
     });
   });
 
+  it('🚨 o degrau conta o VÍNCULO cortado, porque o pet nem sempre some', async () => {
+    // Pet de duas casas não some quando um dos vínculos morre: a contagem de
+    // pets fica igual e o degrau aparece com "saem 0", a cara exata do guard
+    // que nunca filtra nada. Quem some é o tutor, dois degraus abaixo.
+    query.mockResolvedValueOnce([
+      linha(),
+      linha({
+        owner_id: 'o2',
+        cell_phone: '5531988884887',
+        owner_name: 'Clara',
+        is_main_owner: false,
+        vinculo_tipo: 'co_parent',
+        vinculo_rotulo: 'Co-tutor',
+        vinculo_is_active: true,
+        vinculo_removed_at: '2026-07-30',
+      }),
+    ]);
+    const r = await montarPublico({ vinculo: 'qualquer' });
+    expect(degrau(r, 'vinculoAtivo').saem).toBe(0); // o pet continua, é o mesmo
+    expect(degrau(r, 'vinculoAtivo').nota).toMatch(/1 vínculo removido/);
+    expect(r.total).toBe(1); // mas a tutora sumiu
+  });
+
   it('o degrau do vínculo vivo não tem interruptor', async () => {
     // Não há campanha pra qual mandar mensagem sobre o pet de quem já saiu seja
     // o certo, então isto não é regra: é conserto, e fica sempre ligado.

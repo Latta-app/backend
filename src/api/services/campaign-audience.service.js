@@ -184,7 +184,7 @@ export const montarPublico = async (regrasBrutas) => {
   }
 
   const funil = [];
-  const degrauPet = (id, titulo, ligada, detalhe, antes, depois) =>
+  const degrauPet = (id, titulo, ligada, detalhe, antes, depois, nota) =>
     funil.push({
       id,
       titulo,
@@ -194,6 +194,7 @@ export const montarPublico = async (regrasBrutas) => {
       antes,
       saem: ligada ? antes - depois : 0,
       entram: depois,
+      ...(nota ? { nota } : {}),
     });
 
   let atual = linhas;
@@ -288,6 +289,13 @@ export const montarPublico = async (regrasBrutas) => {
   // quem já saiu seja o certo.
   {
     const depois = atual.filter((l) => l.vinculo_is_active !== false && !l.vinculo_removed_at);
+    // 🚨 A NOTA É OBRIGATÓRIA AQUI, e a razão é a mesma da duplicata de
+    // cadastro: este degrau corta VÍNCULO, e o funil conta PET. Um pet que
+    // pertence a duas casas não some quando um dos vínculos morre, então a
+    // contagem de pets fica igual e o degrau aparece com "saem 0" — a cara
+    // exata do guard que nunca filtra nada. Quem some é o tutor, dois degraus
+    // abaixo, e sem esta linha ninguém liga uma coisa à outra.
+    const mortos = atual.length - depois.length;
     degrauPet(
       'vinculoAtivo',
       'Quem saiu de perto do pet fica de fora',
@@ -295,6 +303,9 @@ export const montarPublico = async (regrasBrutas) => {
       'O vínculo com o pet segue de pé: ninguém desativou nem removeu.',
       antes,
       contarPets(depois),
+      mortos
+        ? `${mortos} ${mortos === 1 ? 'vínculo removido saiu' : 'vínculos removidos saíram'}`
+        : null,
     );
     atual = depois;
     antes = contarPets(atual);
