@@ -296,7 +296,13 @@ export const montarPublico = async (regrasBrutas) => {
   // 31/08), mas o booleano só sabe dizer "é o principal ou não é", e o "não é"
   // junta co-tutor com veterinário, passeador, cuidador, rede de apoio e
   // contato de emergência. Era essa mistura que obrigava a exclusão à mão.
-  const tiposPedidos = GRUPOS_DE_VINCULO[regras.vinculo] ?? [regras.vinculo];
+  // 🚨 `in`, não `??`. O grupo `qualquer` vale `null` de propósito (quer dizer
+  // "não filtra"), e `null ?? [x]` devolve `[x]`: o degrau passava a procurar um
+  // tipo de vínculo chamado "qualquer", que não existe, e zerava o público
+  // inteiro. Chave que existe valendo null é justamente o caso que o `??` não
+  // distingue de chave ausente.
+  const tiposPedidos =
+    regras.vinculo in GRUPOS_DE_VINCULO ? GRUPOS_DE_VINCULO[regras.vinculo] : [regras.vinculo];
   if (tiposPedidos) {
     const rotulos = [
       ...new Set(atual.filter((l) => tiposPedidos.includes(l.vinculo_tipo)).map((l) => l.vinculo_rotulo)),
