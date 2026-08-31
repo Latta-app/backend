@@ -38,6 +38,16 @@ import {
   TRAVAS,
   TETO_DE_PERGUNTAS,
 } from '../services/campaign-briefing.service.js';
+import { COMO } from '../services/campaign-fala.service.js';
+
+// Os tipos de vínculo são DADO (pet_owner_types). Aqui eles chegam como as
+// quatro linhas que prod tem preenchidas em 31/08.
+const TIPOS = [
+  { nome: 'primary', rotulo: 'Principal Responsável' },
+  { nome: 'co_parent', rotulo: 'Co-tutor' },
+  { nome: 'veterinarian', rotulo: 'Veterinário' },
+  { nome: 'support_network', rotulo: 'Rede de Apoio' },
+];
 
 describe('🚨 as quatro travas não cedem à prosa', () => {
   it('as travas são exatamente as três regras de público mais a exclusão manual', () => {
@@ -104,62 +114,206 @@ describe('🚨 o vocabulário é fechado', () => {
 
   it('todo campo do vocabulário declara os valores que aceita', () => {
     for (const [campo, spec] of Object.entries(VOCABULARIO)) {
-      expect(Array.isArray(spec.valores), `${campo} sem lista de valores`).toBe(true);
-      expect(spec.valores.length).toBeGreaterThan(0);
+      // 🚨 `vinculo` declara os valores como FUNÇÃO, porque eles são dado: os
+      // tipos vêm de `pet_owner_types` e escrever os sete aqui defasaria na
+      // primeira vez que alguém cadastrasse o oitavo.
+      const valores = typeof spec.valores === 'function' ? spec.valores(TIPOS) : spec.valores;
+      expect(Array.isArray(valores), `${campo} sem lista de valores`).toBe(true);
+      expect(valores.length).toBeGreaterThan(0);
       expect(typeof spec.descricao).toBe('string');
     }
   });
 });
 
-describe('🚨 toda decisão diz de onde veio', () => {
-  it('o que a conversa decidiu sai como "briefing", com o porquê', () => {
-    const r = normalizarPublico({
-      publico: { especie: 'Cat' },
-      publicoPorque: { especie: { origem: 'briefing', porque: 'você disse tutores de gato' } },
-    });
+describe('🚨 toda decisão diz o que mudou, e preserva o porquê do agente', () => {
+  it('o que a conversa decidiu sai como mudança, com a frase dele intacta', () => {
+    const r = normalizarPublico(
+      {
+        publico: { especie: 'Cat' },
+        publicoPorque: { especie: { porque: 'você disse tutores de gato' } },
+      },
+      { tipos: TIPOS },
+    );
     const d = r.decisoes.find((x) => x.campo === 'especie');
-    expect(d.origem).toBe('briefing');
-    expect(d.porque).toMatch(/gato/);
+    expect(d.mudou).toBe(true);
+    expect(d.como).toBe('pedido');
+    expect(d.porque).toBe('você disse tutores de gato');
+    expect(d.frase).toBe('Só quem tem gato');
   });
 
-  it('🚨 o que ninguém falou sai como "padrao" e EXPLICA que foi omissão', () => {
+  it('🚨 o que ninguém falou sai como assumido e EXPLICA que foi omissão', () => {
     // `todos` É o padrão de fotoEscopo, então isto é o agente não tendo mexido.
-    const r = normalizarPublico({ publico: { fotoEscopo: 'todos' } });
+    const r = normalizarPublico({ publico: { fotoEscopo: 'todos' } }, { tipos: TIPOS });
     const d = r.decisoes.find((x) => x.campo === 'fotoEscopo');
-    expect(d.origem).toBe('padrao');
+    expect(d.mudou).toBe(false);
+    expect(d.como).toBe('assumido');
     // A frase tem que dizer que ninguém decidiu, senão o operador lê a proposta
     // como se tudo tivesse sido escolhido.
     expect(d.porque).toMatch(/ninguém falou/i);
   });
 
   it('e mudar o escopo da foto conta como decisão, porque muda quem entra', () => {
-    const r = normalizarPublico({ publico: { fotoEscopo: 'algum' } });
-    expect(r.decisoes.find((x) => x.campo === 'fotoEscopo').origem).toBe('briefing');
+    const r = normalizarPublico({ publico: { fotoEscopo: 'algum' } }, { tipos: TIPOS });
+    expect(r.decisoes.find((x) => x.campo === 'fotoEscopo').mudou).toBe(true);
   });
 
   it('🚨 valor DIFERENTE do padrão é decisão, mesmo se o modelo jurar que é padrão', () => {
-    // Medido em 28/08, na primeira conversa de verdade: o agente marcou
-    // `vinculo = principal` (o padrão é `qualquer`) e rotulou "padrao, não
-    // especificado". Ele mudou quem recebe e a trilha disse que nada aconteceu.
-    // A origem é CALCULADA comparando com o padrão, não acreditada.
-    const r = normalizarPublico({
-      publico: { vinculo: 'principal' },
-      publicoPorque: { vinculo: { origem: 'padrao', porque: 'não especificado' } },
-    });
+    // Medido em 28/08, na primeira conversa de verdade: o agente marcou um
+    // vínculo que NÃO era o padrão e rotulou "padrao, não especificado". Ele
+    // mudou quem recebe e a trilha disse que nada aconteceu. O que mudou é
+    // CALCULADO comparando com o padrão, nunca acreditado.
+    const r = normalizarPublico(
+      { publico: { vinculo: 'principal' }, publicoPorque: { vinculo: { porque: '' } } },
+      { tipos: TIPOS },
+    );
     const d = r.decisoes.find((x) => x.campo === 'vinculo');
-    expect(d.origem).toBe('briefing');
-    // 🚨 E a incoerência vira aviso: é o texto que o operador lê, e ele não
-    // pode continuar dizendo "não especificado" num campo que mudou.
+    expect(d.mudou).toBe(true);
+    expect(d.como).toBe('pedido');
+    // Mudou E não veio frase nenhuma: aqui a suspeita é honesta, porque não há
+    // justificativa pra preservar.
     expect(d.suspeita).toBe(true);
-    expect(d.porque).toMatch(/não soube dizer por quê/i);
+    expect(d.porque).toMatch(/não disse por quê/i);
   });
 
-  it('valor IGUAL ao padrão continua padrão, se o modelo não disser o contrário', () => {
-    const r = normalizarPublico({
-      publico: { vinculo: 'qualquer' },
-      publicoPorque: { vinculo: { origem: 'deduzi', porque: 'achei' } },
+  it('🚨 mudou COM justificativa: a frase do agente sobrevive, e não há suspeita', () => {
+    // ESTE É O DEFEITO DE 31/08. O código antigo trocava o `porque` do agente
+    // pelo texto de suspeita sempre que o valor diferia do padrão e ele não
+    // tinha marcado `origem: 'briefing'`. O briefing dizia "pros tutores de
+    // gato", ele escrevia isso, e a tela dizia que ele não soube explicar.
+    const r = normalizarPublico(
+      {
+        publico: { vinculo: 'principal' },
+        publicoPorque: { vinculo: { porque: 'você falou em uma peça por dono' } },
+      },
+      { tipos: TIPOS },
+    );
+    const d = r.decisoes.find((x) => x.campo === 'vinculo');
+    expect(d.porque).toBe('você falou em uma peça por dono');
+    expect(d.suspeita).toBeUndefined();
+  });
+
+  it('🚨 o rótulo NÃO contradiz o texto ao lado quando o pedido bate com o padrão', () => {
+    // O outro defeito de 31/08: `escopo = tutor` saía rotulado "padrão" com a
+    // frase "pediu 'uma peça por casa'" grudada nela. Duas afirmações opostas
+    // no mesmo pixel. O rótulo agora só afirma o verificável (não mudou), e a
+    // frase do agente continua ali contando que ele pediu.
+    const r = normalizarProducao({
+      producao: { escopo: 'tutor' },
+      producaoPorque: { escopo: { porque: "você pediu 'uma peça por casa'" } },
     });
-    expect(r.decisoes.find((x) => x.campo === 'vinculo').origem).toBe('padrao');
+    const d = r.decisoes.find((x) => x.campo === 'escopo');
+    expect(d.mudou).toBe(false);
+    expect(d.como).toBe('assumido');
+    expect(d.porque).toBe("você pediu 'uma peça por casa'");
+    // E o rótulo não diz "padrão", que era a palavra que contradizia a frase.
+    expect(d.frase).toBe('Uma peça por casa, com todos os pets dela');
+  });
+
+  it('🚨 campo que o agente NÃO citou aparece assim mesmo, com o padrão', () => {
+    // Omissão é decisão. Uma proposta que só lista o que foi mexido parece mais
+    // completa do que é, e é justo aí que mora o disparo maior do que o
+    // operador leu.
+    const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS });
+    const campos = r.decisoes.map((d) => d.campo);
+    for (const campo of Object.keys(VOCABULARIO)) {
+      expect(campos, `${campo} sumiu da proposta`).toContain(campo);
+    }
+  });
+
+  it('🚨 as travas aparecem na leitura como "isso é sempre assim"', () => {
+    // Antes elas só existiam na tela quando o agente tentava desligá-las, o que
+    // deixava a proposta mais tranquila do que a verdade: lida de cima a baixo,
+    // ela não dizia que o pet falecido estava fora.
+    const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS });
+    const petVivo = r.decisoes.find((d) => d.campo === 'petVivo');
+    expect(petVivo.como).toBe('sempre');
+    expect(petVivo.frase).toBe('Pet que já partiu fica de fora');
+  });
+
+  it('toda decisão leva a uma aba, senão a linha não tem conserto', () => {
+    const r = normalizarPublico({ publico: { especie: 'Cat' } }, { tipos: TIPOS });
+    for (const d of r.decisoes) expect(d.aba, `${d.campo} não leva a lugar nenhum`).toBeTruthy();
+  });
+});
+
+describe('🚨 o que a CONVERSA REAL de 31/08 pegou, e nenhum teste verde tinha pego', () => {
+  it('🚨 o selo NUNCA afirma quem decidiu, porque isso não é verificável', () => {
+    // Três briefings, três linhas contradizendo o texto ao lado:
+    //   "Só quem é dono do pet"         [assumi assim] / "você pediu só os donos"
+    //   "Basta um pet da casa ter foto" [você pediu]   / "Assumi 'algum' porque..."
+    // As duas metades estavam certas e brigavam porque falavam de coisas
+    // diferentes fingindo falar da mesma. O selo só pode dizer o que ele mede.
+    for (const rotulo of Object.values(COMO)) {
+      expect(rotulo, `"${rotulo}" afirma quem decidiu`).not.toMatch(/você|voce|assumi|padrão/i);
+    }
+  });
+
+  it('🚨 texto livre NÃO ganha âmbar de "mudou e não explicou"', () => {
+    // O padrão dele é vazio, então qualquer frase "mudou", e o alerta disparava
+    // em cima do que o operador tinha acabado de ditar: "A arte já vem com a
+    // frase: Feliz dia do gato" saiu marcada como mudança inexplicada.
+    const r = normalizarProducao({ producao: { textoDaArte: 'Feliz dia do gato' } });
+    const d = r.decisoes.find((x) => x.campo === 'textoDaArte');
+    expect(d.frase).toBe('A arte já vem com a frase: Feliz dia do gato');
+    expect(d.suspeita).toBeUndefined();
+  });
+
+  it('🚨 sem foto própria exigida, a linha do ESCOPO da foto some', () => {
+    // Saíram as duas juntas na conversa real, se desmentindo:
+    //   "Entra também quem só tem o desenho da raça no lugar da foto"
+    //   "Todo pet da casa precisa ter foto"
+    // O escopo não decide nada quando a foto não é exigida. Sumir é melhor do
+    // que deixar o operador escolher em qual das duas acreditar.
+    const r = normalizarPublico(
+      { publico: { fotoPropria: false, fotoEscopo: 'todos' } },
+      { tipos: TIPOS },
+    );
+    expect(r.decisoes.map((d) => d.campo)).not.toContain('fotoEscopo');
+    // E com a foto exigida ela volta, porque aí ela decide de novo.
+    const c = normalizarPublico({ publico: { fotoPropria: true } }, { tipos: TIPOS });
+    expect(c.decisoes.map((d) => d.campo)).toContain('fotoEscopo');
+  });
+
+  it('🚨 "qualquer" pessoa ligada ao pet AVISA o estrago', () => {
+    // Medido na conversa real: um "manda pra todo mundo, sem exceção" que
+    // falava da blacklist virou vínculo "qualquer", e o público pulou de 69 pra
+    // 98. Mesmo defeito de 28/08 com a foto, campo novo. Ele PODE escolher
+    // isso; o que não pode é o estrago ser silencioso.
+    const r = normalizarPublico({ publico: { vinculo: 'qualquer' } }, { tipos: TIPOS });
+    expect(r.regras.vinculo).toBe('qualquer');
+    const aviso = r.avisos.find((a) => a.campo === 'vinculo');
+    expect(aviso).toBeTruthy();
+    expect(aviso.recado).toMatch(/veterinário|não são donos/i);
+  });
+
+  it('escolher "dono" não avisa nada, porque não há estrago', () => {
+    expect(normalizarPublico({ publico: { vinculo: 'dono' } }, { tipos: TIPOS }).avisos).toEqual([]);
+  });
+});
+
+describe('🚨 o vínculo enxerga os sete tipos, não três', () => {
+  it('o padrão é "dono", que é o que resolve o veterinário', () => {
+    // No Dia do Cachorro um veterinário saiu do público por EXCLUSÃO MANUAL,
+    // com o motivo escrito à mão, porque "nada no schema separa veterinário de
+    // tutor". Separa desde sempre, em pet_owner_types. Aquela linha nunca
+    // precisou existir.
+    const r = normalizarPublico({ publico: {} }, { tipos: TIPOS });
+    expect(r.regras.vinculo).toBe('dono');
+  });
+
+  it('🚨 um tipo de vínculo do banco é valor válido, e vira frase', () => {
+    const r = normalizarPublico({ publico: { vinculo: 'veterinarian' } }, { tipos: TIPOS });
+    expect(r.regras.vinculo).toBe('veterinarian');
+    expect(r.decisoes.find((d) => d.campo === 'vinculo').frase).toBe(
+      'Só quem entra como veterinário',
+    );
+    expect(r.ignorei).toEqual([]);
+  });
+
+  it('tipo que não existe no banco é recusado, e é DITO', () => {
+    const r = normalizarPublico({ publico: { vinculo: 'groomer' } }, { tipos: TIPOS });
+    expect(r.regras.vinculo).toBe('dono');
+    expect(r.ignorei.join(' ')).toMatch(/groomer/);
   });
 });
 
@@ -206,7 +360,8 @@ describe('🚨 desligar regra que não é travada AVISA o estrago', () => {
 
   it('toda regra que dá pra desligar tem o aviso escrito', () => {
     for (const [campo, spec] of Object.entries(VOCABULARIO)) {
-      if (spec.travada || !spec.valores.includes(false)) continue;
+      const valores = typeof spec.valores === 'function' ? spec.valores(TIPOS) : spec.valores;
+      if (spec.travada || !valores.includes(false)) continue;
       expect(typeof spec.avisoSeDesligada, `${campo} pode ser desligada e não avisa nada`).toBe(
         'string',
       );
