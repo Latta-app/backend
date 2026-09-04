@@ -31,6 +31,24 @@ const Contact = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      // O selo da saída do titular (LGPD Art. 18, fatia S-03 da aposentadoria
+      // da v1): o pedido de exclusão RETÉM em vez de apagar, e a mensageria
+      // continua mostrando nome e histórico com "pediu exclusão em <data>".
+      //
+      // 🚨 Sem esta declaração a coluna existe no banco e NÃO chega em tela
+      // nenhuma. O Sequelize monta o SELECT coluna a coluna a partir do model,
+      // e nenhum dos builders da mensageria passa `attributes` no Contact —
+      // eles herdam esta lista. Era esse o estado até 04/09/2026: carimbo
+      // gravado em prod, e o operador vendo o titular selado igual a qualquer
+      // outro.
+      //
+      // 🚨 NÃO é `deleted_at`. Aquele é o degrau DESATIVAR, reversível, e o
+      // `reativarTitular` o zera no primeiro inbound do tutor. Este é
+      // irreversível por decisão, e é ele que comanda a barreira de outbound.
+      deletion_requested_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       pet_owner_id: {
         type: DataTypes.UUID,
         allowNull: true,
