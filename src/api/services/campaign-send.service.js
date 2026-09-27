@@ -30,6 +30,7 @@
 import { sequelize } from '../../config/database.js';
 import { QueryTypes } from 'sequelize';
 import { callMeta, logToHistory, classificarFalha, LUMA_NAME } from './whatsapp-outbound.service.js';
+import { lerNumerosDaLatta, numeroQueEnvia } from '../../utils/numeroDoPublico.js';
 import { resolverTemplate } from './campaign-template.service.js';
 
 const LANDING = 'https://latta.app.br';
@@ -185,8 +186,11 @@ export const enviarUma = async ({ peca, campanha, textoPorTelefone }) => {
     botaoUrlIndice: campanha.botaoUrlIndice,
   });
 
+  // Campanha é envio iniciado pela Latta, e o público dela é o tutor.
+  const numero = numeroQueEnvia('tutor', lerNumerosDaLatta());
+
   try {
-    const resp = await callMeta(payload);
+    const resp = await callMeta(payload, { numero });
     const wamid = resp?.messages?.[0]?.id || null;
 
     await marcar(peca.id, {
@@ -208,6 +212,7 @@ export const enviarUma = async ({ peca, campanha, textoPorTelefone }) => {
       message_id: wamid,
       path: `campanha|${campanha.slug || 'sem-slug'}|${campanha.id}`,
       pet_owner_id: peca.pet_owner_id || undefined,
+      business_phone_number_id: numero,
     });
 
     return { ok: true, wamid };

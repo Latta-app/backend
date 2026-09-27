@@ -15,6 +15,16 @@ import { Contact, PetOwner, Template, TemplateVariable, TemplateVariableType } f
 import ContactRepository from '../repositories/contact.repository.js';
 import { callMeta, logToHistory } from './whatsapp-outbound.service.js';
 import { sequelize } from '../../config/database.js';
+import { lerNumerosDaLatta } from '../../utils/numeroDoPublico.js';
+import { numeroDaRespostaDoPainel } from '../../utils/conversaPorNumero.js';
+
+// A resposta da operadora sai pelo número da CONVERSA que ela está vendo (o par
+// pessoa e número da Latta). A janela de 24h da Meta é por par, então responder
+// uma clínica pelo número do tutor cai fora da janela dela, e a clínica veria a
+// resposta noutra conversa. Ausente = número do tutor (painel antigo). Um id
+// que não é da Latta é recusado antes de qualquer ida à Meta.
+const numeroDoEnvio = (business_phone_number_id) =>
+  numeroDaRespostaDoPainel(business_phone_number_id, lerNumerosDaLatta()).numero;
 
 
 
@@ -139,9 +149,11 @@ function renderTemplatePreview(template, parameters) {
   return text;
 }
 
-const sendText = async ({ contact_id, message, user_id }) => {
+const sendText = async ({ contact_id, message, user_id, business_phone_number_id = null }) => {
   if (!contact_id) throw new Error('contact_id obrigatorio');
   if (!message) throw new Error('message obrigatoria');
+
+  const numero = numeroDoEnvio(business_phone_number_id);
 
   const contact = await Contact.findByPk(contact_id);
   if (!contact) throw new Error('Contact nao encontrado');
@@ -157,7 +169,7 @@ const sendText = async ({ contact_id, message, user_id }) => {
     to: phone,
     type: 'text',
     text: { body: fullText, preview_url: false },
-  });
+  }, { numero });
 
   const messageId = metaResp?.messages?.[0]?.id;
 
@@ -175,17 +187,20 @@ const sendText = async ({ contact_id, message, user_id }) => {
     contact_id,
     pet_owner_id: contact.pet_owner_id || undefined,
     clinic_id: contact.clinic_id || undefined,
+    business_phone_number_id: numero,
   });
 
   // Luma assumiu — set is_being_attended=true
-  await ContactRepository.setAttendance({ contact_id, is_being_attended: true });
+  await ContactRepository.setAttendance({ contact_id, is_being_attended: true, numero });
 
   return { success: true, message_id: messageId };
 };
 
-const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id }) => {
+const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id, business_phone_number_id = null }) => {
   if (!contact_id) throw new Error('contact_id obrigatorio');
   if (!template_id) throw new Error('template_id obrigatorio');
+
+  const numero = numeroDoEnvio(business_phone_number_id);
 
   const contact = await Contact.findByPk(contact_id);
   if (!contact) throw new Error('Contact nao encontrado');
@@ -206,7 +221,7 @@ const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id }) =
   const phone = contact.cellphone;
   const payload = await buildTemplatePayload({ phone, template, manualVars: manual_vars, contact });
 
-  const metaResp = await callMeta(payload);
+  const metaResp = await callMeta(payload, { numero });
   const messageId = metaResp?.messages?.[0]?.id;
 
   // Mensagem legível pra mensageria — substitui {{N}} pelos valores reais
@@ -227,9 +242,10 @@ const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id }) =
     contact_id,
     pet_owner_id: contact.pet_owner_id || undefined,
     clinic_id: contact.clinic_id || undefined,
+    business_phone_number_id: numero,
   });
 
-  await ContactRepository.setAttendance({ contact_id, is_being_attended: true });
+  await ContactRepository.setAttendance({ contact_id, is_being_attended: true, numero });
 
   return {
     success: true,
@@ -245,9 +261,11 @@ const sendTemplate = async ({ contact_id, template_id, manual_vars, user_id }) =
 // edita (opcional) a sugestão IA do painel; este endpoint manda a mensagem
 // final pro tutor e registra no chat_history com flags ai_accepted=true e
 // is_modified (true se operador editou o texto antes de enviar).
-const sendAISuggestion = async ({ contact_id, message, is_modificated, user_id }) => {
+const sendAISuggestion = async ({ contact_id, message, is_modificated, user_id, business_phone_number_id = null }) => {
   if (!contact_id) throw new Error('contact_id obrigatorio');
   if (!message) throw new Error('message obrigatoria');
+
+  const numero = numeroDoEnvio(business_phone_number_id);
 
   const contact = await Contact.findByPk(contact_id);
   if (!contact) throw new Error('Contact nao encontrado');
@@ -263,7 +281,7 @@ const sendAISuggestion = async ({ contact_id, message, is_modificated, user_id }
     to: phone,
     type: 'text',
     text: { body: fullText, preview_url: false },
-  });
+  }, { numero });
   const messageId = metaResp?.messages?.[0]?.id;
 
   await logToHistory({
@@ -279,12 +297,13 @@ const sendAISuggestion = async ({ contact_id, message, is_modificated, user_id }
     contact_id,
     pet_owner_id: contact.pet_owner_id || undefined,
     clinic_id: contact.clinic_id || undefined,
+    business_phone_number_id: numero,
     ai_output: message,
     is_modified: !!is_modificated,
   });
 
   // Luma assumiu via sugestão IA — set is_being_attended=true
-  await ContactRepository.setAttendance({ contact_id, is_being_attended: true });
+  await ContactRepository.setAttendance({ contact_id, is_being_attended: true, numero });
 
   return { success: true, message_id: messageId };
 };

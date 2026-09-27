@@ -5,6 +5,25 @@ import { isValidUUID } from '../../utils/validate.js';
 import { isStagingPhone } from '../../utils/staging-users.helper.js';
 import { decideJanela24h } from '../../utils/customerWindow.js';
 import { ChatHistory, Contact } from '../models/index.js';
+import { lerNumerosDaLatta, publicoDoNumero } from '../../utils/numeroDoPublico.js';
+import {
+  abaDoEscopo,
+  chaveDaConversa,
+  colunaDoAtendimento,
+  numeroDaRespostaDoPainel,
+  separarConversas,
+} from '../../utils/conversaPorNumero.js';
+
+/**
+ * Parte a lista em CONVERSAS (pessoa e número da Latta). Uma pessoa que é tutor
+ * e clínica vira duas entradas, cada uma com as mensagens, o número e o
+ * atendimento humano daquela conversa. Sem o número do estabelecimento no
+ * backend, cada contato continua sendo uma conversa só, no número do tutor.
+ */
+const emConversas = (contacts, aba) => {
+  const n = lerNumerosDaLatta();
+  return contacts.flatMap((contact) => separarConversas(contact, n, aba));
+};
 
 // ADR-0007 Fatia 7: guard de detail endpoints.
 // Operador em environment=homolog so pode acessar contacts cujo cellphone
@@ -199,7 +218,14 @@ const getAllContactsWithMessages = async ({
     await attachCustomerWindow(contacts);
 
     return {
-      contacts,
+      contacts: emConversas(
+        contacts,
+        abaDoEscopo({
+          testFilter: filtersForEnv.testFilter,
+          b2bFilter: filtersForEnv.b2bFilter,
+          stagingFilter,
+        }),
+      ),
       totalItems: result.totalItems,
       totalPages: Math.ceil(result.totalItems / limit),
     };
@@ -351,7 +377,7 @@ const getAllContactsBeingAttended = async ({
     await attachCustomerWindow(contacts);
 
     return {
-      contacts,
+      contacts: emConversas(contacts, abaDoEscopo({ beingAttended: true, b2bFilter: filtersForEnv.b2bFilter })),
       totalItems: result.totalItems,
       totalPages: Math.ceil(result.totalItems / limit),
     };
@@ -386,7 +412,8 @@ const searchContacts = async ({ query, page, limit, role, user_id, filters = {},
     await attachOnboardingAb(contacts);
     await attachCustomerWindow(contacts);
 
-    return contacts;
+    // A busca mostra todas as conversas da pessoa, em atendimento ou não.
+    return emConversas(contacts, { atendidas: null, b2b: 'none' });
   } catch (error) {
     throw new Error(`Service error: ${error.message}`);
   }
@@ -439,8 +466,14 @@ const getContactByContactId = async ({
   before = null,
   after = null,
   environment = 'prod',
+  numero = null,
 }) => {
   try {
+    // A conversa pedida: o número da Latta. Ausente = o contato inteiro, como o
+    // painel antigo pede. Id que não é da Latta lança 400.
+    const n = lerNumerosDaLatta();
+    const conversa = numero ? numeroDaRespostaDoPainel(numero, n) : null;
+
     const result = await ChatRepository.getContactByContactId({
       contact_id,
       role,
@@ -448,6 +481,7 @@ const getContactByContactId = async ({
       limit,
       before,
       after,
+      numero: conversa?.numero ?? null,
     });
 
     if (!result.contact) {
@@ -462,8 +496,19 @@ const getContactByContactId = async ({
     await signMessagesMediaUrls([result.contact]);
     await attachCustomerWindow([result.contact]);
 
+    if (conversa && result.contact?.dataValues) {
+      const coluna = colunaDoAtendimento(conversa.numero, n);
+      Object.assign(result.contact.dataValues, {
+        conversa_id: chaveDaConversa(result.contact.id, conversa.numero),
+        business_phone_number_id: conversa.numero,
+        publico_da_conversa: publicoDoNumero(conversa.numero, n),
+        is_being_attended: result.contact.dataValues[coluna] === true,
+      });
+    }
+
     return result;
   } catch (error) {
+    if (error?.status === 400) throw error;
     throw new Error(`Service error: ${error.message}`);
   }
 };
