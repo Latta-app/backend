@@ -4,6 +4,8 @@ import ChatRepository from '../../repositories/chat-history.repository.js';
 import { isValidUUID } from '../../../utils/validate.js';
 import { MESSAGING_ROOM, messagingEnvRoom } from '../../../config/socket.js';
 import { isQaPhone } from '../../../utils/staging-users.helper.js';
+import { lerNumerosDaLatta, numeroDaConversa } from '../../../utils/numeroDoPublico.js';
+import { chaveDaConversa } from '../../../utils/conversaPorNumero.js';
 
 // Função para assinar URLs de mídia
 const signMessageMediaUrl = async (messageData) => {
@@ -124,9 +126,15 @@ function createSocketRoutes(io) {
         journey,
         message_type,
         message_type_id,
-        // Em qual número da Latta a mensagem aconteceu: é por ele que o painel
-        // põe a mensagem na conversa certa da pessoa (tutor ou estabelecimento).
-        business_phone_number_id: business_phone_number_id ?? null,
+        // Em qual conversa da pessoa a mensagem cai (o par pessoa e número da
+        // Latta). O histórico grava NULL para o número do tutor; o painel não
+        // sabe qual é o id do tutor, então a conversa sai resolvida daqui, com a
+        // mesma chave que a lista usa.
+        business_phone_number_id: numeroDaConversa(business_phone_number_id, lerNumerosDaLatta()),
+        conversa_id: chaveDaConversa(
+          contact_id,
+          numeroDaConversa(business_phone_number_id, lerNumerosDaLatta()),
+        ),
         source: 'client',
       };
 
