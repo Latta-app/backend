@@ -4,8 +4,20 @@ import ChatRepository from '../../repositories/chat-history.repository.js';
 import { isValidUUID } from '../../../utils/validate.js';
 import { MESSAGING_ROOM, messagingEnvRoom } from '../../../config/socket.js';
 import { isQaPhone } from '../../../utils/staging-users.helper.js';
-import { lerNumerosDaLatta, numeroDaConversa } from '../../../utils/numeroDoPublico.js';
+import { lerNumerosDaLatta, numeroDaConversa, publicoDoNumero } from '../../../utils/numeroDoPublico.js';
 import { chaveDaConversa } from '../../../utils/conversaPorNumero.js';
+
+// A conversa (pessoa e número da Latta) de uma linha do histórico, com a mesma
+// chave que a lista da mensageria usa. NULL no número é o número do tutor.
+const conversaDoPush = (contactId, businessPhoneNumberId) => {
+  const n = lerNumerosDaLatta();
+  const numero = numeroDaConversa(businessPhoneNumberId, n);
+  return {
+    business_phone_number_id: numero,
+    publico_da_conversa: publicoDoNumero(numero, n),
+    conversa_id: chaveDaConversa(contactId, numero),
+  };
+};
 
 // Função para assinar URLs de mídia
 const signMessageMediaUrl = async (messageData) => {
@@ -130,11 +142,7 @@ function createSocketRoutes(io) {
         // Latta). O histórico grava NULL para o número do tutor; o painel não
         // sabe qual é o id do tutor, então a conversa sai resolvida daqui, com a
         // mesma chave que a lista usa.
-        business_phone_number_id: numeroDaConversa(business_phone_number_id, lerNumerosDaLatta()),
-        conversa_id: chaveDaConversa(
-          contact_id,
-          numeroDaConversa(business_phone_number_id, lerNumerosDaLatta()),
-        ),
+        ...conversaDoPush(contact_id, business_phone_number_id),
         source: 'client',
       };
 

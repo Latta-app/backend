@@ -37,12 +37,16 @@ describe('new_message carrega a conversa', () => {
   it('mensagem no número do estabelecimento vai para a conversa do estabelecimento', async () => {
     const data = await emitido({ ...base, business_phone_number_id: ESTABELECIMENTO });
 
-    expect(data).toMatchObject({ business_phone_number_id: ESTABELECIMENTO, conversa_id: `c-1:${ESTABELECIMENTO}` });
+    expect(data).toMatchObject({
+      business_phone_number_id: ESTABELECIMENTO,
+      publico_da_conversa: 'estabelecimento',
+      conversa_id: `c-1:${ESTABELECIMENTO}`,
+    });
   });
 
   it('linha sem número é da conversa do tutor, com a mesma chave que a lista usa', async () => {
     const data = await emitido(base);
 
-    expect(data).toMatchObject({ business_phone_number_id: TUTOR, conversa_id: `c-1:${TUTOR}` });
+    expect(data).toMatchObject({ business_phone_number_id: TUTOR, publico_da_conversa: 'tutor', conversa_id: `c-1:${TUTOR}` });
   });
 });
