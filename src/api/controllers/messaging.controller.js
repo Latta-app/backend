@@ -2,7 +2,7 @@ import MessagingService from '../services/messaging.service.js';
 
 const sendText = async (req, res) => {
   try {
-    const { contact_id, message } = req.body;
+    const { contact_id, message, business_phone_number_id } = req.body;
     const userId = req.user?.id || null;
 
     if (!contact_id) {
@@ -22,6 +22,7 @@ const sendText = async (req, res) => {
       contact_id,
       message: message.trim(),
       user_id: userId,
+      business_phone_number_id: business_phone_number_id ?? null,
     });
 
     return res.status(200).json({
@@ -30,6 +31,9 @@ const sendText = async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending text:', error);
+    if (error?.status === 400) {
+      return res.status(400).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({
       code: 'MESSAGE_SEND_ERROR',
       message: error.message,
@@ -39,7 +43,7 @@ const sendText = async (req, res) => {
 
 const sendTemplate = async (req, res) => {
   try {
-    const { contact_id, template_id, manual_vars } = req.body;
+    const { contact_id, template_id, manual_vars, business_phone_number_id } = req.body;
     const userId = req.user?.id || null;
 
     if (!contact_id) {
@@ -60,6 +64,7 @@ const sendTemplate = async (req, res) => {
       template_id,
       manual_vars: manual_vars || undefined,
       user_id: userId,
+      business_phone_number_id: business_phone_number_id ?? null,
     });
 
     return res.status(200).json({
@@ -68,6 +73,9 @@ const sendTemplate = async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending template:', error);
+    if (error?.status === 400) {
+      return res.status(400).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({
       code: 'TEMPLATE_SEND_ERROR',
       message: error.message,
@@ -77,7 +85,7 @@ const sendTemplate = async (req, res) => {
 
 const sendAISuggestion = async (req, res) => {
   try {
-    const { contact_id, message, is_modificated } = req.body;
+    const { contact_id, message, is_modificated, business_phone_number_id } = req.body;
     const userId = req.user?.id || null;
     if (!contact_id) {
       return res.status(400).json({
@@ -96,6 +104,7 @@ const sendAISuggestion = async (req, res) => {
       message: message.trim(),
       is_modificated: !!is_modificated,
       user_id: userId,
+      business_phone_number_id: business_phone_number_id ?? null,
     });
     return res.status(200).json({
       code: 'AI_SUGGESTION_SENT',
@@ -103,6 +112,9 @@ const sendAISuggestion = async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending AI suggestion:', error);
+    if (error?.status === 400) {
+      return res.status(400).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({
       code: 'AI_SUGGESTION_SEND_ERROR',
       message: error.message,

@@ -62,6 +62,20 @@ const Contact = (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
+      // O atendimento humano da conversa no número do ESTABELECIMENTO. O
+      // `is_being_attended` acima é o da conversa no número do tutor. Separados
+      // porque a mesma pessoa pode ser tutor num número e clínica no outro, e
+      // assumir uma conversa não pode calar a Latta na outra.
+      //
+      // 🚨 A coluna nasce na migration 20260927190800 do repo principal, e ela
+      // tem que estar aplicada ANTES deste model subir: o Sequelize monta o
+      // SELECT a partir desta lista, e sem a coluna toda tela da mensageria
+      // falha com 42703.
+      is_being_attended_b2b: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+      },
     },
     {
       tableName: 'contacts',

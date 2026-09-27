@@ -1,21 +1,36 @@
 import { Contact } from '../models/index.js';
+import { lerNumerosDaLatta } from '../../utils/numeroDoPublico.js';
+import { colunaDoAtendimento, numeroDaRespostaDoPainel } from '../../utils/conversaPorNumero.js';
 
-const toggleAttendance = async ({ contact_id }) => {
+// O atendimento humano vale por CONVERSA (pessoa e número da Latta). A operadora
+// que assume a conversa de uma clínica no número do estabelecimento não pode
+// calar a Latta para a mesma pessoa no número do tutor. `numero` ausente é a
+// conversa do número do tutor, a única que existia antes do segundo número.
+const conversaDoAtendimento = (numero) => {
+  const n = lerNumerosDaLatta();
+  const conversa = numeroDaRespostaDoPainel(numero, n);
+  return { ...conversa, coluna: colunaDoAtendimento(conversa.numero, n) };
+};
+
+const toggleAttendance = async ({ contact_id, numero = null }) => {
   try {
+    const { numero: daConversa, coluna } = conversaDoAtendimento(numero);
     const contact = await Contact.findByPk(contact_id);
 
     if (!contact) {
       throw new Error('Contact not found');
     }
 
-    contact.is_being_attended = !contact.is_being_attended;
+    contact[coluna] = !contact[coluna];
     await contact.save();
 
     return {
       id: contact.id,
-      is_being_attended: contact.is_being_attended,
+      business_phone_number_id: daConversa,
+      is_being_attended: contact[coluna] === true,
     };
   } catch (error) {
+    if (error?.status === 400) throw error;
     throw new Error(`Repository error: ${error.message}`);
   }
 };
@@ -23,22 +38,25 @@ const toggleAttendance = async ({ contact_id }) => {
 // Set explicit (no toggle) — usado quando Luma envia mensagem/template pelo
 // painel: o ato de envio força is_being_attended=true, evitando que a Lattinha
 // (bot) responda a próxima inbound do tutor.
-const setAttendance = async ({ contact_id, is_being_attended }) => {
+const setAttendance = async ({ contact_id, is_being_attended, numero = null }) => {
   try {
+    const { numero: daConversa, coluna } = conversaDoAtendimento(numero);
     const contact = await Contact.findByPk(contact_id);
 
     if (!contact) {
       throw new Error('Contact not found');
     }
 
-    contact.is_being_attended = !!is_being_attended;
+    contact[coluna] = !!is_being_attended;
     await contact.save();
 
     return {
       id: contact.id,
-      is_being_attended: contact.is_being_attended,
+      business_phone_number_id: daConversa,
+      is_being_attended: contact[coluna] === true,
     };
   } catch (error) {
+    if (error?.status === 400) throw error;
     throw new Error(`Repository error: ${error.message}`);
   }
 };

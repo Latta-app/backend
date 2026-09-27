@@ -28,20 +28,31 @@
 
 import axios from 'axios';
 
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '587778224419344';
 const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kusqorpjtadcuooprpqb.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // 🚨 Via whatsapp-proxy, e não direto no graph.facebook.com: o Docker da EC2 tem
 // ECONNRESET intermitente contra a Meta, e o proxy é o contorno que já roda.
-const WHATSAPP_PROXY_URL = `${SUPABASE_URL}/functions/v1/whatsapp-proxy?target=https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+const urlDoProxy = (numero) =>
+  `${SUPABASE_URL}/functions/v1/whatsapp-proxy?target=https://graph.facebook.com/v21.0/${numero}/messages`;
 const CHAT_HISTORY_LOGGER_URL = `${SUPABASE_URL}/functions/v1/chat-history-logger`;
 
 export const LUMA_NAME = 'Luma';
 
-export const callMeta = async (payload) => {
-  const resp = await axios.post(WHATSAPP_PROXY_URL, payload, {
+/**
+ * A ida à Meta, pelo número da Latta que o chamador escolheu.
+ *
+ * 🚨 `numero` é OBRIGATÓRIO e não tem valor padrão. A Latta tem dois números
+ * (tutor e estabelecimento, ver `utils/numeroDoPublico.js`), e um padrão aqui é
+ * como um envio novo nasce falando pelo número errado sem ninguém ver: a
+ * resposta a uma clínica sairia pelo número do tutor, fora da janela dela.
+ */
+export const callMeta = async (payload, { numero } = {}) => {
+  if (!/^\d+$/.test(String(numero ?? ''))) {
+    throw new Error('callMeta exige o phone_number_id do número da Latta que envia');
+  }
+  const resp = await axios.post(urlDoProxy(numero), payload, {
     headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
     timeout: 15000,
   });

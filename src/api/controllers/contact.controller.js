@@ -11,7 +11,9 @@ const toggleAttendance = async (req, res) => {
       });
     }
 
-    const result = await ContactService.toggleAttendance({ contact_id: id });
+    // A conversa: o número da Latta em que ela acontece. Ausente = número do tutor.
+    const numero = req.body?.business_phone_number_id ?? req.query?.business_phone_number_id ?? null;
+    const result = await ContactService.toggleAttendance({ contact_id: id, numero });
 
     return res.status(200).json({
       code: 'ATTENDANCE_TOGGLED',
@@ -19,6 +21,9 @@ const toggleAttendance = async (req, res) => {
     });
   } catch (error) {
     console.error('Error toggling attendance:', error);
+    if (error?.status === 400) {
+      return res.status(400).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({
       code: 'ATTENDANCE_TOGGLE_ERROR',
       message: error.message,
@@ -29,7 +34,7 @@ const toggleAttendance = async (req, res) => {
 const setAttendance = async (req, res) => {
   try {
     const { id } = req.params;
-    const { is_being_attended } = req.body;
+    const { is_being_attended, business_phone_number_id } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -48,6 +53,7 @@ const setAttendance = async (req, res) => {
     const result = await ContactService.setAttendance({
       contact_id: id,
       is_being_attended,
+      numero: business_phone_number_id ?? null,
     });
 
     return res.status(200).json({
@@ -56,6 +62,9 @@ const setAttendance = async (req, res) => {
     });
   } catch (error) {
     console.error('Error setting attendance:', error);
+    if (error?.status === 400) {
+      return res.status(400).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({
       code: 'ATTENDANCE_SET_ERROR',
       message: error.message,
