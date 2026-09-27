@@ -58,26 +58,43 @@ const semValores = (row) => (row && typeof row.get === 'function' ? row.get({ pl
  *   · `atendidas: false` → tira as conversas em atendimento humano (Geral, B2B);
  *   · `atendidas: null`  → não olha atendimento (Testes, Testers);
  *   · `b2b: 'only'`      → a conversa do estabelecimento sempre, e a do tutor
- *                          só de quem é clínica (a clínica que ainda fala pelo
- *                          número do tutor, como antes da virada);
+ *                          só de quem é clínica e com o envio pelo número novo
+ *                          desligado (a clínica que ainda fala pelo número do
+ *                          tutor, como antes da virada);
  *   · `b2b: 'exclude'`   → só a conversa do tutor;
  *   · `b2b: 'none'`      → as duas.
  *
  * Sem número do estabelecimento configurado, devolve o contato como UMA
- * conversa no número do tutor: o estado anterior ao segundo número.
+ * conversa no número do tutor, sem recortar nada: o estado anterior ao
+ * segundo número, em que o SQL já fez o recorte da aba.
  */
 export const separarConversas = (contato, n, aba = {}) => {
   const c = semValores(contato);
   const mensagens = c.chatHistory || [];
   const { atendidas = null, b2b = 'none' } = aba;
 
-  const numeros = [n.tutor];
-  if (n.estabelecimento) numeros.push(n.estabelecimento);
+  if (!n.estabelecimento) {
+    // Um número só: a conversa é o contato, e o SQL já fez o recorte da aba.
+    return [
+      {
+        ...c,
+        conversa_id: chaveDaConversa(c.id, n.tutor),
+        business_phone_number_id: n.tutor,
+        publico_da_conversa: 'tutor',
+        is_being_attended: c.is_being_attended === true,
+      },
+    ];
+  }
 
+  const numeros = [n.tutor, n.estabelecimento];
   const existe = {
-    [n.tutor]: n.estabelecimento ? c.tem_conversa_no_tutor !== false : true,
+    [n.tutor]: c.tem_conversa_no_tutor === true,
+    [n.estabelecimento]: c.tem_conversa_no_estabelecimento === true,
   };
-  if (n.estabelecimento) existe[n.estabelecimento] = c.tem_conversa_no_estabelecimento === true;
+  // Enquanto o envio pelo número novo está desligado, a clínica ainda fala
+  // pelo número do tutor, e essa conversa é B2B. Ligado, o número do tutor só
+  // atende tutor.
+  const clinicaNoNumeroDoTutor = !n.envioDoEstabelecimentoLigado;
 
   const atendida = (numero) =>
     colunaDoAtendimento(numero, n) === 'is_being_attended_b2b'
@@ -91,7 +108,7 @@ export const separarConversas = (contato, n, aba = {}) => {
     if (atendidas === true && !atendida(numero)) continue;
     if (atendidas === false && atendida(numero)) continue;
     if (b2b === 'exclude' && publico === 'estabelecimento') continue;
-    if (b2b === 'only' && publico === 'tutor' && c.eh_clinica !== true) continue;
+    if (b2b === 'only' && publico === 'tutor' && !(clinicaNoNumeroDoTutor && c.eh_clinica === true)) continue;
 
     const {
       tem_conversa_no_tutor: _t,

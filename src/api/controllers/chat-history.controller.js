@@ -244,6 +244,8 @@ const getContactByContactId = async (req, res) => {
       before: before || null,
       after: after || null,
       environment: environment || 'prod',
+      // A conversa (número da Latta). Ausente = o contato inteiro.
+      numero: req.query.business_phone_number_id || null,
     });
 
     if (!result || !result.contact) {
@@ -260,6 +262,9 @@ const getContactByContactId = async (req, res) => {
     });
   } catch (error) {
     console.error('Error retrieving contact by contact id:', error);
+    if (error?.status === 400) {
+      return res.status(400).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({
       code: 'CONTACT_RETRIEVAL_ERROR',
       message: error.message,

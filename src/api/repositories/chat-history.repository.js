@@ -19,6 +19,7 @@ import {
   TemplateVariableType,
 } from '../models/index.js';
 import { ultimoInboundQueAbreJanelaSql } from '../../utils/customerWindow.js';
+import { lerNumerosDaLatta } from '../../utils/numeroDoPublico.js';
 
 // Test personas (scripts/test-onboarding-personas.ts): phones 5500000000XXX.
 // DUAS fontes de verdade (UNION) pra garantir que nenhum test persona vaza
@@ -61,6 +62,90 @@ const B2B_CONTACT_IDS_SUBQUERY = `(
     SELECT alt_phone_normalized FROM clinics WHERE alt_phone_normalized IS NOT NULL
   )
 )`;
+
+// ── A CONVERSA POR NÚMERO (numero-dedicado-b2b, fatia 08) ───────────────────
+//
+// A conversa da mensageria é o par (pessoa, número da Latta). Uma pessoa que é
+// tutor e clínica tem uma conversa em cada número, e cada uma tem o seu
+// atendimento humano (`is_being_attended` no número do tutor,
+// `is_being_attended_b2b` no do estabelecimento).
+//
+// Sem `WHATSAPP_B2B_PHONE_NUMBER_ID` no backend, nada disto entra: as queries
+// saem byte a byte como antes do segundo número.
+//
+// A linha do histórico é do número do estabelecimento quando
+// `business_phone_number_id` é ele; qualquer outra (NULL, o tutor, um id
+// estranho) é da conversa do tutor, como `numeroDaResposta` a lê.
+
+/** O id do número do estabelecimento pronto pra SQL, ou null. Só dígitos entram. */
+const numeroB2bSql = (n) => (/^\d+$/.test(n?.estabelecimento || '') ? `'${n.estabelecimento}'` : null);
+
+const lattaSql = (shouldFilterLatta, alias = 'ch') => (shouldFilterLatta ? `AND ${alias}.path != 'latta'` : '');
+
+/** Existe linha do histórico da pessoa na conversa do tutor / do estabelecimento. */
+const existeConversaSql = (contatoSql, lado, b2b, shouldFilterLatta) => `EXISTS (
+      SELECT 1 FROM chat_history ch
+      WHERE ch.contact_id = ${contatoSql}
+      ${lattaSql(shouldFilterLatta)}
+      AND ch.business_phone_number_id ${lado === 'estabelecimento' ? '=' : 'IS DISTINCT FROM'} ${b2b}
+    )`;
+
+/**
+ * As últimas 20 mensagens de CADA conversa do contato. Com um LIMIT só, a
+ * conversa menos ativa da pessoa podia não ter linha nenhuma entre as 20 e
+ * aparecer vazia na lista.
+ */
+const ultimasMensagensPorConversaSql = (shouldFilterLatta, n = lerNumerosDaLatta()) => {
+  const b2b = numeroB2bSql(n);
+  if (!b2b) {
+    return `(
+                SELECT ch.id
+                FROM chat_history ch
+                WHERE ch.contact_id = "Contact".id
+                ${lattaSql(shouldFilterLatta)}
+                ORDER BY ch.timestamp DESC
+                LIMIT 20
+              )`;
+  }
+  const lado = (op) => `SELECT ch.id
+                  FROM chat_history ch
+                  WHERE ch.contact_id = "Contact".id
+                  ${lattaSql(shouldFilterLatta)}
+                  AND ch.business_phone_number_id ${op} ${b2b}
+                  ORDER BY ch.timestamp DESC
+                  LIMIT 20`;
+  return `(
+                SELECT id FROM (${lado('IS DISTINCT FROM')}) AS conversa_do_tutor
+                UNION ALL
+                SELECT id FROM (${lado('=')}) AS conversa_do_estabelecimento
+              )`;
+};
+
+/**
+ * Os atributos que a mensageria usa pra partir o contato em conversas
+ * (`separarConversas`). Vazio sem número do estabelecimento.
+ */
+const atributosDasConversas = (shouldFilterLatta, { comClinica = false } = {}, n = lerNumerosDaLatta()) => {
+  const b2b = numeroB2bSql(n);
+  if (!b2b) return [];
+  const attrs = [
+    [Sequelize.literal(existeConversaSql('"Contact".id', 'tutor', b2b, shouldFilterLatta)), 'tem_conversa_no_tutor'],
+    [
+      Sequelize.literal(existeConversaSql('"Contact".id', 'estabelecimento', b2b, shouldFilterLatta)),
+      'tem_conversa_no_estabelecimento',
+    ],
+  ];
+  if (comClinica) {
+    attrs.push([Sequelize.literal(`("Contact".id IN ${B2B_CONTACT_IDS_SUBQUERY})`), 'eh_clinica']);
+  }
+  return attrs;
+};
+
+/** Alguma conversa do contato está em atendimento humano. */
+const emAtendimentoSql = (alias = 'c', n = lerNumerosDaLatta()) =>
+  numeroB2bSql(n)
+    ? `(${alias}.is_being_attended = true OR ${alias}.is_being_attended_b2b = true)`
+    : `${alias}.is_being_attended = true`;
 
 // Staging contacts: phones na whitelist staging_users (ADR-0007 Fatia 7).
 // Usado pra filtrar mensageria do admin web por environment:
@@ -175,6 +260,10 @@ const chatHistoryMessageAttrs = () => [
   'delivery_status',
   'delivery_error',
   'delivery_updated_at',
+  // Em qual número da Latta a mensagem aconteceu (numero-dedicado-b2b). NULL é
+  // o número do tutor. É por ela que a mensageria parte a pessoa em conversas.
+  // A coluna nasce na migration 20260927150200 do repo principal.
+  'business_phone_number_id',
 ];
 
 // Anexa os N pedidos mais recentes do petOwner ao contact retornado pelos
@@ -233,6 +322,47 @@ const buildB2bChatFilter = (b2bFilter = 'exclude') => {
 //
 // NAO cobre os filtros do operador (tags/responsibility/unread): esses sao
 // refinamentos por cima do escopo e nao entram no badge.
+/**
+ * O escopo de uma aba quando a Latta tem os dois números: o contato entra se
+ * ALGUMA conversa dele pertence à aba. A mesma regra, conversa a conversa, é a
+ * do `separarConversas` que parte a lista depois.
+ *
+ *   · Atendimento: aba Luma pede a conversa atendida; Geral e B2B pedem a não
+ *     atendida; Testes e Testers não olham.
+ *   · B2B: a conversa do estabelecimento é sempre B2B. A do tutor só é B2B de
+ *     quem é clínica e enquanto o envio pelo número novo está desligado (a
+ *     clínica ainda fala pelo número do tutor, como antes da virada). Com o
+ *     interruptor ligado, o número do tutor só atende tutor.
+ */
+const escopoPorConversaSql = ({ shouldFilterLatta, b2b, numeros, beingAttended, testFilter, b2bFilter, stagingOnly }) => {
+  const olhaAtendimento = beingAttended || (testFilter !== 'only' && !stagingOnly);
+  const atendimento = (coluna) => {
+    if (!olhaAtendimento) return 'true';
+    return beingAttended ? `c.${coluna} = true` : `c.${coluna} IS NOT TRUE`;
+  };
+  const clinicaNoNumeroDoTutor = !numeros.envioDoEstabelecimentoLigado;
+
+  let pernaDoTutor = `(${existeConversaSql('c.id', 'tutor', b2b, shouldFilterLatta)} AND ${atendimento('is_being_attended')}`;
+  if (b2bFilter === 'only') {
+    pernaDoTutor = clinicaNoNumeroDoTutor ? `${pernaDoTutor} AND c.id IN ${B2B_CONTACT_IDS_SUBQUERY}` : 'false';
+  } else if (b2bFilter === 'exclude' && clinicaNoNumeroDoTutor) {
+    pernaDoTutor = `${pernaDoTutor} AND c.id NOT IN ${B2B_CONTACT_IDS_SUBQUERY}`;
+  }
+  if (pernaDoTutor !== 'false') pernaDoTutor = `${pernaDoTutor})`;
+
+  const pernaDoEstabelecimento =
+    b2bFilter === 'exclude'
+      ? 'false'
+      : `(${existeConversaSql('c.id', 'estabelecimento', b2b, shouldFilterLatta)} AND ${atendimento('is_being_attended_b2b')})`;
+
+  return `(
+    SELECT c.id
+    FROM contacts c
+    WHERE ${pernaDoTutor}
+       OR ${pernaDoEstabelecimento}
+  )`;
+};
+
 const buildContactScopeWhere = ({
   role,
   testFilter = 'exclude',
@@ -267,9 +397,17 @@ const buildContactScopeWhere = ({
     )
   )`;
 
-  const scope = { id: { [Op.in]: Sequelize.literal(baseSubquery) } };
+  const numeros = lerNumerosDaLatta();
+  const b2b = numeroB2bSql(numeros);
+  const porConversa = !!b2b;
 
-  if (beingAttended) {
+  const scope = porConversa
+    ? { id: { [Op.in]: Sequelize.literal(escopoPorConversaSql({ shouldFilterLatta, b2b, numeros, beingAttended, testFilter, b2bFilter, stagingOnly })) } }
+    : { id: { [Op.in]: Sequelize.literal(baseSubquery) } };
+
+  if (porConversa) {
+    // O atendimento e o recorte B2B já estão nas pernas de cada conversa.
+  } else if (beingAttended) {
     scope.is_being_attended = true;
   } else if (testFilter !== 'only' && !stagingOnly) {
     // Geral/B2B excluem conversas em atendimento humano (Luma assumiu) — essas
@@ -293,7 +431,7 @@ const buildContactScopeWhere = ({
     });
   }
 
-  if (b2bChatFilter) {
+  if (b2bChatFilter && !porConversa) {
     conditions.push({
       id: {
         [b2bChatFilter.op === 'in' ? Op.in : Op.notIn]:
@@ -438,6 +576,9 @@ const getAllContactsWithMessages = async ({
 
     const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
       where: whereConditions,
+      attributes: {
+        include: atributosDasConversas(shouldFilterLatta, { comClinica: b2bFilter === 'only' }),
+      },
       limit,
       offset,
       distinct: true,
@@ -465,14 +606,7 @@ const getAllContactsWithMessages = async ({
           where: {
             ...chatHistoryWhere,
             id: {
-              [Op.in]: Sequelize.literal(`(
-                SELECT ch.id
-                FROM chat_history ch
-                WHERE ch.contact_id = "Contact".id
-                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
-                ORDER BY ch.timestamp DESC
-                LIMIT 20
-              )`),
+              [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
             },
           },
           attributes: chatHistoryMessageAttrs(),
@@ -637,7 +771,7 @@ const getAllContactsBeingAttended = async ({
             INNER JOIN pet_owners po ON c.pet_owner_id = po.id
             INNER JOIN pet_owner_tag_assignments pota ON po.id = pota.pet_owner_id
             WHERE pota.tag_id IN (${escapedTags})
-            AND c.is_being_attended = true
+            AND ${emAtendimentoSql('c')}
           )`),
         },
       });
@@ -650,7 +784,7 @@ const getAllContactsBeingAttended = async ({
           [Op.in]: Sequelize.literal(`(
             SELECT c.id
             FROM contacts c
-            WHERE c.is_being_attended = true
+            WHERE ${emAtendimentoSql('c')}
             AND EXISTS (
               SELECT 1 FROM chat_history ch1
               WHERE ch1.contact_id = c.id
@@ -675,7 +809,7 @@ const getAllContactsBeingAttended = async ({
           [Op.in]: Sequelize.literal(`(
             SELECT c.id
             FROM contacts c
-            WHERE c.is_being_attended = true
+            WHERE ${emAtendimentoSql('c')}
             AND EXISTS (
               SELECT 1 FROM chat_history ch1
               WHERE ch1.contact_id = c.id
@@ -705,6 +839,7 @@ const getAllContactsBeingAttended = async ({
 
     const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
       where: whereConditions,
+      attributes: { include: atributosDasConversas(shouldFilterLatta) },
       limit,
       offset,
       distinct: true,
@@ -728,14 +863,7 @@ const getAllContactsBeingAttended = async ({
           where: {
             ...chatHistoryWhere,
             id: {
-              [Op.in]: Sequelize.literal(`(
-                SELECT ch.id
-                FROM chat_history ch
-                WHERE ch.contact_id = "Contact".id
-                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
-                ORDER BY ch.timestamp DESC
-                LIMIT 20
-              )`),
+              [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
             },
           },
           attributes: chatHistoryMessageAttrs(),
@@ -1004,6 +1132,7 @@ const searchContacts = async ({
 
     const contacts = await Contact.findAll({
       where: whereConditions,
+      attributes: { include: atributosDasConversas(shouldFilterLatta) },
       limit: parseInt(limit),
       offset: parseInt(offset),
       distinct: true, // Evita duplicatas com joins múltiplos
@@ -1055,14 +1184,7 @@ const searchContacts = async ({
           where: {
             ...chatHistoryWhere,
             id: {
-              [Op.in]: Sequelize.literal(`(
-                SELECT ch.id
-                FROM chat_history ch
-                WHERE ch.contact_id = "Contact".id
-                ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
-                ORDER BY ch.timestamp DESC
-                LIMIT 20
-              )`),
+              [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
             },
           },
           attributes: chatHistoryMessageAttrs(),
@@ -1653,6 +1775,7 @@ const getContactByContactId = async ({
   limit = 20,
   before = null,
   after = null,
+  numero = null,
 }) => {
   try {
     const { Op } = Sequelize;
@@ -1688,6 +1811,22 @@ const getContactByContactId = async ({
       offsetClause = `OFFSET ${offset}`;
     }
 
+    // Só as mensagens da conversa pedida (o número da Latta), quando pedida.
+    const b2b = numeroB2bSql(lerNumerosDaLatta());
+    let conversaClause = '';
+    let conversaWhere = {};
+    if (numero && b2b) {
+      const doEstabelecimento = `'${numero}'` === b2b;
+      conversaClause = `AND ch.business_phone_number_id ${doEstabelecimento ? '=' : 'IS DISTINCT FROM'} ${b2b}`;
+      conversaWhere = {
+        [Op.and]: [
+          Sequelize.literal(
+            `"business_phone_number_id" ${doEstabelecimento ? '=' : 'IS DISTINCT FROM'} ${b2b}`,
+          ),
+        ],
+      };
+    }
+
     const contact = await Contact.findOne({
       where: { id: contact_id },
       order: [
@@ -1705,6 +1844,7 @@ const getContactByContactId = async ({
                 FROM chat_history ch
                 WHERE ch.contact_id = "Contact".id
                 ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
+                ${conversaClause}
                 ${cursorClause}
                 ${orderClause}
                 LIMIT ${limit} ${offsetClause}
@@ -1816,6 +1956,7 @@ const getContactByContactId = async ({
         where: {
           contact_id: contact.id,
           ...chatHistoryWhere,
+          ...conversaWhere,
         },
       });
     }

@@ -87,6 +87,7 @@ function createSocketRoutes(io) {
         timestamp,
         journey,
         message_type_id,
+        business_phone_number_id,
       } = req.body;
 
       if (!contact_id) {
@@ -123,6 +124,9 @@ function createSocketRoutes(io) {
         journey,
         message_type,
         message_type_id,
+        // Em qual número da Latta a mensagem aconteceu: é por ele que o painel
+        // põe a mensagem na conversa certa da pessoa (tutor ou estabelecimento).
+        business_phone_number_id: business_phone_number_id ?? null,
         source: 'client',
       };
 
