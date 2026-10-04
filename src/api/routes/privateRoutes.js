@@ -30,11 +30,9 @@ import TemplateRoutes from './private/template.routes.js';
 import TemplateCreateRoutes from './private/template-create.routes.js';
 import UserRoutes from './private/user.routes.js';
 import VaccineRoutes from './private/vaccine.routes.js';
-import N8NRoutes from './private/n8n.routes.js';
 import WebScrappingRoutes from './private/web-scrapping.route.js';
 import VarejonlineRoutes from './private/varejonline.routes.js';
 import PrescrapeRoutes from './private/prescrape.routes.js';
-import { requireN8nServiceSecret } from '../middlewares/n8n-service-auth.middleware.js';
 
 const router = Router();
 
@@ -73,13 +71,6 @@ router.use('/template', TemplateRoutes);
 router.use('/messaging/templates', TemplateCreateRoutes);
 router.use('/users', UserRoutes);
 router.use('/vaccine', VaccineRoutes);
-router.use(
-  '/n8n',
-  requireN8nServiceSecret,
-  express.json({ limit: '50mb' }),
-  express.urlencoded({ extended: true, limit: '50mb' }),
-  N8NRoutes,
-);
 router.use('/web-scrapping', WebScrappingRoutes);
 router.use('/oauth/varejonline', VarejonlineRoutes);
 router.use('/webhook', PrescrapeRoutes);
