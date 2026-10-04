@@ -8,6 +8,7 @@ import AdminSchedulingMetricsRoutes from './private/admin-scheduling-metrics.rou
 import AdminCheckinRoutes from './private/admin-checkin.routes.js';
 import AdminB2bRoutes from './private/admin-b2b.routes.js';
 import CampaignsRoutes from './private/campaigns.routes.js';
+import FlowStudioRoutes from './private/flow-studio.routes.js';
 import ClinicActivityRoutes from './private/clinic-activity.routes.js';
 import ClinicAuthRoutes from './private/clinic-auth.routes.js';
 import ClinicFeatureRoutes from './private/clinic-feature.routes.js';
@@ -44,6 +45,12 @@ router.use('/admin', AdminSchedulingMetricsRoutes);
 router.use('/admin', AdminCheckinRoutes);
 router.use('/admin', AdminB2bRoutes);
 router.use('/admin', CampaignsRoutes);
+// Pedido de mudança de IMAGEM carrega o base64 no corpo (até ~3 MB por pedido).
+// ⚠️ Este parser só vale se o global de app.js deixar de existir: hoje o
+// `express.json(jsonConfig)` global (limit 50mb) roda ANTES e já consome o
+// corpo, e um body-parser não relê corpo já lido. O teto efetivo aqui é o
+// global; o de 20mb fica pra não depender dele.
+router.use('/flow-studio', express.json({ limit: '20mb' }), FlowStudioRoutes);
 router.use('/clinic-auth', ClinicAuthRoutes);
 router.use('/clinic', ClinicFeatureRoutes);
 router.use('/clinic', ClinicRoutes);
