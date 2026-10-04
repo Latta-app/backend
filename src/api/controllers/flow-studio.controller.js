@@ -28,6 +28,7 @@ import {
   snapshotParaApi,
   validarLote,
 } from '../services/flow-studio.service.js';
+import { montarSimulacao } from '../services/flow-studio-simulacao.service.js';
 
 const COLUNAS = COLUNAS_DO_PEDIDO.join(', ');
 
@@ -209,5 +210,66 @@ export const descartarPedido = async (req, res) => {
     });
   } catch (err) {
     return erroInterno(res, 'discard edit', err);
+  }
+};
+
+/**
+ * SIMULA uma tela "como" um número: repassa o pedido pra EF de Flow com o
+ * header `x-estudio-simulacao`, e ela atende pelo caminho de produção com a
+ * trava de gravação ligada (repo Latta, `_shared/estudio-simulacao.ts`).
+ *
+ * Nada aqui grava em banco. O que fica é UMA linha de log com quem simulou qual
+ * número — simular um cliente é ver os dados dele, e isso precisa de rastro.
+ */
+export const simular = async (req, res) => {
+  const m = montarSimulacao(req.body);
+  if (!m.ok) {
+    return res
+      .status(400)
+      .json({ code: 'FLOW_STUDIO_SIMULACAO_INVALIDA', message: m.mensagem, campo: m.campo });
+  }
+  // eslint-disable-next-line no-console
+  console.info(
+    `[flow-studio] simulação por=${req.user?.email || req.user?.id} ef=${m.ef} modo=${m.modo} ` +
+      `tel=…${m.flowToken.slice(-4)} acao=${m.corpo.pedido.action} tela=${m.corpo.pedido.screen ||
+        '-'}`,
+  );
+
+  try {
+    const r = await fetch(`${process.env.SUPABASE_URL}/functions/v1/${m.ef}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'x-estudio-simulacao': m.modo,
+      },
+      body: JSON.stringify(m.corpo),
+      signal: AbortSignal.timeout(30000),
+    });
+    const texto = await r.text();
+    let corpo;
+    try {
+      corpo = JSON.parse(texto);
+    } catch {
+      return res.status(502).json({
+        code: 'FLOW_STUDIO_SIMULACAO_EF',
+        message: `a EF respondeu fora do formato (HTTP ${r.status})`,
+        detalhe: texto.slice(0, 300),
+      });
+    }
+    if (!r.ok && corpo?.ok === undefined) {
+      return res.status(502).json({
+        code: 'FLOW_STUDIO_SIMULACAO_EF',
+        message: corpo?.error || `a EF recusou (HTTP ${r.status})`,
+        detalhe: corpo,
+      });
+    }
+    return res.json({
+      code: 'FLOW_STUDIO_SIMULACAO',
+      data: { ...corpo, flowToken: m.flowToken, ef: m.ef },
+    });
+  } catch (err) {
+    return erroInterno(res, 'simulate', err);
   }
 };

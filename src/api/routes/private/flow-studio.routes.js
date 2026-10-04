@@ -12,6 +12,7 @@ import {
   listarPedidos,
   criarPedidos,
   descartarPedido,
+  simular,
 } from '../../controllers/flow-studio.controller.js';
 import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
@@ -30,5 +31,9 @@ router.get('/edits', listarPedidos);
 router.post('/edits', criarPedidos);
 // O operador só DESCARTA. Andar com o pedido é da sessão que aplica.
 router.patch('/edits/:id', descartarPedido);
+
+// A simulação por número: a EF atende "como" o telefone escolhido, sem gravar.
+// Pode ser um cliente de verdade, então fica atrás do mesmo gate de admin.
+router.post('/simular', simular);
 
 export default router;
