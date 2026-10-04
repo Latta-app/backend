@@ -41,17 +41,21 @@ describe('as rotas existem', () => {
     ['GET', '/edits'],
     ['POST', '/edits'],
     ['PATCH', '/edits/:id'],
+    ['POST', '/simular'],
   ])('%s %s', (metodo, caminho) => {
     expect(posicao(metodo, caminho)).toBeGreaterThanOrEqual(0);
   });
 
-  it('são só essas cinco (nada de DELETE nem de PUT de status)', () => {
+  // A sexta é a SIMULAÇÃO por número: lê a tela como um telefone, não grava
+  // nada (a trava mora nas EFs). Fica atrás do mesmo gate de admin.
+  it('são só essas seis (nada de DELETE nem de PUT de status)', () => {
     expect(rotas.flatMap((r) => r.metodos.map((m) => `${m} ${r.caminho}`)).sort()).toEqual([
       'GET /edits',
       'GET /flows',
       'GET /flows/:flowKey',
       'PATCH /edits/:id',
       'POST /edits',
+      'POST /simular',
     ]);
   });
 });
@@ -105,6 +109,8 @@ describe('🚨 o gate: verifyToken + checkRole(admin, superAdmin) em TODA rota',
       '/api/flow-studio/edits/11111111-2222-4333-8444-555555555555',
       { status: 'descartada' },
     ],
+    // Flow sem simulação: o handler responde 400 sem chamar EF nenhuma.
+    ['POST', '/api/flow-studio/simular', { flowKey: 'flow-b2b-agenda-v1' }],
   ];
 
   it.each(chamadas)('%s %s sem token → 401', async (method, path, body) => {
