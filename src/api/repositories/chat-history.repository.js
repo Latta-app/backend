@@ -91,9 +91,17 @@ const existeConversaSql = (contatoSql, lado, b2b, shouldFilterLatta) => `EXISTS 
     )`;
 
 /**
- * As últimas 20 mensagens de CADA conversa do contato. Com um LIMIT só, a
- * conversa menos ativa da pessoa podia não ter linha nenhuma entre as 20 e
- * aparecer vazia na lista.
+ * Quantas mensagens a LISTA de contatos carrega por conversa. A lista só usa a
+ * última (prévia) e a sequência de não lidas do fim; a conversa aberta busca o
+ * próprio histórico. [MEDIDO] só 6 de 288 contatos tinham mais de 5 não lidas
+ * seguidas. O badge do frontend mostra "6+" quando chega neste teto.
+ */
+const ULTIMAS_POR_CONVERSA = 6;
+
+/**
+ * As últimas mensagens (ULTIMAS_POR_CONVERSA) de CADA conversa do contato. Com
+ * um LIMIT só, a conversa menos ativa da pessoa podia não ter linha nenhuma
+ * entre elas e aparecer vazia na lista.
  */
 const ultimasMensagensPorConversaSql = (shouldFilterLatta, n = lerNumerosDaLatta()) => {
   const b2b = numeroB2bSql(n);
@@ -104,7 +112,7 @@ const ultimasMensagensPorConversaSql = (shouldFilterLatta, n = lerNumerosDaLatta
                 WHERE ch.contact_id = "Contact".id
                 ${lattaSql(shouldFilterLatta)}
                 ORDER BY ch.timestamp DESC
-                LIMIT 20
+                LIMIT ${ULTIMAS_POR_CONVERSA}
               )`;
   }
   const lado = (op) => `SELECT ch.id
@@ -113,7 +121,7 @@ const ultimasMensagensPorConversaSql = (shouldFilterLatta, n = lerNumerosDaLatta
                   ${lattaSql(shouldFilterLatta)}
                   AND ch.business_phone_number_id ${op} ${b2b}
                   ORDER BY ch.timestamp DESC
-                  LIMIT 20`;
+                  LIMIT ${ULTIMAS_POR_CONVERSA}`;
   return `(
                 SELECT id FROM (${lado('IS DISTINCT FROM')}) AS conversa_do_tutor
                 UNION ALL
