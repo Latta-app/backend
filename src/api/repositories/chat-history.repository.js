@@ -1744,6 +1744,14 @@ const getContactByContactId = async ({
       };
     }
 
+    // O contato é UM e o id já é conhecido: com o valor fixo a subconsulta deixa de
+    // depender da linha de fora e o Postgres a avalia uma vez. Com `"Contact".id`
+    // ela era reexecutada por MENSAGEM do contato [MEDIDO 06/10/2026, contato de
+    // 39 mil mensagens: abrir a conversa 1,1 a 3,8s -> 14 a 70ms; página de
+    // rolagem 1,5s -> 24 a 38ms, mesmas linhas]. Só uuid vira valor fixo; o resto
+    // mantém a forma antiga (a busca do contato logo abaixo recusa o id do mesmo jeito).
+    const doContatoSql = UUID_RE.test(String(contact_id)) ? `'${contact_id}'` : '"Contact".id';
+
     const contact = await Contact.findOne({
       where: { id: contact_id },
       order: [
@@ -1759,7 +1767,7 @@ const getContactByContactId = async ({
               [Op.in]: Sequelize.literal(`(
                 SELECT ch.id
                 FROM chat_history ch
-                WHERE ch.contact_id = "Contact".id
+                WHERE ch.contact_id = ${doContatoSql}
                 ${shouldFilterLatta ? `AND ch.path != 'latta'` : ''}
                 ${conversaClause}
                 ${cursorClause}

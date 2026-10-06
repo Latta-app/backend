@@ -308,4 +308,35 @@ describe('🚨 fiação: a query real do repositório', () => {
       `AND ch.business_phone_number_id = '${ESTABELECIMENTO}'`,
     );
   });
+
+  it('o detalhe usa o id do contato como valor fixo na subconsulta (não reexecuta por mensagem)', async () => {
+    await ChatRepository.getContactByContactId({ contact_id: PESSOA, role: 'admin' });
+    const sql = sqlDe(findOne.mock.calls.at(-1)[0].include.find((i) => i.as === 'chatHistory').where);
+
+    expect(sql).toContain(`WHERE ch.contact_id = '${PESSOA}'`);
+    expect(sql).not.toContain('"Contact".id');
+  });
+
+  it('a página de rolagem (before/after) também usa o id fixo e mantém o cursor', async () => {
+    const antes = '2026-10-01T12:00:00.000Z';
+    await ChatRepository.getContactByContactId({ contact_id: PESSOA, role: 'admin', before: antes });
+    const sqlBefore = sqlDe(findOne.mock.calls.at(-1)[0].include.find((i) => i.as === 'chatHistory').where);
+    await ChatRepository.getContactByContactId({ contact_id: PESSOA, role: 'admin', after: antes });
+    const sqlAfter = sqlDe(findOne.mock.calls.at(-1)[0].include.find((i) => i.as === 'chatHistory').where);
+
+    expect(sqlBefore).toContain(`WHERE ch.contact_id = '${PESSOA}'`);
+    expect(sqlBefore).toContain(`AND ch.timestamp < '${antes}'`);
+    expect(sqlAfter).toContain(`WHERE ch.contact_id = '${PESSOA}'`);
+    expect(sqlAfter).toContain(`AND ch.timestamp > '${antes}'`);
+    expect(sqlAfter).toContain('ORDER BY ch.timestamp ASC');
+  });
+
+  it("um contact_id que não é uuid nunca entra no SQL como texto", async () => {
+    const malicioso = "x'; DROP TABLE contacts;--";
+    await ChatRepository.getContactByContactId({ contact_id: malicioso, role: 'admin' });
+    const sql = sqlDe(findOne.mock.calls.at(-1)[0].include.find((i) => i.as === 'chatHistory').where);
+
+    expect(sql).not.toContain('DROP TABLE');
+    expect(sql).toContain('"Contact".id');
+  });
 });
