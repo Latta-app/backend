@@ -26,12 +26,14 @@ const PESSOA = '22222222-2222-2222-2222-222222222222';
 // A lista pede as linhas (findAll, com os includes) e a contagem (count, SEM includes) em separado.
 const listaDeContatos = vi.fn(async () => []);
 const contagemDeContatos = vi.fn(async () => 0);
+// As últimas mensagens dos contatos da página vêm de UMA consulta à parte (ChatHistory.findAll).
+const mensagensDaLista = vi.fn(async () => []);
 const findOne = vi.fn(async () => null);
 const count = vi.fn(async () => 0);
 vi.mock('../models/index.js', () => {
   const vazio = {};
   return {
-    ChatHistory: { count: (...a) => count(...a) },
+    ChatHistory: { count: (...a) => count(...a), findAll: (...a) => mensagensDaLista(...a) },
     ChatHistoryContacts: vazio,
     Contact: {
       count: (...a) => contagemDeContatos(...a),
@@ -108,6 +110,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
   listaDeContatos.mockClear();
   contagemDeContatos.mockClear();
+  mensagensDaLista.mockClear();
   findOne.mockClear();
   process.env.WHATSAPP_PHONE_NUMBER_ID = TUTOR;
   process.env.WHATSAPP_B2B_PHONE_NUMBER_ID = ESTABELECIMENTO;
@@ -221,15 +224,57 @@ describe('🚨 fiação: a query real do repositório', () => {
     }
   });
 
-  it('pede as duas marcas de conversa e as últimas mensagens de CADA número', async () => {
-    const opcoes = await opcoesDaLista();
-    const marcas = opcoes.attributes.include.map(([, nome]) => nome);
-    const sqlDasMensagens = sqlDe(opcoes.include.find((i) => i.as === 'chatHistory').where);
+  // As últimas mensagens saem da consulta à parte (uma por página), e só rodam se a página tem contato.
+  const sqlDasUltimasMensagens = async (fn = 'getAllContactsWithMessages') => {
+    const contato = { id: PESSOA, dataValues: {} };
+    listaDeContatos.mockResolvedValueOnce([contato]);
+    await ChatRepository[fn]({ role: 'admin', page: 1, limit: 15 });
+    const consulta = mensagensDaLista.mock.calls.at(-1)[0];
+    return { contato, consulta, sql: sqlDe(consulta.where) };
+  };
 
-    expect(marcas).toEqual(['tem_conversa_no_tutor', 'tem_conversa_no_estabelecimento']);
-    expect(sqlDasMensagens).toContain('UNION ALL');
-    expect(sqlDasMensagens).toContain(`business_phone_number_id = '${ESTABELECIMENTO}'`);
-    expect(sqlDasMensagens).toContain(`business_phone_number_id IS DISTINCT FROM '${ESTABELECIMENTO}'`);
+  it('pede as duas marcas de conversa', async () => {
+    const opcoes = await opcoesDaLista();
+
+    expect(opcoes.attributes.include.map(([, nome]) => nome)).toEqual([
+      'tem_conversa_no_tutor',
+      'tem_conversa_no_estabelecimento',
+    ]);
+    // O include correlacionado saiu: reexecutava por MENSAGEM (53s na aba Testers).
+    expect(opcoes.include.find((i) => i.as === 'chatHistory')).toBeUndefined();
+  });
+
+  it('busca as últimas mensagens de CADA número numa consulta só, só dos contatos da página', async () => {
+    for (const fn of ['getAllContactsWithMessages', 'getAllContactsBeingAttended']) {
+      const { sql, consulta } = await sqlDasUltimasMensagens(fn);
+
+      expect(sql).toContain('ROW_NUMBER() OVER');
+      expect(sql).toContain(`PARTITION BY ch.contact_id, COALESCE(ch.business_phone_number_id = '${ESTABELECIMENTO}', false)`);
+      expect(sql).toContain(`ch.contact_id IN ('${PESSOA}')`);
+      expect(sql).toContain('posicao <= 6');
+      expect(sql).not.toContain('"Contact"');
+      expect(consulta.include.map((i) => i.as)).toEqual(['chatHistoryContacts', 'template']);
+    }
+  });
+
+  it('o contato sai com as mensagens em chatHistory e em dataValues.chatHistory', async () => {
+    const msg = { contact_id: PESSOA, id: 'm1', dataValues: { contact_id: PESSOA } };
+    mensagensDaLista.mockResolvedValueOnce([msg]);
+    const contato = { id: PESSOA, dataValues: {} };
+    listaDeContatos.mockResolvedValueOnce([contato]);
+
+    await ChatRepository.getAllContactsWithMessages({ role: 'admin', page: 1, limit: 15 });
+
+    expect(contato.chatHistory).toEqual([msg]);
+    expect(contato.dataValues.chatHistory).toEqual([msg]);
+    expect(msg.dataValues.contact_id).toBeUndefined();
+  });
+
+  it('só confia em uuid na lista de contatos da consulta de mensagens', async () => {
+    listaDeContatos.mockResolvedValueOnce([{ id: "x'); DROP TABLE contacts;--", dataValues: {} }]);
+    await ChatRepository.getAllContactsWithMessages({ role: 'admin', page: 1, limit: 15 });
+
+    expect(mensagensDaLista).not.toHaveBeenCalled();
   });
 
   it('a aba B2B também pergunta se a pessoa é clínica', async () => {
@@ -244,12 +289,14 @@ describe('🚨 fiação: a query real do repositório', () => {
     expect(sqlDe(opcoes.where)).toContain('c.is_being_attended_b2b = true');
   });
 
-  it('sem o número novo, a query sai como antes: sem marcas, sem UNION, sem a coluna nova', async () => {
+  it('sem o número novo, a query sai como antes: sem marcas, uma conversa só, sem a coluna nova', async () => {
     delete process.env.WHATSAPP_B2B_PHONE_NUMBER_ID;
     const opcoes = await opcoesDaLista();
+    const { sql } = await sqlDasUltimasMensagens();
 
     expect(opcoes.attributes.include).toEqual([]);
-    expect(sqlDe(opcoes.include.find((i) => i.as === 'chatHistory').where)).not.toContain('UNION ALL');
+    expect(sql).toContain('PARTITION BY ch.contact_id, false');
+    expect(sql).not.toContain(ESTABELECIMENTO);
     expect(sqlDe(opcoes.where)).not.toContain('is_being_attended_b2b');
   });
 
