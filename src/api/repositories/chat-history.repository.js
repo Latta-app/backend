@@ -98,35 +98,119 @@ const existeConversaSql = (contatoSql, lado, b2b, shouldFilterLatta) => `EXISTS 
  */
 const ULTIMAS_POR_CONVERSA = 6;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * As últimas mensagens (ULTIMAS_POR_CONVERSA) de CADA conversa do contato. Com
- * um LIMIT só, a conversa menos ativa da pessoa podia não ter linha nenhuma
- * entre elas e aparecer vazia na lista.
+ * Os ids das últimas mensagens (ULTIMAS_POR_CONVERSA) de CADA conversa dos
+ * contatos informados. Com um LIMIT só, a conversa menos ativa da pessoa podia
+ * não ter linha nenhuma entre elas e aparecer vazia na lista, por isso o corte é
+ * por contato E por número da Latta (a conversa do tutor e a do estabelecimento).
+ *
+ * É UMA consulta com ROW_NUMBER() sobre só os contatos da página. A versão
+ * anterior era uma subconsulta correlacionada dentro do JOIN, que o Postgres
+ * reexecutava uma vez por MENSAGEM do contato: [MEDIDO 06/10/2026] 39.164 vezes
+ * (~1,3ms cada) no contato de 39 mil mensagens da aba Testers, 53s no total.
  */
-const ultimasMensagensPorConversaSql = (shouldFilterLatta, n = lerNumerosDaLatta()) => {
+const ultimasMensagensDosContatosSql = (contactIds, shouldFilterLatta, n = lerNumerosDaLatta()) => {
   const b2b = numeroB2bSql(n);
-  if (!b2b) {
-    return `(
-                SELECT ch.id
-                FROM chat_history ch
-                WHERE ch.contact_id = "Contact".id
-                ${lattaSql(shouldFilterLatta)}
-                ORDER BY ch.timestamp DESC
-                LIMIT ${ULTIMAS_POR_CONVERSA}
-              )`;
-  }
-  const lado = (op) => `SELECT ch.id
-                  FROM chat_history ch
-                  WHERE ch.contact_id = "Contact".id
-                  ${lattaSql(shouldFilterLatta)}
-                  AND ch.business_phone_number_id ${op} ${b2b}
-                  ORDER BY ch.timestamp DESC
-                  LIMIT ${ULTIMAS_POR_CONVERSA}`;
+  // A conversa do estabelecimento é `= b2b`; a do tutor é todo o resto, inclusive NULL.
+  const conversa = b2b ? `COALESCE(ch.business_phone_number_id = ${b2b}, false)` : 'false';
+  const ids = contactIds.map((id) => `'${id}'`).join(',');
   return `(
-                SELECT id FROM (${lado('IS DISTINCT FROM')}) AS conversa_do_tutor
-                UNION ALL
-                SELECT id FROM (${lado('=')}) AS conversa_do_estabelecimento
-              )`;
+    SELECT ranqueadas.id FROM (
+      SELECT ch.id,
+             ROW_NUMBER() OVER (PARTITION BY ch.contact_id, ${conversa} ORDER BY ch.timestamp DESC) AS posicao
+      FROM chat_history ch
+      WHERE ch.contact_id IN (${ids})
+      ${lattaSql(shouldFilterLatta)}
+    ) ranqueadas
+    WHERE ranqueadas.posicao <= ${ULTIMAS_POR_CONVERSA}
+  )`;
+};
+
+/**
+ * Anexa a cada contato da lista as suas últimas mensagens, em UMA consulta pra
+ * página inteira (em vez de um JOIN dentro da consulta dos contatos).
+ *
+ * O formato é o que o include `chatHistory` entregava: instâncias do ChatHistory
+ * em `contact.chatHistory` e em `contact.dataValues.chatHistory`, que é de onde o
+ * service (replyMessage, URLs assinadas) e `separarConversas` leem.
+ */
+const anexarUltimasMensagens = async (contacts, { shouldFilterLatta, chatHistoryWhere }) => {
+  const { Op } = Sequelize;
+  const ids = contacts.map((c) => c.id).filter((id) => UUID_RE.test(String(id)));
+  const porContato = new Map(ids.map((id) => [id, []]));
+
+  if (ids.length > 0) {
+    const mensagens = await ChatHistory.findAll({
+      where: {
+        ...chatHistoryWhere,
+        id: { [Op.in]: Sequelize.literal(ultimasMensagensDosContatosSql(ids, shouldFilterLatta)) },
+      },
+      attributes: [...chatHistoryMessageAttrs('ChatHistory'), 'contact_id'],
+      order: [['timestamp', 'DESC']],
+      include: [
+        {
+          model: ChatHistoryContacts,
+          as: 'chatHistoryContacts',
+          attributes: [
+            'id',
+            'contact_name',
+            'cellphone',
+            'contact_phone',
+            'message_id',
+            'created_at',
+            'updated_at',
+          ],
+        },
+        {
+          model: Template,
+          as: 'template',
+          order: [['template_label', 'ASC']],
+          attributes: [
+            'id',
+            'template_name',
+            'template_label',
+            'template_category',
+            'template_status',
+          ],
+          include: [
+            {
+              model: TemplateVariable,
+              as: 'variables',
+              attributes: [
+                'id',
+                'template_id',
+                'template_component_id',
+                'template_component_type_id',
+                'template_varible_type_id',
+                'variable_position',
+              ],
+              include: [
+                {
+                  model: TemplateVariableType,
+                  as: 'templateVariableType',
+                  attributes: ['id', 'type', 'description', 'n8n_formula'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    for (const mensagem of mensagens) {
+      porContato.get(mensagem.contact_id)?.push(mensagem);
+      // `contact_id` entrou só pra agrupar; a mensagem sai com os mesmos campos de antes.
+      delete mensagem.dataValues.contact_id;
+    }
+  }
+
+  for (const contact of contacts) {
+    const doContato = porContato.get(contact.id) || [];
+    contact.chatHistory = doContato;
+    contact.dataValues.chatHistory = doContato;
+  }
 };
 
 /**
@@ -242,9 +326,9 @@ const ORDER_ITEM_LIST_ATTRS = ['id', 'name', 'brand', 'category', 'sku', 'thumbn
 // de `include:`, e o Sequelize faz push de FKs no `attributes` do include ao
 // montar o join. Um array compartilhado entre as 6 queries acumularia colunas
 // de uma chamada pra outra. Cada call-site recebe uma copia nova.
-const chatHistoryMessageAttrs = () => [
+const chatHistoryMessageAttrs = (alias = 'chatHistory') => [
   'id',
-  [Sequelize.fn('LEFT', Sequelize.col('chatHistory.message'), 8000), 'message'],
+  [Sequelize.fn('LEFT', Sequelize.col(`${alias}.message`), 8000), 'message'],
   'sent_by',
   'sent_to',
   'role',
@@ -612,70 +696,6 @@ const getAllContactsWithMessages = async ({
         ],
         include: [
           {
-            model: ChatHistory,
-            as: 'chatHistory',
-            // Limit per-parent via correlated subquery em vez de Sequelize limit:
-            // mais rápido (1 query única) que separate:true (N+1 queries),
-            // e funciona corretamente com o parent limit (sem o bug do JOIN).
-            where: {
-              ...chatHistoryWhere,
-              id: {
-                [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
-              },
-            },
-            attributes: chatHistoryMessageAttrs(),
-            required: false,
-            order: [['timestamp', 'DESC']],
-            include: [
-              {
-                model: ChatHistoryContacts,
-                as: 'chatHistoryContacts',
-                attributes: [
-                  'id',
-                  'contact_name',
-                  'cellphone',
-                  'contact_phone',
-                  'message_id',
-                  'created_at',
-                  'updated_at',
-                ],
-              },
-              {
-                model: Template,
-                as: 'template',
-                order: [['template_label', 'ASC']],
-                attributes: [
-                  'id',
-                  'template_name',
-                  'template_label',
-                  'template_category',
-                  'template_status',
-                ],
-                include: [
-                  {
-                    model: TemplateVariable,
-                    as: 'variables',
-                    attributes: [
-                      'id',
-                      'template_id',
-                      'template_component_id',
-                      'template_component_type_id',
-                      'template_varible_type_id',
-                      'variable_position',
-                    ],
-                    include: [
-                      {
-                        model: TemplateVariableType,
-                        as: 'templateVariableType',
-                        attributes: ['id', 'type', 'description', 'n8n_formula'],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-          {
             model: PetOwner,
             as: 'petOwner',
             attributes: [
@@ -729,7 +749,7 @@ const getAllContactsWithMessages = async ({
       }),
     ]);
 
-
+    await anexarUltimasMensagens(contacts, { shouldFilterLatta, chatHistoryWhere });
 
     return {
       contacts,
@@ -878,68 +898,6 @@ const getAllContactsBeingAttended = async ({
         ],
         include: [
           {
-            model: ChatHistory,
-            as: 'chatHistory',
-            // Limit per-parent via correlated subquery — single query, sem N+1
-            where: {
-              ...chatHistoryWhere,
-              id: {
-                [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
-              },
-            },
-            attributes: chatHistoryMessageAttrs(),
-            required: false,
-            order: [['timestamp', 'DESC']],
-            include: [
-              {
-                model: ChatHistoryContacts,
-                as: 'chatHistoryContacts',
-                attributes: [
-                  'id',
-                  'contact_name',
-                  'cellphone',
-                  'contact_phone',
-                  'message_id',
-                  'created_at',
-                  'updated_at',
-                ],
-              },
-              {
-                model: Template,
-                as: 'template',
-                order: [['template_label', 'ASC']],
-                attributes: [
-                  'id',
-                  'template_name',
-                  'template_label',
-                  'template_category',
-                  'template_status',
-                ],
-                include: [
-                  {
-                    model: TemplateVariable,
-                    as: 'variables',
-                    attributes: [
-                      'id',
-                      'template_id',
-                      'template_component_id',
-                      'template_component_type_id',
-                      'template_varible_type_id',
-                      'variable_position',
-                    ],
-                    include: [
-                      {
-                        model: TemplateVariableType,
-                        as: 'templateVariableType',
-                        attributes: ['id', 'type', 'description', 'n8n_formula'],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-          {
             model: PetOwner,
             as: 'petOwner',
             attributes: [
@@ -987,7 +945,7 @@ const getAllContactsBeingAttended = async ({
       }),
     ]);
 
-
+    await anexarUltimasMensagens(contacts, { shouldFilterLatta, chatHistoryWhere });
 
     return {
       contacts,
@@ -1196,71 +1154,6 @@ const searchContacts = async ({
       ],
       include: [
         {
-          model: ChatHistory,
-          as: 'chatHistory',
-          required: false,
-          // Limite por contato via subquery correlacionada, e nao pelo `limit` do
-          // Sequelize: `limit` dentro de include hasMany so funciona com
-          // `separate: true` (N+1 queries) e conflita com o limit do parent. Mesmo
-          // padrao de getAllContactsWithMessages.
-          where: {
-            ...chatHistoryWhere,
-            id: {
-              [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
-            },
-          },
-          attributes: chatHistoryMessageAttrs(),
-          order: [['timestamp', 'DESC']],
-          include: [
-            {
-              model: ChatHistoryContacts,
-              as: 'chatHistoryContacts',
-              attributes: [
-                'id',
-                'contact_name',
-                'cellphone',
-                'contact_phone',
-                'message_id',
-                'created_at',
-                'updated_at',
-              ],
-            },
-            {
-              model: Template,
-              as: 'template',
-              order: [['template_label', 'ASC']],
-              attributes: [
-                'id',
-                'template_name',
-                'template_label',
-                'template_category',
-                'template_status',
-              ],
-              include: [
-                {
-                  model: TemplateVariable,
-                  as: 'variables',
-                  attributes: [
-                    'id',
-                    'template_id',
-                    'template_component_id',
-                    'template_component_type_id',
-                    'template_varible_type_id',
-                    'variable_position',
-                  ],
-                  include: [
-                    {
-                      model: TemplateVariableType,
-                      as: 'templateVariableType',
-                      attributes: ['id', 'type', 'description', 'n8n_formula'],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
           model: PetOwner,
           as: 'petOwner',
           // 🚨 `required: false` nos DOIS níveis. Um include com `where` e sem
@@ -1314,6 +1207,8 @@ const searchContacts = async ({
         },
       ],
     });
+
+    await anexarUltimasMensagens(contacts, { shouldFilterLatta, chatHistoryWhere });
 
     return contacts;
   } catch (error) {
