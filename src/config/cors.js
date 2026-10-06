@@ -14,6 +14,9 @@ const corsConfig = {
     }
   },
   optionsSuccessStatus: 200,
+  // Sem isso o navegador só lembra a permissão por ~5s e refaz o preflight (OPTIONS,
+  // 250 a 500ms medidos no painel) quase a cada chamada. Chrome limita a 2h, Firefox a 24h.
+  maxAge: 86400,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'user-id', 'clinic-id'],
 };
