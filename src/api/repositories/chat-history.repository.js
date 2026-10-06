@@ -582,145 +582,152 @@ const getAllContactsWithMessages = async ({
 
 
 
-    const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
-      where: whereConditions,
-      attributes: {
-        include: atributosDasConversas(shouldFilterLatta, { comClinica: b2bFilter === 'only' }),
-      },
-      limit,
-      offset,
-      distinct: true,
-      // Ordem do parent (contatos) por última timestamp via subquery raw.
-      // Não usar ordem por coluna do include — quebra o `separate: true` abaixo.
-      order: [
-        [
-          Sequelize.literal(`(
-            SELECT MAX(chat_history.timestamp)
-            FROM chat_history
-            WHERE chat_history.contact_id = "Contact".id
-            ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
-          )`),
-          'DESC',
+    // A contagem NÃO leva os includes: o `findAndCountAll` repetia na COUNT todos os
+    // joins da listagem (últimas mensagens por contato, templates, pets e suas 6
+    // relações, tags). São LEFT JOINs opcionais que não mudam o número, e custavam
+    // 5,9s no Geral e 1,5s no B2B [MEDIDO com EXPLAIN ANALYZE em 06/10/2026], contra
+    // 0,9s e 0,18s da busca das linhas. Só o escopo da aba define quantos contatos há.
+    const [totalItems, contacts] = await Promise.all([
+      Contact.count({ where: whereConditions, distinct: true, col: 'id' }),
+      Contact.findAll({
+        where: whereConditions,
+        attributes: {
+          include: atributosDasConversas(shouldFilterLatta, { comClinica: b2bFilter === 'only' }),
+        },
+        limit,
+        offset,
+        // Ordem do parent (contatos) por última timestamp via subquery raw.
+        // Não usar ordem por coluna do include — quebra o `separate: true` abaixo.
+        order: [
+          [
+            Sequelize.literal(`(
+              SELECT MAX(chat_history.timestamp)
+              FROM chat_history
+              WHERE chat_history.contact_id = "Contact".id
+              ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
+            )`),
+            'DESC',
+          ],
+          ['updated_at', 'DESC'],
         ],
-        ['updated_at', 'DESC'],
-      ],
-      include: [
-        {
-          model: ChatHistory,
-          as: 'chatHistory',
-          // Limit per-parent via correlated subquery em vez de Sequelize limit:
-          // mais rápido (1 query única) que separate:true (N+1 queries),
-          // e funciona corretamente com o parent limit (sem o bug do JOIN).
-          where: {
-            ...chatHistoryWhere,
-            id: {
-              [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
-            },
-          },
-          attributes: chatHistoryMessageAttrs(),
-          required: false,
-          order: [['timestamp', 'DESC']],
-          include: [
-            {
-              model: ChatHistoryContacts,
-              as: 'chatHistoryContacts',
-              attributes: [
-                'id',
-                'contact_name',
-                'cellphone',
-                'contact_phone',
-                'message_id',
-                'created_at',
-                'updated_at',
-              ],
-            },
-            {
-              model: Template,
-              as: 'template',
-              order: [['template_label', 'ASC']],
-              attributes: [
-                'id',
-                'template_name',
-                'template_label',
-                'template_category',
-                'template_status',
-              ],
-              include: [
-                {
-                  model: TemplateVariable,
-                  as: 'variables',
-                  attributes: [
-                    'id',
-                    'template_id',
-                    'template_component_id',
-                    'template_component_type_id',
-                    'template_varible_type_id',
-                    'variable_position',
-                  ],
-                  include: [
-                    {
-                      model: TemplateVariableType,
-                      as: 'templateVariableType',
-                      attributes: ['id', 'type', 'description', 'n8n_formula'],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: PetOwner,
-          as: 'petOwner',
-          attributes: [
-            'id',
-            'name',
-            'email',
-            'cell_phone',
-            'cpf',
-            'date_of_birth',
-            'is_active',
-            'created_at',
-          ],
-          include: [
-            {
-              model: Pet,
-              as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
-              through: { attributes: [] },
-              where: { is_active: true }, // ← MANTÉM O FILTRO
-              required: false, // ← ADICIONA ESTA LINHA!
-              include: [
-                { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
-                { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
-                { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
-                { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
-                { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
-                { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
-              ],
-            },
-            {
-              model: PetOwnerTag,
-              as: 'tags',
-              attributes: ['id', 'name', 'label', 'color', 'is_active'],
-              through: {
-                attributes: ['assigned_at', 'user_id'],
+        include: [
+          {
+            model: ChatHistory,
+            as: 'chatHistory',
+            // Limit per-parent via correlated subquery em vez de Sequelize limit:
+            // mais rápido (1 query única) que separate:true (N+1 queries),
+            // e funciona corretamente com o parent limit (sem o bug do JOIN).
+            where: {
+              ...chatHistoryWhere,
+              id: {
+                [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
               },
-              order: [['name', 'ASC']],
-              where: { is_active: true },
-              required: false,
             },
-            // ⚠️ Order include removido do listing.
-            // Único consumidor de petOwner.orders é o painel de detalhes
-            // (InfosSection.jsx) — que já chama getContactByPetOwnerId.
-            // Manter Orders + OrderItem aqui custava 14+ colunas x N pedidos
-            // x M itens por contato (até 15 contatos no listing) — peso real
-            // na latência do "Carregando conversas...". Mantido nos handlers
-            // de detalhe (getContactByPetOwnerId / getContactByContactId).
-          ],
-        },
-      ],
-    });
+            attributes: chatHistoryMessageAttrs(),
+            required: false,
+            order: [['timestamp', 'DESC']],
+            include: [
+              {
+                model: ChatHistoryContacts,
+                as: 'chatHistoryContacts',
+                attributes: [
+                  'id',
+                  'contact_name',
+                  'cellphone',
+                  'contact_phone',
+                  'message_id',
+                  'created_at',
+                  'updated_at',
+                ],
+              },
+              {
+                model: Template,
+                as: 'template',
+                order: [['template_label', 'ASC']],
+                attributes: [
+                  'id',
+                  'template_name',
+                  'template_label',
+                  'template_category',
+                  'template_status',
+                ],
+                include: [
+                  {
+                    model: TemplateVariable,
+                    as: 'variables',
+                    attributes: [
+                      'id',
+                      'template_id',
+                      'template_component_id',
+                      'template_component_type_id',
+                      'template_varible_type_id',
+                      'variable_position',
+                    ],
+                    include: [
+                      {
+                        model: TemplateVariableType,
+                        as: 'templateVariableType',
+                        attributes: ['id', 'type', 'description', 'n8n_formula'],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: PetOwner,
+            as: 'petOwner',
+            attributes: [
+              'id',
+              'name',
+              'email',
+              'cell_phone',
+              'cpf',
+              'date_of_birth',
+              'is_active',
+              'created_at',
+            ],
+            include: [
+              {
+                model: Pet,
+                as: 'pets',
+                attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
+                through: { attributes: [] },
+                where: { is_active: true }, // ← MANTÉM O FILTRO
+                required: false, // ← ADICIONA ESTA LINHA!
+                include: [
+                  { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
+                  { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
+                  { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
+                  { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
+                  { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
+                  { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
+                ],
+              },
+              {
+                model: PetOwnerTag,
+                as: 'tags',
+                attributes: ['id', 'name', 'label', 'color', 'is_active'],
+                through: {
+                  attributes: ['assigned_at', 'user_id'],
+                },
+                order: [['name', 'ASC']],
+                where: { is_active: true },
+                required: false,
+              },
+              // ⚠️ Order include removido do listing.
+              // Único consumidor de petOwner.orders é o painel de detalhes
+              // (InfosSection.jsx) — que já chama getContactByPetOwnerId.
+              // Manter Orders + OrderItem aqui custava 14+ colunas x N pedidos
+              // x M itens por contato (até 15 contatos no listing) — peso real
+              // na latência do "Carregando conversas...". Mantido nos handlers
+              // de detalhe (getContactByPetOwnerId / getContactByContactId).
+            ],
+          },
+        ],
+      }),
+    ]);
 
 
 
@@ -845,133 +852,140 @@ const getAllContactsBeingAttended = async ({
 
 
 
-    const { count: totalItems, rows: contacts } = await Contact.findAndCountAll({
-      where: whereConditions,
-      attributes: { include: atributosDasConversas(shouldFilterLatta) },
-      limit,
-      offset,
-      distinct: true,
-      order: [
-        [
-          Sequelize.literal(`(
-            SELECT MAX(chat_history.timestamp)
-            FROM chat_history
-            WHERE chat_history.contact_id = "Contact".id
-            ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
-          )`),
-          'DESC',
+    // A contagem NÃO leva os includes: o `findAndCountAll` repetia na COUNT todos os
+    // joins da listagem (últimas mensagens por contato, templates, pets e suas 6
+    // relações, tags). São LEFT JOINs opcionais que não mudam o número, e custavam
+    // 5,9s no Geral e 1,5s no B2B [MEDIDO com EXPLAIN ANALYZE em 06/10/2026], contra
+    // 0,9s e 0,18s da busca das linhas. Só o escopo da aba define quantos contatos há.
+    const [totalItems, contacts] = await Promise.all([
+      Contact.count({ where: whereConditions, distinct: true, col: 'id' }),
+      Contact.findAll({
+        where: whereConditions,
+        attributes: { include: atributosDasConversas(shouldFilterLatta) },
+        limit,
+        offset,
+        order: [
+          [
+            Sequelize.literal(`(
+              SELECT MAX(chat_history.timestamp)
+              FROM chat_history
+              WHERE chat_history.contact_id = "Contact".id
+              ${shouldFilterLatta ? `AND chat_history.path != 'latta'` : ''}
+            )`),
+            'DESC',
+          ],
+          ['updated_at', 'DESC'],
         ],
-        ['updated_at', 'DESC'],
-      ],
-      include: [
-        {
-          model: ChatHistory,
-          as: 'chatHistory',
-          // Limit per-parent via correlated subquery — single query, sem N+1
-          where: {
-            ...chatHistoryWhere,
-            id: {
-              [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
-            },
-          },
-          attributes: chatHistoryMessageAttrs(),
-          required: false,
-          order: [['timestamp', 'DESC']],
-          include: [
-            {
-              model: ChatHistoryContacts,
-              as: 'chatHistoryContacts',
-              attributes: [
-                'id',
-                'contact_name',
-                'cellphone',
-                'contact_phone',
-                'message_id',
-                'created_at',
-                'updated_at',
-              ],
-            },
-            {
-              model: Template,
-              as: 'template',
-              order: [['template_label', 'ASC']],
-              attributes: [
-                'id',
-                'template_name',
-                'template_label',
-                'template_category',
-                'template_status',
-              ],
-              include: [
-                {
-                  model: TemplateVariable,
-                  as: 'variables',
-                  attributes: [
-                    'id',
-                    'template_id',
-                    'template_component_id',
-                    'template_component_type_id',
-                    'template_varible_type_id',
-                    'variable_position',
-                  ],
-                  include: [
-                    {
-                      model: TemplateVariableType,
-                      as: 'templateVariableType',
-                      attributes: ['id', 'type', 'description', 'n8n_formula'],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: PetOwner,
-          as: 'petOwner',
-          attributes: [
-            'id',
-            'name',
-            'email',
-            'cell_phone',
-            'cpf',
-            'date_of_birth',
-            'is_active',
-            'created_at',
-          ],
-          include: [
-            {
-              model: Pet,
-              as: 'pets',
-              attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
-              through: { attributes: [] },
-              where: { is_active: true },
-              required: false,
-              include: [
-                { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
-                { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
-                { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
-                { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
-                { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
-                { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
-              ],
-            },
-            {
-              model: PetOwnerTag,
-              as: 'tags',
-              attributes: ['id', 'name', 'label', 'color', 'is_active'],
-              through: {
-                attributes: ['assigned_at', 'user_id'],
+        include: [
+          {
+            model: ChatHistory,
+            as: 'chatHistory',
+            // Limit per-parent via correlated subquery — single query, sem N+1
+            where: {
+              ...chatHistoryWhere,
+              id: {
+                [Op.in]: Sequelize.literal(ultimasMensagensPorConversaSql(shouldFilterLatta)),
               },
-              order: [['name', 'ASC']],
-              where: { is_active: true },
-              required: false,
             },
-            // Order include removido — listing não usa orders no preview.
-          ],
-        },
-      ],
-    });
+            attributes: chatHistoryMessageAttrs(),
+            required: false,
+            order: [['timestamp', 'DESC']],
+            include: [
+              {
+                model: ChatHistoryContacts,
+                as: 'chatHistoryContacts',
+                attributes: [
+                  'id',
+                  'contact_name',
+                  'cellphone',
+                  'contact_phone',
+                  'message_id',
+                  'created_at',
+                  'updated_at',
+                ],
+              },
+              {
+                model: Template,
+                as: 'template',
+                order: [['template_label', 'ASC']],
+                attributes: [
+                  'id',
+                  'template_name',
+                  'template_label',
+                  'template_category',
+                  'template_status',
+                ],
+                include: [
+                  {
+                    model: TemplateVariable,
+                    as: 'variables',
+                    attributes: [
+                      'id',
+                      'template_id',
+                      'template_component_id',
+                      'template_component_type_id',
+                      'template_varible_type_id',
+                      'variable_position',
+                    ],
+                    include: [
+                      {
+                        model: TemplateVariableType,
+                        as: 'templateVariableType',
+                        attributes: ['id', 'type', 'description', 'n8n_formula'],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: PetOwner,
+            as: 'petOwner',
+            attributes: [
+              'id',
+              'name',
+              'email',
+              'cell_phone',
+              'cpf',
+              'date_of_birth',
+              'is_active',
+              'created_at',
+            ],
+            include: [
+              {
+                model: Pet,
+                as: 'pets',
+                attributes: ['id', 'name', 'date_of_birthday', 'photo', 'photo_thumb', 'pet_subscription_id'],
+                through: { attributes: [] },
+                where: { is_active: true },
+                required: false,
+                include: [
+                  { model: PetType, as: 'type', attributes: ['id', 'name', 'label'] },
+                  { model: PetBreed, as: 'breed', attributes: ['id', 'name', 'label'] },
+                  { model: PetGender, as: 'gender', attributes: ['id', 'name', 'label'] },
+                  { model: PetSize, as: 'size', attributes: ['id', 'name', 'label'] },
+                  { model: PetFurLength, as: 'furLength', attributes: ['id', 'name', 'label'] },
+                  { model: PetSubscription, as: 'subscription', attributes: ['id', 'name'] },
+                ],
+              },
+              {
+                model: PetOwnerTag,
+                as: 'tags',
+                attributes: ['id', 'name', 'label', 'color', 'is_active'],
+                through: {
+                  attributes: ['assigned_at', 'user_id'],
+                },
+                order: [['name', 'ASC']],
+                where: { is_active: true },
+                required: false,
+              },
+              // Order include removido — listing não usa orders no preview.
+            ],
+          },
+        ],
+      }),
+    ]);
 
 
 

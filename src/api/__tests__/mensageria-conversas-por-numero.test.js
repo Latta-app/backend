@@ -23,7 +23,9 @@ const TUTOR = '587778224419344';
 const ESTABELECIMENTO = '714853578383901';
 const PESSOA = '22222222-2222-2222-2222-222222222222';
 
-const findAndCountAll = vi.fn(async () => ({ count: 0, rows: [] }));
+// A lista pede as linhas (findAll, com os includes) e a contagem (count, SEM includes) em separado.
+const listaDeContatos = vi.fn(async () => []);
+const contagemDeContatos = vi.fn(async () => 0);
 const findOne = vi.fn(async () => null);
 const count = vi.fn(async () => 0);
 vi.mock('../models/index.js', () => {
@@ -32,9 +34,9 @@ vi.mock('../models/index.js', () => {
     ChatHistory: { count: (...a) => count(...a) },
     ChatHistoryContacts: vazio,
     Contact: {
-      findAndCountAll: (...a) => findAndCountAll(...a),
+      count: (...a) => contagemDeContatos(...a),
       findOne: (...a) => findOne(...a),
-      findAll: vi.fn(async () => []),
+      findAll: (...a) => listaDeContatos(...a),
       sequelize: { query: vi.fn(async () => []) },
     },
     Order: { findAll: vi.fn(async () => []) },
@@ -104,7 +106,8 @@ const listar = async (servico, contato) => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  findAndCountAll.mockClear();
+  listaDeContatos.mockClear();
+  contagemDeContatos.mockClear();
   findOne.mockClear();
   process.env.WHATSAPP_PHONE_NUMBER_ID = TUTOR;
   process.env.WHATSAPP_B2B_PHONE_NUMBER_ID = ESTABELECIMENTO;
@@ -194,7 +197,7 @@ describe('sem o número novo no backend, a lista é a de antes', () => {
 describe('🚨 fiação: a query real do repositório', () => {
   const opcoesDaLista = async (fn = 'getAllContactsWithMessages', extra = {}) => {
     await ChatRepository[fn]({ role: 'admin', page: 1, limit: 15, ...extra });
-    return findAndCountAll.mock.calls.at(-1)[0];
+    return listaDeContatos.mock.calls.at(-1)[0];
   };
   const sqlDe = (v) => {
     if (v == null) return '';
@@ -205,6 +208,18 @@ describe('🚨 fiação: a query real do repositório', () => {
     for (const k of Reflect.ownKeys(v)) partes.push(sqlDe(v[k]));
     return partes.join('\n');
   };
+
+  it('a contagem da lista não leva os includes (custava 5,9s no Geral) e usa o mesmo escopo', async () => {
+    for (const fn of ['getAllContactsWithMessages', 'getAllContactsBeingAttended']) {
+      contagemDeContatos.mockClear();
+      const opcoes = await opcoesDaLista(fn);
+      const contagem = contagemDeContatos.mock.calls.at(-1)[0];
+
+      expect(contagem.include).toBeUndefined();
+      expect(contagem.distinct).toBe(true);
+      expect(contagem.where).toBe(opcoes.where);
+    }
+  });
 
   it('pede as duas marcas de conversa e as últimas mensagens de CADA número', async () => {
     const opcoes = await opcoesDaLista();
