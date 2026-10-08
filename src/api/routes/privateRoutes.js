@@ -34,6 +34,7 @@ import N8NRoutes from './private/n8n.routes.js';
 import WebScrappingRoutes from './private/web-scrapping.route.js';
 import VarejonlineRoutes from './private/varejonline.routes.js';
 import PrescrapeRoutes from './private/prescrape.routes.js';
+import { requireN8nServiceSecret } from '../middlewares/n8n-service-auth.middleware.js';
 
 const router = Router();
 
@@ -74,6 +75,7 @@ router.use('/users', UserRoutes);
 router.use('/vaccine', VaccineRoutes);
 router.use(
   '/n8n',
+  requireN8nServiceSecret,
   express.json({ limit: '50mb' }),
   express.urlencoded({ extended: true, limit: '50mb' }),
   N8NRoutes,
