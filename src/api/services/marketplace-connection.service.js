@@ -8,8 +8,8 @@
 // deu. Ver docs/issues/petz-conexao-observabilidade-resgate/PROPOSTA.md.
 //
 // Leitura: RPC get_petz_connection (não devolve CPF nem token).
-// Escrita: operação petz_force_connect da EF chat-engine — de propósito, e NÃO
-// a petz_resend_sms do marketplace-service: só o caminho da chat-engine ARMA A
+// Escrita: operação petz_force_connect da EF chat-engine-v2 — de propósito, e NÃO
+// a petz_resend_sms do marketplace-service: só o caminho da chat-engine-v2 ARMA A
 // PENDÊNCIA no Redis, sem a qual o tutor responde os 6 dígitos e ninguém
 // captura (PROPOSTA.md §3.3, armadilha 1).
 
@@ -19,7 +19,9 @@ import { decideJanela24h, ultimoInboundQueAbreJanelaSql } from '../../utils/cust
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const CHAT_ENGINE_URL = `${SUPABASE_URL}/functions/v1/chat-engine`;
+// A v2 desde 13/10/2026 (fase final da aposentadoria da chat-engine v1): a op `petz_force_connect` já era reencaminhada pra v2 pela v1,
+// com o mesmo corpo e a mesma resposta (`success`, `data.message`, `data.channel`). Rollback: reverter este commit.
+const CHAT_ENGINE_URL = `${SUPABASE_URL}/functions/v1/chat-engine-v2`;
 
 /**
  * Janela de mensagem livre do WhatsApp: 24h desde a última mensagem DO TUTOR
@@ -107,7 +109,7 @@ export const sendCode = async ({ phone, channel, message }) => {
   const body = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const err = new Error(body?.error || `chat-engine retornou ${res.status}`);
+    const err = new Error(body?.error || `chat-engine-v2 retornou ${res.status}`);
     err.status = res.status;
     throw err;
   }
