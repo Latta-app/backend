@@ -40,6 +40,22 @@ router.get(
   DashboardController.getOnboardingFunnel,
 );
 
+// Funil do onboarding v2 (por braço, lido de onboarding_eventos) e a lista
+// de pessoas: rodada virada-do-onboarding-pro-a, Lane 2, no monorepo.
+router.get(
+  '/onboarding-funnel-v2',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getOnboardingFunnelV2,
+);
+
+router.get(
+  '/onboarding-pessoas',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getOnboardingPessoas,
+);
+
 router.get(
   '/activity-funnel',
   verifyToken,

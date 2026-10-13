@@ -10,6 +10,10 @@ const ALLOWED_ACTIONS = new Set([
   'drilldown',
   'funnel_step',
   'onboarding_funnel',
+  // Funil do onboarding v2 (lê onboarding_eventos, por braço) e a lista de
+  // pessoas: rodada virada-do-onboarding-pro-a, Lane 2, no monorepo.
+  'onboarding_funnel_v2',
+  'onboarding_pessoas',
   'activity_funnel',
   'pro_revenue_channels',
   'cohort_retention',
@@ -39,6 +43,8 @@ const ALLOWED_FUNNEL_STEPS = new Set([
   'completed',
 ]);
 const ALLOWED_ONBOARDING_SCOPES = new Set(['cohort', 'all']);
+// Braço do onboarding: A (o redesenho) ou B (o caminho curto).
+const ALLOWED_BRACOS = new Set(['A', 'B']);
 
 const buildUrl = ({
   action,
@@ -51,6 +57,7 @@ const buildUrl = ({
   lookbackDays,
   event,
   limit,
+  braco,
   includeTest,
   refresh,
 }) => {
@@ -66,6 +73,7 @@ const buildUrl = ({
   if (lookbackDays != null) params.set('lookback_days', String(lookbackDays));
   if (event) params.set('event', event);
   if (limit != null) params.set('limit', String(limit));
+  if (braco) params.set('braco', braco);
   if (includeTest === true) params.set('include_test', 'true');
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
@@ -83,6 +91,7 @@ const callDashboardMetrics = async ({
   lookbackDays,
   event,
   limit,
+  braco,
   includeTest,
   refresh = false,
 } = {}) => {
@@ -121,6 +130,12 @@ const callDashboardMetrics = async ({
       throw new Error('isPro deve ser boolean (ou omitido para "todos")');
     }
   }
+  if (action === 'onboarding_funnel_v2' && !ALLOWED_BRACOS.has(braco)) {
+    throw new Error(`braco é obrigatório para onboarding_funnel_v2 (A ou B): ${braco}`);
+  }
+  if (action === 'onboarding_pessoas' && braco != null && !ALLOWED_BRACOS.has(braco)) {
+    throw new Error(`braco inválido para onboarding_pessoas (A, B ou omitido): ${braco}`);
+  }
   if (phone && !/^\d{10,15}$/.test(phone)) {
     throw new Error('phone inválido (apenas dígitos, 10-15)');
   }
@@ -134,7 +149,7 @@ const callDashboardMetrics = async ({
     throw new Error(`event inválido: ${event}`);
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, limit, includeTest, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, limit, braco, includeTest, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -166,6 +181,12 @@ const getFunnelStep = async ({ step, window, scope, isPro, includeTest, refresh 
 const getOnboardingFunnel = async ({ window, scope, isPro, includeTest, refresh } = {}) =>
   callDashboardMetrics({ action: 'onboarding_funnel', window, scope, isPro, includeTest, refresh });
 
+const getOnboardingFunnelV2 = async ({ window, braco, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'onboarding_funnel_v2', window, braco, includeTest, refresh });
+
+const getOnboardingPessoas = async ({ window, braco, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'onboarding_pessoas', window, braco, includeTest, refresh });
+
 const getActivityFunnel = async ({ window, scope, isPro, includeTest, refresh } = {}) =>
   callDashboardMetrics({ action: 'activity_funnel', window, scope, isPro, includeTest, refresh });
 
@@ -191,6 +212,8 @@ export default {
   getContactDrilldown,
   getFunnelStep,
   getOnboardingFunnel,
+  getOnboardingFunnelV2,
+  getOnboardingPessoas,
   getActivityFunnel,
   getProRevenueChannels,
   getCohortRetention,

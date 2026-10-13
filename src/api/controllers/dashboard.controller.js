@@ -167,6 +167,54 @@ const getOnboardingFunnel = async (req, res) => {
   }
 };
 
+// Braço vem como 'A'/'B' (case-insensitive); vazio = omitido.
+const parseBraco = (q) => {
+  const raw = String(q?.braco ?? '').trim().toUpperCase();
+  return raw || undefined;
+};
+
+const getOnboardingFunnelV2 = async (req, res) => {
+  try {
+    const result = await DashboardService.getOnboardingFunnelV2({
+      window: req.query.window,
+      braco: parseBraco(req.query),
+      includeTest: parseIncludeTest(req.query),
+      refresh: parseRefresh(req.query),
+    });
+    return res.status(200).json({
+      code: 'DASHBOARD_ONBOARDING_FUNNEL_V2_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard onboarding funnel v2:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_ONBOARDING_FUNNEL_V2_ERROR',
+      message: error.message,
+    });
+  }
+};
+
+const getOnboardingPessoas = async (req, res) => {
+  try {
+    const result = await DashboardService.getOnboardingPessoas({
+      window: req.query.window,
+      braco: parseBraco(req.query),
+      includeTest: parseIncludeTest(req.query),
+      refresh: parseRefresh(req.query),
+    });
+    return res.status(200).json({
+      code: 'DASHBOARD_ONBOARDING_PESSOAS_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dashboard onboarding pessoas:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_ONBOARDING_PESSOAS_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 const getProRevenueChannels = async (req, res) => {
   try {
     const result = await DashboardService.getProRevenueChannels({
@@ -292,6 +340,8 @@ export default {
   getContactDrilldown,
   getFunnelStep,
   getOnboardingFunnel,
+  getOnboardingFunnelV2,
+  getOnboardingPessoas,
   getActivityFunnel,
   getProRevenueChannels,
   getCohortRetention,
