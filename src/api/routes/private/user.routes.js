@@ -4,10 +4,14 @@ import { verifyToken, checkRole } from '../../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/create-admin', UserController.createAdmin);
-router.post('/create-veterinary', UserController.createVeterinary);
-router.post('/create-pet-owner', UserController.createPetOwner);
-router.post('/create-user', UserController.createUser);
+// Criar usuario NUNCA e rota aberta: sem login, qualquer pessoa criava um admin.
+// Nenhum cliente conhecido (frontend, funcoes de borda, n8n do repositorio)
+// chama estas quatro rotas sem token; so admin e superAdmin criam usuarios.
+const soAdmin = [verifyToken, checkRole(['admin', 'superAdmin'])];
+router.post('/create-admin', ...soAdmin, UserController.createAdmin);
+router.post('/create-veterinary', ...soAdmin, UserController.createVeterinary);
+router.post('/create-pet-owner', ...soAdmin, UserController.createPetOwner);
+router.post('/create-user', ...soAdmin, UserController.createUser);
 
 router.get(
   '/veterinaries',
