@@ -2,7 +2,6 @@ import n8nService from '../services/n8n.service.js';
 
 const decryptWhatsAppFlow = async (req, res) => {
   try {
-    console.log('[decryptWhatsAppFlow] Body recebido:', JSON.stringify(req.body, null, 2));
 
     const { encrypted_flow_data, encrypted_aes_key, initial_vector } = req.body;
     const { decryptFlowPayload, encryptFlowResponse } = n8nService;
@@ -19,7 +18,6 @@ const decryptWhatsAppFlow = async (req, res) => {
       initial_vector,
     });
 
-    console.log('[decryptWhatsAppFlow] Payload descriptografado:', JSON.stringify(data, null, 2));
     console.log('[decryptWhatsAppFlow] Ação:', data.action);
 
     if (data.action === 'ping') {
@@ -110,7 +108,6 @@ const encryptWhatsAppResponse = async (req, res) => {
 const decryptMedia = async (req, res) => {
   try {
     console.log('[decryptMedia] Nova requisição recebida');
-    console.log('[decryptMedia] Body recebido:', JSON.stringify(req.body, null, 2));
 
     const pet_photo =
       (Array.isArray(req.body) && req.body) ||
