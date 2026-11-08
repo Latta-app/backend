@@ -20,11 +20,17 @@ const ALLOWED_ACTIONS = new Set([
   'time_to_event',
   'search',
   'client_ranking',
+  // Contador de mensagens por tutor (ação de Black Friday, 08/11/2026).
+  'contador_mensagens',
 ]);
 
 // Janelas próprias do ranking de clientes/itens (issue 06 de
 // docs/issues/mensageria-metricas-e-moods/ no monorepo) — inclui lifetime.
 const ALLOWED_RANKING_WINDOWS = new Set(['30d', '90d', 'lifetime']);
+
+// Períodos fechados do contador (a EF define as datas em
+// lib/periodo-do-contador.ts no monorepo; aqui é só a lista permitida).
+const ALLOWED_PERIODOS_CONTADOR = new Set(['acao', 'black_friday', 'hoje']);
 
 const ALLOWED_TIME_TO_EVENT = new Set(['first_purchase', 'first_pro', 'first_utilization']);
 const ALLOWED_FUNNEL_STEPS = new Set([
@@ -58,6 +64,7 @@ const buildUrl = ({
   event,
   limit,
   braco,
+  periodo,
   includeTest,
   refresh,
 }) => {
@@ -74,6 +81,7 @@ const buildUrl = ({
   if (event) params.set('event', event);
   if (limit != null) params.set('limit', String(limit));
   if (braco) params.set('braco', braco);
+  if (periodo) params.set('periodo', periodo);
   if (includeTest === true) params.set('include_test', 'true');
   if (refresh) params.set('refresh', '1');
   const query = params.toString();
@@ -92,6 +100,7 @@ const callDashboardMetrics = async ({
   event,
   limit,
   braco,
+  periodo,
   includeTest,
   refresh = false,
 } = {}) => {
@@ -109,6 +118,13 @@ const callDashboardMetrics = async ({
     }
     if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > 50)) {
       throw new Error('limit deve ser inteiro entre 1 e 50');
+    }
+  } else if (action === 'contador_mensagens') {
+    if (periodo && !ALLOWED_PERIODOS_CONTADOR.has(periodo)) {
+      throw new Error(`periodo inválido para contador_mensagens: ${periodo}`);
+    }
+    if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > 1000)) {
+      throw new Error('limit deve ser inteiro entre 1 e 1000');
     }
   } else if (window && !ALLOWED_WINDOWS.has(window)) {
     throw new Error(`window inválida: ${window}`);
@@ -149,7 +165,7 @@ const callDashboardMetrics = async ({
     throw new Error(`event inválido: ${event}`);
   }
 
-  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, limit, braco, includeTest, refresh });
+  const url = buildUrl({ action, window, phone, step, scope, q, isPro, lookbackDays, event, limit, braco, periodo, includeTest, refresh });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -206,6 +222,10 @@ const searchPhone = async ({ q } = {}) =>
 const getClientRanking = async ({ window, limit, includeTest, refresh } = {}) =>
   callDashboardMetrics({ action: 'client_ranking', window, limit, includeTest, refresh });
 
+// Contador de mensagens por tutor desde 08/11/2026 (ação de Black Friday).
+const getContadorDeMensagens = async ({ periodo, limit, includeTest, refresh } = {}) =>
+  callDashboardMetrics({ action: 'contador_mensagens', periodo, limit, includeTest, refresh });
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
@@ -220,4 +240,5 @@ export default {
   getTimeToEvent,
   searchPhone,
   getClientRanking,
+  getContadorDeMensagens,
 };

@@ -334,6 +334,29 @@ const getClientRanking = async (req, res) => {
   }
 };
 
+const getContadorDeMensagens = async (req, res) => {
+  try {
+    const rawLimit = req.query.limit != null ? parseInt(req.query.limit, 10) : undefined;
+    const result = await DashboardService.getContadorDeMensagens({
+      periodo: req.query.periodo,
+      limit: Number.isInteger(rawLimit) ? rawLimit : undefined,
+      includeTest: parseIncludeTest(req.query),
+      refresh: parseRefresh(req.query),
+    });
+
+    return res.status(200).json({
+      code: 'DASHBOARD_CONTADOR_MENSAGENS_RETRIEVED',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar contador de mensagens:', error);
+    return res.status(500).json({
+      code: 'DASHBOARD_CONTADOR_MENSAGENS_ERROR',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   getDashboardSummary,
   getAbandonedFlows,
@@ -348,4 +371,5 @@ export default {
   getTimeToEvent,
   searchPhone,
   getClientRanking,
+  getContadorDeMensagens,
 };
