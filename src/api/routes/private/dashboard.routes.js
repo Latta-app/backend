@@ -100,4 +100,12 @@ router.get(
   DashboardController.getClientRanking,
 );
 
+// Contador de mensagens por tutor desde 08/11/2026 (ação de Black Friday).
+router.get(
+  '/contador-mensagens',
+  verifyToken,
+  checkRole(ALLOWED),
+  DashboardController.getContadorDeMensagens,
+);
+
 export default router;
